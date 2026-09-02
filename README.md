@@ -155,15 +155,16 @@ You control a diamond Marker moving along the perimeter of an uncaptured playfie
 | **Move Cursor** | `W`, `A`, `S`, `D` or Arrow Keys | `W`, `A`, `S`, `D` or Arrow Keys |
 | **Slow Draw (2x Points)** | Hold `Space` + Direction | Hold `Space` or `Ctrl` + Direction |
 | **Fast Draw (1x Points)** | Hold `F` + Direction | Hold `Shift` or `F` + Direction |
-| **Adjust Speed (Pacing)** | `-` / `[` (Slower), `+` / `]` (Faster) | Fixed 60 FPS |
+| **Adjust Speed (Pacing)** | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) |
 | **Restart Session** | `R` | `R` |
 | **Next Level (on victory)**| Automatic / Step | `Space` or `Return` |
 | **Quit Game** | `Q` | `Escape` / Close Window |
 
-The Terminal client supports configurable startup speed via CLI flags:
+Both the Terminal and Desktop GUI clients support configurable startup speed via CLI flags:
 ```bash
-./build/bin/qix_tui --delay 100   # 100 ms tick delay (slower, relaxed)
-./build/bin/qix_tui --fps 15       # Target 15 FPS (~66 ms tick delay)
+./build/bin/qix_gui --delay 100   # 100 ms tick delay (slower, relaxed)
+./build/bin/qix_gui --fps 15       # Target 15 FPS (~66 ms tick delay)
+./build/bin/qix_tui --delay 100   # Terminal client
 ```
 
 ### Scoring & Territory Rules

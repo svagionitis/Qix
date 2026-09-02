@@ -21,6 +21,12 @@ void QixCanvas::updateView(const GameView& view)
     update();
 }
 
+void QixCanvas::setDelayMs(std::uint32_t delayMs) noexcept
+{
+    m_delayMs = delayMs;
+    update();
+}
+
 void QixCanvas::paintEvent(QPaintEvent* event)
 {
     Q_UNUSED(event);
@@ -62,20 +68,20 @@ void QixCanvas::drawHud(QPainter& painter)
     painter.setPen(QColor(160, 174, 192));
     painter.drawText(20, 28, "SCORE:");
     painter.setPen(QColor(246, 224, 94));
-    painter.drawText(80, 28, QString::number(m_view.stats.score));
+    painter.drawText(75, 28, QString::number(m_view.stats.score));
 
     // Claimed Percentage
     painter.setPen(QColor(160, 174, 192));
-    painter.drawText(200, 28, "CLAIMED:");
+    painter.drawText(175, 28, "CLAIMED:");
     const auto percent = m_view.stats.claimedPercent;
     const auto target = m_view.stats.targetPercent;
     painter.setPen(percent >= target ? QColor(72, 187, 120) : QColor(99, 179, 237));
-    painter.drawText(280, 28, QString("%1% / %2%").arg(percent).arg(target));
+    painter.drawText(245, 28, QString("%1% / %2%").arg(percent).arg(target));
 
     // Progress Bar
-    const int barX = 400;
+    const int barX = 345;
     const int barY = 16;
-    const int barW = 150;
+    const int barW = 110;
     const int barH = 14;
     painter.setPen(Qt::NoPen);
     painter.fillRect(barX, barY, barW, barH, QColor(30, 41, 59));
@@ -84,18 +90,24 @@ void QixCanvas::drawHud(QPainter& painter)
 
     // Lives
     painter.setPen(QColor(160, 174, 192));
-    painter.drawText(580, 28, "LIVES:");
+    painter.drawText(475, 28, "LIVES:");
     for (int i = 0; i < m_view.stats.lives; ++i) {
         painter.setBrush(QColor(245, 101, 101));
         painter.setPen(Qt::NoPen);
-        painter.drawEllipse(640 + i * 18, 18, 12, 12);
+        painter.drawEllipse(530 + i * 16, 18, 12, 12);
     }
+
+    // Speed / Delay
+    painter.setPen(QColor(160, 174, 192));
+    painter.drawText(width() - 200, 28, "SPEED:");
+    painter.setPen(QColor(56, 178, 172));
+    painter.drawText(width() - 145, 28, QString("%1ms").arg(m_delayMs));
 
     // Level
     painter.setPen(QColor(160, 174, 192));
-    painter.drawText(width() - 110, 28, "LEVEL:");
+    painter.drawText(width() - 90, 28, "LEVEL:");
     painter.setPen(QColor(183, 148, 244));
-    painter.drawText(width() - 50, 28, QString::number(m_view.stats.level));
+    painter.drawText(width() - 35, 28, QString::number(m_view.stats.level));
 
     painter.restore();
 }

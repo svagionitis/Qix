@@ -3,19 +3,47 @@
 
 namespace qix::gui {
 
-MainWindow::MainWindow(std::unique_ptr<IQixGame> game, QWidget* parent)
+MainWindow::MainWindow(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, QWidget* parent)
     : QMainWindow {parent}
     , m_game {std::move(game)}
+    , m_delayMs {SpeedConfig::clampDelay(delayMs)}
 {
     setWindowTitle("Qix Arcade (C++17)");
     resize(960, 720);
 
     m_canvas = new QixCanvas(this);
+    m_canvas->setDelayMs(m_delayMs);
     setCentralWidget(m_canvas);
 
-    // 60 FPS simulation and rendering loop
+    // Dynamic simulation and rendering loop
     connect(&m_timer, &QTimer::timeout, this, &MainWindow::onTick);
-    m_timer.start(16);
+    m_timer.start(static_cast<int>(m_delayMs));
+}
+
+std::uint32_t MainWindow::getDelayMs() const noexcept
+{
+    return m_delayMs;
+}
+
+void MainWindow::setDelayMs(std::uint32_t delayMs) noexcept
+{
+    m_delayMs = SpeedConfig::clampDelay(delayMs);
+    if (m_timer.isActive()) {
+        m_timer.setInterval(static_cast<int>(m_delayMs));
+    }
+    if (m_canvas != nullptr) {
+        m_canvas->setDelayMs(m_delayMs);
+    }
+}
+
+void MainWindow::speedUp() noexcept
+{
+    setDelayMs(SpeedConfig::speedUp(m_delayMs));
+}
+
+void MainWindow::speedDown() noexcept
+{
+    setDelayMs(SpeedConfig::speedDown(m_delayMs));
 }
 
 void MainWindow::onTick()
@@ -25,7 +53,7 @@ void MainWindow::onTick()
     }
 
     m_game->handleInput(m_currentCmd);
-    m_game->step(16);
+    m_game->step(m_delayMs);
 
     m_canvas->updateView(m_game->getView());
 
@@ -74,6 +102,16 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
     case Qt::Key_Shift:
     case Qt::Key_F:
         m_currentCmd.drawMode = DrawMode::Fast;
+        break;
+    case Qt::Key_Minus:
+    case Qt::Key_BracketLeft:
+    case Qt::Key_Underscore:
+        speedDown();
+        break;
+    case Qt::Key_Plus:
+    case Qt::Key_Equal:
+    case Qt::Key_BracketRight:
+        speedUp();
         break;
     case Qt::Key_R:
         m_game->reset();

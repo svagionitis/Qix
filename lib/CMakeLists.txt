@@ -14,6 +14,8 @@ add_library(qix_core STATIC
     QixGame.h
     Sparx.cpp
     Sparx.h
+    SpeedConfig.cpp
+    SpeedConfig.h
     TerritoryFill.cpp
     TerritoryFill.h
     Types.h
