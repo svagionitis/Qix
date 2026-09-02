@@ -1,0 +1,53 @@
+# ==============================================================================
+# Git Ignore Rules for Qix Project
+# ==============================================================================
+
+# CMake & Build Artifacts
+build/
+build-*/
+out/
+bin/
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+Ninja*
+compile_commands.json
+
+# Clangd, Cache & Tooling
+.cache/
+.clangd/
+*.log
+
+# IDE & Editor Files
+.vscode/
+.idea/
+.vs/
+*.user
+*.user.*
+*.suo
+*.sln
+*.vcxproj
+*.vcxproj.*
+CMakeLists.txt.user*
+*.pro.user*
+
+# Qt Generated Files
+*.moc
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+*.autosave
+.qmake.stash
+
+# OS Specific
+.DS_Store
+Thumbs.db
+
+# Documentation Builds
+/docs/doxygen/

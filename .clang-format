@@ -1,0 +1,34 @@
+---
+Language: Cpp
+BasedOnStyle: WebKit
+Standard: c++17
+
+# WebKit Specific Styles
+AccessModifierOffset: -4
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+PointerAlignment: Left
+DerivePointerAlignment: false
+ColumnLimit: 120
+
+# Alignment Settings
+AlignAfterOpenBracket: DontAlign
+AlignOperands: false
+AlignTrailingComments: false
+
+# Braces and Breaks
+BreakBeforeBraces: WebKit
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+Cpp11BracedListStyle: true
+
+# Whitespace and Blank Lines
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+
+# Include Sorting
+SortIncludes: true
+IncludeBlocks: Preserve
+...
