@@ -2,7 +2,7 @@
 
 A high-performance, deterministic C++17 remake of the classic 1981 Taito arcade game **Qix**.
 
-The project separates core game mechanics, 2D playfield spatial partitioning, kinematic enemy simulation, and territory flood-fill evaluation into a headless static library (`libqix_core`). It provides both a **Terminal User Interface (`qix_tui`)** using ANSI/console drivers and a **Desktop Graphical Client (`qix_gui`)** powered by Qt with neon vector graphics.
+The project separates core game mechanics, 2D playfield spatial partitioning, kinematic enemy simulation, and territory flood-fill evaluation into a headless static library (`libqix_core`). It provides three distinct client frontends: a **Terminal User Interface (`qix_tui`)** using ANSI/console drivers, a **Desktop Graphical Client (`qix_gui`)** powered by Qt, and a **Hardware-Accelerated 2D Desktop Client (`qix_sdl`)** powered by SDL2.
 
 ---
 
@@ -21,9 +21,10 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
   - **Sparx**: Clockwise and counter-clockwise perimeter patrollers.
   - **Fuse**: Anti-stall hazard that ignites along the trail when the player stops moving while drawing.
   - **Victory Condition**: Capturing $\ge 75\%$ of the total playable area.
-- **Dual Frontends**:
+- **Triple Frontends**:
   - **Terminal Client (`qix_tui`)**: Lightweight console client with ANSI color rendering and non-blocking key polling across Linux (`termios`) and Windows console (`conio.h`).
-  - **Desktop GUI Client (`qix_gui`)**: Modern hardware-accelerated Qt client rendering neon color-cycling stick helix ribbons, glowing sparks, and real-time territory fills.
+  - **Desktop Qt Client (`qix_gui`)**: Modern hardware-accelerated Qt client rendering neon color-cycling stick helix ribbons, glowing sparks, and real-time territory fills.
+  - **Desktop SDL2 Client (`qix_sdl`)**: Direct 2D hardware-accelerated SDL2 client with embedded retro arcade font, alpha blending, and zero external font asset requirements.
 - **Mission-Critical Code Quality**:
   - Built to the intersection of **AUTOSAR C++14/17**, **MISRA C++:2008**, and **SEI CERT C++** rules.
   - Strict RAII (no raw `new` / `delete`).
@@ -67,6 +68,12 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
 │   ├── QixCanvas.h / .cpp      # Vector QPainter canvas with neon ribbon cycling
 │   ├── MainWindow.h / .cpp     # Desktop window and keyboard dispatcher
 │   └── main.cpp                # Qt application entry point
+├── sdl/
+│   ├── CMakeLists.txt          # qix_sdl executable target
+│   ├── BitmapFont.h            # Self-contained 8x8 arcade raster font
+│   ├── SdlRenderer.h / .cpp    # SDL2 hardware-accelerated 2D renderer
+│   ├── SdlApp.h / .cpp         # SDL2 application loop & event controller
+│   └── main.cpp                # SDL2 application entry point
 ├── tests/
 │   ├── CMakeLists.txt          # GoogleTest suite target
 │   ├── PlayfieldTest.cpp       # Grid and boundary tests
@@ -136,6 +143,7 @@ cmake --build build
 | `BUILD_TESTS` | `ON` | Build GoogleTest unit test suite (`bin/qix_tests`) |
 | `BUILD_TUI` | `ON` | Build Terminal ANSI client (`bin/qix_tui`) |
 | `BUILD_GUI` | `ON` | Build Desktop Qt graphical client (`bin/qix_gui`) |
+| `BUILD_SDL` | `ON` | Build Desktop SDL2 graphical client (`bin/qix_sdl`) |
 | `BUILD_BENCHMARKS` | `ON` | Build performance benchmark suite (`bin/qix_benchmarks`) |
 | `ENABLE_ASAN` | `OFF` | Compile with AddressSanitizer memory leak check |
 | `ENABLE_UBSAN` | `OFF` | Compile with UndefinedBehaviorSanitizer |
@@ -150,20 +158,21 @@ You control a diamond Marker moving along the perimeter of an uncaptured playfie
 
 ### Controls
 
-| Action | Terminal Client (`qix_tui`) | Desktop GUI Client (`qix_gui`) |
-| :--- | :--- | :--- |
-| **Move Cursor** | `W`, `A`, `S`, `D` or Arrow Keys | `W`, `A`, `S`, `D` or Arrow Keys |
-| **Slow Draw (2x Points)** | Hold `Space` + Direction | Hold `Space` or `Ctrl` + Direction |
-| **Fast Draw (1x Points)** | Hold `F` + Direction | Hold `Shift` or `F` + Direction |
-| **Adjust Speed (Pacing)** | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) |
-| **Restart Session** | `R` | `R` |
-| **Next Level (on victory)**| Automatic / Step | `Space` or `Return` |
-| **Quit Game** | `Q` | `Escape` / Close Window |
+| Action | Terminal (`qix_tui`) | Desktop Qt (`qix_gui`) | Desktop SDL2 (`qix_sdl`) |
+| :--- | :--- | :--- | :--- |
+| **Move Cursor** | `W`, `A`, `S`, `D` / Arrows | `W`, `A`, `S`, `D` / Arrows | `W`, `A`, `S`, `D` / Arrows |
+| **Slow Draw (2x Points)** | Hold `Space` + Direction | Hold `Space` or `Ctrl` + Dir | Hold `Space` or `Ctrl` + Dir |
+| **Fast Draw (1x Points)** | Hold `F` + Direction | Hold `Shift` or `F` + Dir | Hold `Shift` or `F` + Dir |
+| **Adjust Speed (Pacing)** | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) |
+| **Restart Session** | `R` | `R` | `R` |
+| **Next Level (on victory)**| Automatic / Step | `Space` or `Return` | `Space` or `Return` |
+| **Quit Game** | `Q` | `Escape` / Close Window | `Escape` / Close Window |
 
-Both the Terminal and Desktop GUI clients support configurable startup speed via CLI flags:
+All client frontends support configurable startup speed via CLI flags:
 ```bash
-./build/bin/qix_gui --delay 100   # 100 ms tick delay (slower, relaxed)
-./build/bin/qix_gui --fps 15       # Target 15 FPS (~66 ms tick delay)
+./build/bin/qix_sdl --delay 100   # 100 ms tick delay (slower, relaxed)
+./build/bin/qix_sdl --fps 15       # Target 15 FPS (~66 ms tick delay)
+./build/bin/qix_gui --delay 100   # Qt client
 ./build/bin/qix_tui --delay 100   # Terminal client
 ```
 
@@ -186,12 +195,17 @@ Both the Terminal and Desktop GUI clients support configurable startup speed via
 ./build/bin/qix_tui
 ```
 
-### 2. Launch Desktop GUI Client
+### 2. Launch Desktop Qt GUI Client
 ```bash
 ./build/bin/qix_gui
 ```
 
-### 3. Run Automated Tests
+### 3. Launch Desktop SDL2 GUI Client
+```bash
+./build/bin/qix_sdl
+```
+
+### 4. Run Automated Tests
 ```bash
 ctest --test-dir build --output-on-failure
 ```
@@ -207,7 +221,7 @@ Result:
 Benchmark Results:
 ```
 ====================================================
-       QIX C++17 ENGINE PERFORMANCE BENCHMARKS      
+       QIX C++17 ENGINE PERFORMANCE BENCHMARKS
 ====================================================
 [BENCHMARK] TerritoryFill 80x60 (4524 cells): 65.88 µs/fill (15179.73 fills/sec)
 [BENCHMARK] TerritoryFill 160x120 (18644 cells): 268.54 µs/fill (3723.82 fills/sec)

@@ -22,6 +22,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 option(BUILD_TESTS "Build GoogleTest unit test suites" ON)
 option(BUILD_TUI "Build the terminal (ncurses/console) client" ON)
 option(BUILD_GUI "Build the desktop graphical client" ON)
+option(BUILD_SDL "Build the SDL graphical client" ON)
 option(BUILD_BENCHMARKS "Build the performance benchmark suite" ON)
 
 # Compiler flags
@@ -52,6 +53,11 @@ if(BUILD_GUI)
     add_subdirectory(gui)
 endif()
 
+# SDL Client
+if(BUILD_SDL)
+    add_subdirectory(sdl)
+endif()
+
 # Clang-Format Target
 find_program(CLANG_FORMAT_BIN NAMES clang-format clang-format-15 clang-format-14 clang-format-12)
 if(CLANG_FORMAT_BIN)
@@ -64,6 +70,8 @@ if(CLANG_FORMAT_BIN)
         ${CMAKE_CURRENT_SOURCE_DIR}/tui/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/gui/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/gui/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/sdl/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/sdl/*.cpp
     )
     add_custom_target(format
         COMMAND ${CLANG_FORMAT_BIN} -i -style=file ${ALL_SOURCE_FILES}
