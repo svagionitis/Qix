@@ -23,6 +23,7 @@ option(BUILD_TESTS "Build GoogleTest unit test suites" ON)
 option(BUILD_TUI "Build the terminal (ncurses/console) client" ON)
 option(BUILD_GUI "Build the desktop graphical client" ON)
 option(BUILD_SDL "Build the SDL graphical client" ON)
+option(BUILD_RAYLIB "Build the Raylib graphical client" ON)
 option(BUILD_BENCHMARKS "Build the performance benchmark suite" ON)
 
 # Compiler flags
@@ -58,6 +59,11 @@ if(BUILD_SDL)
     add_subdirectory(sdl)
 endif()
 
+# Raylib Client
+if(BUILD_RAYLIB)
+    add_subdirectory(raylib)
+endif()
+
 # Clang-Format Target
 find_program(CLANG_FORMAT_BIN NAMES clang-format clang-format-15 clang-format-14 clang-format-12)
 if(CLANG_FORMAT_BIN)
@@ -72,6 +78,8 @@ if(CLANG_FORMAT_BIN)
         ${CMAKE_CURRENT_SOURCE_DIR}/gui/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/sdl/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/sdl/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/raylib/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/raylib/*.cpp
     )
     add_custom_target(format
         COMMAND ${CLANG_FORMAT_BIN} -i -style=file ${ALL_SOURCE_FILES}
