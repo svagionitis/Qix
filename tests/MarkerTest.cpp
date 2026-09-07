@@ -54,3 +54,48 @@ TEST(MarkerTest, LivesAccounting)
     EXPECT_EQ(marker.getLives(), 0);
     EXPECT_FALSE(marker.isAlive());
 }
+
+TEST(MarkerTest, ClassicModeClaimedCellsImpassable)
+{
+    qix::Playfield field {20, 20};
+    qix::Marker marker {qix::Point {5, 0}, 3, qix::GameMode::Classic};
+
+    // Mark neighbor cell as claimed territory
+    field.setCell(5, 1, qix::CellState::ClaimedSlow);
+    field.setCell(6, 0, qix::CellState::ClaimedFast);
+
+    // In Classic mode, marker cannot step into ClaimedSlow
+    const bool stepIntoSlow = marker.move(field, qix::PlayerCommand {qix::Direction::Down, qix::DrawMode::None});
+    EXPECT_FALSE(stepIntoSlow);
+    EXPECT_EQ(marker.getPosition(), (qix::Point {5, 0}));
+
+    // In Classic mode, marker cannot step into ClaimedFast
+    const bool stepIntoFast = marker.move(field, qix::PlayerCommand {qix::Direction::Right, qix::DrawMode::None});
+    EXPECT_FALSE(stepIntoFast);
+    EXPECT_EQ(marker.getPosition(), (qix::Point {5, 0}));
+
+    // But border navigation is permitted
+    const bool stepIntoBorder = marker.move(field, qix::PlayerCommand {qix::Direction::Left, qix::DrawMode::None});
+    EXPECT_TRUE(stepIntoBorder);
+    EXPECT_EQ(marker.getPosition(), (qix::Point {4, 0}));
+}
+
+TEST(MarkerTest, ModernModeClaimedCellsWalkable)
+{
+    qix::Playfield field {20, 20};
+    qix::Marker marker {qix::Point {5, 0}, 3, qix::GameMode::Modern};
+
+    // Mark neighbor cells as claimed territory
+    field.setCell(5, 1, qix::CellState::ClaimedSlow);
+    field.setCell(5, 2, qix::CellState::ClaimedFast);
+
+    // In Modern mode, marker can step into ClaimedSlow
+    const bool stepIntoSlow = marker.move(field, qix::PlayerCommand {qix::Direction::Down, qix::DrawMode::None});
+    EXPECT_TRUE(stepIntoSlow);
+    EXPECT_EQ(marker.getPosition(), (qix::Point {5, 1}));
+
+    // In Modern mode, marker can also step into ClaimedFast
+    const bool stepIntoFast = marker.move(field, qix::PlayerCommand {qix::Direction::Down, qix::DrawMode::None});
+    EXPECT_TRUE(stepIntoFast);
+    EXPECT_EQ(marker.getPosition(), (qix::Point {5, 2}));
+}

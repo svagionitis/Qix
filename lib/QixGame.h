@@ -19,11 +19,13 @@ namespace qix {
 /// @details Coordinates the simulation step, physics, collision detection, and score.
 class QixGame final : public IQixGame {
 public:
-    /// @brief Construct game engine with field dimensions and target claim threshold.
+    /// @brief Construct game engine with field dimensions, target claim threshold, and ruleset mode.
     /// @param[in] width Playfield width in cells (default: 80).
     /// @param[in] height Playfield height in cells (default: 60).
     /// @param[in] targetPercent Victory percentage threshold (default: 75).
-    explicit QixGame(std::int32_t width = 80, std::int32_t height = 60, std::uint16_t targetPercent = 75) noexcept;
+    /// @param[in] mode Game ruleset mode (default: DefaultGameMode).
+    explicit QixGame(std::int32_t width = 80, std::int32_t height = 60,
+        std::uint16_t targetPercent = 75, GameMode mode = DefaultGameMode) noexcept;
 
     ~QixGame() override = default;
 
@@ -32,6 +34,7 @@ public:
     [[nodiscard]] const GameView& getView() const noexcept override;
     void reset() noexcept override;
     void nextLevel() noexcept override;
+    [[nodiscard]] GameMode getGameMode() const noexcept override;
 
 private:
     Playfield m_playfield;
@@ -41,6 +44,7 @@ private:
     Fuse m_fuse;
     TerritoryFill m_fill;
 
+    GameMode m_mode {DefaultGameMode};
     GameStats m_stats {};
     GameState m_state {GameState::Ready};
     GameView m_view {};

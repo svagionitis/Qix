@@ -25,6 +25,13 @@ option(BUILD_GUI "Build the desktop graphical client" ON)
 option(BUILD_SDL "Build the SDL graphical client" ON)
 option(BUILD_RAYLIB "Build the Raylib graphical client" ON)
 option(BUILD_BENCHMARKS "Build the performance benchmark suite" ON)
+option(QIX_DEFAULT_CLASSIC_MODE "Default game mode to Classic (1981 arcade rules)" ON)
+
+if(QIX_DEFAULT_CLASSIC_MODE)
+    add_compile_definitions(QIX_DEFAULT_CLASSIC_MODE=1)
+else()
+    add_compile_definitions(QIX_DEFAULT_CLASSIC_MODE=0)
+endif()
 
 # Compiler flags
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")

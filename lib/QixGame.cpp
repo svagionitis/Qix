@@ -2,14 +2,16 @@
 
 namespace qix {
 
-QixGame::QixGame(std::int32_t width, std::int32_t height, std::uint16_t targetPercent) noexcept
+QixGame::QixGame(std::int32_t width, std::int32_t height, std::uint16_t targetPercent, GameMode mode) noexcept
     : m_playfield {width, height}
-    , m_marker {Point {width / 2, height - 1}, 3}
+    , m_marker {Point {width / 2, height - 1}, 3, mode}
     , m_fuse {25}
     , m_fill {width, height}
+    , m_mode {mode}
 {
     m_stats.targetPercent = targetPercent;
     m_stats.totalEmptyCells = m_playfield.getInteriorCount();
+    m_stats.mode = mode;
     reset();
 }
 
@@ -42,9 +44,13 @@ void QixGame::step(std::uint32_t deltaMs) noexcept
         const auto currentPos = m_marker.getPosition();
         const auto cellState = m_playfield.getCell(currentPos.x, currentPos.y);
 
+        const bool isClosingCell = (m_mode == GameMode::Classic)
+            ? (cellState == CellState::Border)
+            : (cellState == CellState::Border || cellState == CellState::ClaimedSlow
+                || cellState == CellState::ClaimedFast);
+
         // If the marker reached border or claimed territory after stepping into empty space
-        if (cellState == CellState::Border || cellState == CellState::ClaimedSlow
-            || cellState == CellState::ClaimedFast) {
+        if (isClosingCell) {
             std::vector<Point> qixPositions {};
             for (const auto& qix : m_qixList) {
                 qixPositions.push_back(qix.getHead().start);
@@ -148,9 +154,9 @@ void QixGame::setupEntities() noexcept
 
     m_sparxList.clear();
     // Sparx 1: Clockwise from top-left
-    m_sparxList.emplace_back(Point {1, 0}, true);
+    m_sparxList.emplace_back(Point {1, 0}, true, m_mode);
     // Sparx 2: Counter-clockwise from top-right
-    m_sparxList.emplace_back(Point {m_playfield.getWidth() - 2, 0}, false);
+    m_sparxList.emplace_back(Point {m_playfield.getWidth() - 2, 0}, false, m_mode);
 
     m_fuse.reset();
 }
@@ -174,8 +180,10 @@ void QixGame::updateSnapshot() noexcept
 
     m_view.fusePos = m_fuse.getPosition();
     m_stats.lives = m_marker.getLives();
+    m_stats.mode = m_mode;
     m_view.stats = m_stats;
     m_view.state = m_state;
+    m_view.mode = m_mode;
 }
 
 void QixGame::handleDeath() noexcept
@@ -202,6 +210,11 @@ void QixGame::clearActiveStix() noexcept
         }
     }
     m_marker.clearTrail();
+}
+
+GameMode QixGame::getGameMode() const noexcept
+{
+    return m_mode;
 }
 
 } // namespace qix

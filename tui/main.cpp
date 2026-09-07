@@ -1,3 +1,4 @@
+#include "GameConfig.h"
 #include "QixGame.h"
 #include "SpeedConfig.h"
 #include "TuiRenderer.h"
@@ -7,8 +8,9 @@
 int main(int argc, char* argv[])
 {
     std::uint32_t delayMs = qix::SpeedConfig::parseSpeedArgs(argc, argv);
+    const auto mode = qix::GameConfig::parseGameMode(argc, argv);
 
-    qix::QixGame game {60, 30, 75};
+    qix::QixGame game {60, 30, 75, mode};
     qix::tui::TuiRenderer renderer {};
 
     renderer.init();

@@ -3,9 +3,10 @@
 
 namespace qix {
 
-Sparx::Sparx(Point startPos, bool clockwise) noexcept
+Sparx::Sparx(Point startPos, bool clockwise, GameMode mode) noexcept
     : m_position {startPos}
     , m_clockwise {clockwise}
+    , m_mode {mode}
 {
 }
 
@@ -96,7 +97,25 @@ bool Sparx::checkCollision(Point markerPos) const noexcept
     return m_position == markerPos;
 }
 
-bool Sparx::isPerimeter(CellState state) noexcept
+GameMode Sparx::getGameMode() const noexcept
+{
+    return m_mode;
+}
+
+void Sparx::setGameMode(GameMode mode) noexcept
+{
+    m_mode = mode;
+}
+
+bool Sparx::isPerimeter(CellState state) const noexcept
+{
+    if (m_mode == GameMode::Classic) {
+        return state == CellState::Border;
+    }
+    return state == CellState::Border || state == CellState::ClaimedSlow || state == CellState::ClaimedFast;
+}
+
+bool Sparx::isPerimeterOrClaimed(CellState state) noexcept
 {
     return state == CellState::Border || state == CellState::ClaimedSlow || state == CellState::ClaimedFast;
 }

@@ -3,9 +3,10 @@
 
 namespace qix {
 
-Marker::Marker(Point startPos, std::uint8_t lives) noexcept
+Marker::Marker(Point startPos, std::uint8_t lives, GameMode mode) noexcept
     : m_position {startPos}
     , m_lives {lives}
+    , m_mode {mode}
 {
 }
 
@@ -32,8 +33,8 @@ bool Marker::move(Playfield& field, PlayerCommand cmd) noexcept
     // Case 1: Marker is currently navigating along existing perimeter
     if (!isDrawing()) {
         if (cmd.drawMode == DrawMode::None) {
-            // Can only traverse along borders or claimed regions when not drawing
-            if (!isBorderOrClaimed(nextCell)) {
+            // Can only traverse along navigable regions when not drawing
+            if (!isNavigable(nextCell)) {
                 return false;
             }
 
@@ -43,8 +44,8 @@ bool Marker::move(Playfield& field, PlayerCommand cmd) noexcept
 
         // Commencing a new Stix into empty space
         if (nextCell != CellState::Empty) {
-            // If drawing button held but moving along border, treat as border move
-            if (isBorderOrClaimed(nextCell)) {
+            // If drawing button held but moving along border/navigable area, treat as border move
+            if (isNavigable(nextCell)) {
                 m_position = nextPos;
                 return true;
             }
@@ -75,7 +76,7 @@ bool Marker::move(Playfield& field, PlayerCommand cmd) noexcept
     }
 
     // Reached boundary or claimed territory: loop closure
-    if (isBorderOrClaimed(nextCell)) {
+    if (isNavigable(nextCell)) {
         m_position = nextPos;
         m_trail.push_back(m_position);
         return true;
@@ -142,6 +143,24 @@ Point Marker::calculateNext(Point current, Direction dir) noexcept
     default:
         return current;
     }
+}
+
+GameMode Marker::getGameMode() const noexcept
+{
+    return m_mode;
+}
+
+void Marker::setGameMode(GameMode mode) noexcept
+{
+    m_mode = mode;
+}
+
+bool Marker::isNavigable(CellState state) const noexcept
+{
+    if (m_mode == GameMode::Classic) {
+        return state == CellState::Border;
+    }
+    return state == CellState::Border || state == CellState::ClaimedSlow || state == CellState::ClaimedFast;
 }
 
 bool Marker::isBorderOrClaimed(CellState state) noexcept

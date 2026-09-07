@@ -152,6 +152,7 @@ cmake --build build
 | `BUILD_SDL` | `ON` | Build Desktop SDL2 graphical client (`bin/qix_sdl`) |
 | `BUILD_RAYLIB` | `ON` | Build Desktop Raylib graphical client (`bin/qix_raylib`) |
 | `BUILD_BENCHMARKS` | `ON` | Build performance benchmark suite (`bin/qix_benchmarks`) |
+| `QIX_DEFAULT_CLASSIC_MODE` | `ON` | Default game mode to Classic (1981 arcade perimeter-only rules) |
 | `ENABLE_ASAN` | `OFF` | Compile with AddressSanitizer memory leak check |
 | `ENABLE_UBSAN` | `OFF` | Compile with UndefinedBehaviorSanitizer |
 | `WARNINGS_AS_ERRORS`| `OFF` | Treat compiler warnings as errors (`-Werror` / `/WX`) |
@@ -162,6 +163,17 @@ cmake --build build
 
 ### Objective
 You control a diamond Marker moving along the perimeter of an uncaptured playfield. Your goal is to enter the open territory, draw closed shapes (**Stix**), reconnect to an existing border, and claim at least **75%** of the screen while dodging enemies.
+
+### Game Modes: Classic vs. Modern
+- **Classic Mode** (Default): Adheres strictly to the original 1981 arcade mechanics. The Marker and Sparx can only navigate along the perimeter borders. The interior of claimed areas is impassable solid ground.
+- **Modern Mode**: Relaxed mechanics where the Marker and Sparx can freely move across both perimeter borders and inside claimed shapes.
+
+You can select the ruleset mode at launch via CLI:
+```bash
+./build/bin/qix_raylib --classic           # Strict 1981 arcade rules
+./build/bin/qix_raylib --modern            # Modern walkable claimed areas
+./build/bin/qix_sdl --mode classic         # Alternative syntax
+```
 
 ### Controls
 
@@ -175,12 +187,12 @@ You control a diamond Marker moving along the perimeter of an uncaptured playfie
 | **Next Level (on victory)**| Automatic / Step | `Space` or `Return` | `Space` or `Return` | `Space` or `Return` |
 | **Quit Game** | `Q` | `Escape` / Close Window | `Escape` / Close Window | `Escape` / Close Window |
 
-All client frontends support configurable startup speed via CLI flags:
+All client frontends support configurable startup speed and game mode via CLI flags:
 ```bash
-./build/bin/qix_raylib --delay 100 # Raylib client (slower, relaxed)
-./build/bin/qix_sdl --delay 100    # SDL2 client
-./build/bin/qix_gui --delay 100    # Qt client
-./build/bin/qix_tui --delay 100    # Terminal client
+./build/bin/qix_raylib --delay 100 --classic # Raylib client in Classic mode
+./build/bin/qix_sdl --delay 100 --modern     # SDL2 client in Modern mode
+./build/bin/qix_gui --mode classic           # Qt client in Classic mode
+./build/bin/qix_tui --mode modern            # Terminal client in Modern mode
 ```
 
 ### Scoring & Territory Rules

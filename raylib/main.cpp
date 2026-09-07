@@ -1,3 +1,4 @@
+#include "GameConfig.h"
 #include "QixGame.h"
 #include "RaylibApp.h"
 #include "SpeedConfig.h"
@@ -6,8 +7,9 @@
 int main(int argc, char* argv[])
 {
     const auto delayMs = qix::SpeedConfig::parseSpeedArgs(argc, argv);
+    const auto mode = qix::GameConfig::parseGameMode(argc, argv);
 
-    auto game = std::make_unique<qix::QixGame>(80, 60, 75);
+    auto game = std::make_unique<qix::QixGame>(80, 60, 75, mode);
     qix::raylib::RaylibApp app(std::move(game), delayMs);
 
     if (!app.init("Qix Arcade (Raylib)", 960, 720)) {

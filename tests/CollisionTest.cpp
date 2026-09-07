@@ -53,3 +53,22 @@ TEST(CollisionTest, FuseHitsMarker)
     EXPECT_EQ(fuse.getPosition(), (qix::Point {5, 1}));
     EXPECT_TRUE(fuse.checkCollision(qix::Point {5, 1}));
 }
+
+TEST(CollisionTest, SparxClassicVsModernTraversal)
+{
+    qix::Playfield field {20, 20};
+    // (5, 1) is claimed territory
+    field.setCell(5, 1, qix::CellState::ClaimedSlow);
+
+    // Classic Sparx moving along top border at (5, 0)
+    qix::Sparx classicSparx {qix::Point {5, 0}, true, qix::GameMode::Classic};
+    classicSparx.update(field);
+    // Should NOT enter (5, 1)
+    EXPECT_NE(classicSparx.getPosition(), (qix::Point {5, 1}));
+
+    // Modern Sparx moving along top border at (5, 0)
+    qix::Sparx modernSparx {qix::Point {5, 0}, true, qix::GameMode::Modern};
+    modernSparx.update(field);
+    // Clockwise search from Direction::Right will check Down (5, 1) first, which is accepted in Modern
+    EXPECT_EQ(modernSparx.getPosition(), (qix::Point {5, 1}));
+}

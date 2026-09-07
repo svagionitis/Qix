@@ -12,10 +12,11 @@ namespace qix {
 /// @details Follows the edge of captured territory; kills the player on boundary contact.
 class Sparx {
 public:
-    /// @brief Construct Sparx with starting position and initial movement direction.
+    /// @brief Construct Sparx with starting position, initial movement direction, and game mode.
     /// @param[in] startPos Coordinate on perimeter.
     /// @param[in] clockwise True for clockwise traversal, false for counter-clockwise.
-    explicit Sparx(Point startPos, bool clockwise = true) noexcept;
+    /// @param[in] mode Active game ruleset mode (Classic or Modern).
+    explicit Sparx(Point startPos, bool clockwise = true, GameMode mode = DefaultGameMode) noexcept;
 
     /// @brief Advance Sparx position along the perimeter by one cell step.
     /// @param[in] field Reference to playfield to detect perimeter connectivity.
@@ -30,12 +31,29 @@ public:
     /// @return True if positions match.
     [[nodiscard]] bool checkCollision(Point markerPos) const noexcept;
 
+    /// @brief Retrieve active game mode ruleset.
+    /// @return Active GameMode.
+    [[nodiscard]] GameMode getGameMode() const noexcept;
+
+    /// @brief Update active game mode ruleset.
+    /// @param[in] mode Game mode ruleset to apply.
+    void setGameMode(GameMode mode) noexcept;
+
+    /// @brief Check whether a cell state is a valid traversable perimeter cell.
+    /// @param[in] state Cell state to evaluate.
+    /// @return True if traversable under current GameMode.
+    [[nodiscard]] bool isPerimeter(CellState state) const noexcept;
+
+    /// @brief Legacy helper to check if cell is border or claimed territory.
+    /// @param[in] state Cell state to evaluate.
+    /// @return True if Border, ClaimedSlow, or ClaimedFast.
+    [[nodiscard]] static bool isPerimeterOrClaimed(CellState state) noexcept;
+
 private:
     Point m_position {0, 0};
     bool m_clockwise {true};
     Direction m_lastDir {Direction::Right};
-
-    [[nodiscard]] static bool isPerimeter(CellState state) noexcept;
+    GameMode m_mode {DefaultGameMode};
 };
 
 } // namespace qix

@@ -28,6 +28,18 @@ enum class Direction : std::uint8_t { None = 0, Up, Down, Left, Right };
 /// @brief Cell state representation on the discrete playfield.
 enum class CellState : std::uint8_t { Empty = 0, Border, ClaimedSlow, ClaimedFast, ActiveStix };
 
+/// @brief Ruleset configuration governing movement constraints.
+enum class GameMode : std::uint8_t {
+    Classic = 0, ///< Strict 1981 arcade rules: navigation restricted to perimeter borders only.
+    Modern = 1   ///< Modern rules: navigation permitted on both borders and inside claimed shapes.
+};
+
+#if defined(QIX_DEFAULT_CLASSIC_MODE) && (QIX_DEFAULT_CLASSIC_MODE == 0)
+inline constexpr GameMode DefaultGameMode {GameMode::Modern};
+#else
+inline constexpr GameMode DefaultGameMode {GameMode::Classic};
+#endif
+
 /// @brief Drawing mode determining speed and score multiplier.
 enum class DrawMode : std::uint8_t { None = 0, Slow, Fast };
 
@@ -49,6 +61,7 @@ struct GameStats {
     std::uint16_t targetPercent {75};
     std::uint8_t lives {3};
     std::uint8_t level {1};
+    GameMode mode {DefaultGameMode};
 };
 
 /// @brief A line segment defined by two points.

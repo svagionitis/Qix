@@ -20,6 +20,7 @@ struct GameView {
     std::optional<Point> fusePos {std::nullopt};
     GameStats stats {};
     GameState state {GameState::Ready};
+    GameMode mode {DefaultGameMode};
 };
 
 /// @class IQixGame
@@ -45,6 +46,10 @@ public:
 
     /// @brief Advance to next difficulty level.
     virtual void nextLevel() noexcept = 0;
+
+    /// @brief Retrieve active game ruleset mode.
+    /// @return Active GameMode (Classic or Modern).
+    [[nodiscard]] virtual GameMode getGameMode() const noexcept = 0;
 };
 
 } // namespace qix

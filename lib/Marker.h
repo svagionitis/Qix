@@ -13,10 +13,11 @@ namespace qix {
 /// @details Maintains position, lives, active draw mode, and coordinates of the current trail.
 class Marker {
 public:
-    /// @brief Construct marker with starting position and lives.
+    /// @brief Construct marker with starting position, lives, and game ruleset mode.
     /// @param[in] startPos Starting coordinates on the playfield.
     /// @param[in] lives Initial life count.
-    explicit Marker(Point startPos, std::uint8_t lives = 3) noexcept;
+    /// @param[in] mode Game ruleset mode (Classic or Modern).
+    explicit Marker(Point startPos, std::uint8_t lives = 3, GameMode mode = DefaultGameMode) noexcept;
 
     /// @brief Reset position to safe starting point and clear trail.
     /// @param[in] resetPos Safe position on boundary.
@@ -58,14 +59,32 @@ public:
     /// @return True if lives > 0.
     [[nodiscard]] bool isAlive() const noexcept;
 
+    /// @brief Retrieve the active game mode ruleset.
+    /// @return Active GameMode.
+    [[nodiscard]] GameMode getGameMode() const noexcept;
+
+    /// @brief Update the active game mode ruleset.
+    /// @param[in] mode Game mode ruleset to apply.
+    void setGameMode(GameMode mode) noexcept;
+
+    /// @brief Check whether a cell state is walkable when not drawing according to current mode.
+    /// @param[in] state Playfield cell state to evaluate.
+    /// @return True if navigable under current GameMode.
+    [[nodiscard]] bool isNavigable(CellState state) const noexcept;
+
+    /// @brief Legacy helper to check if cell is border or claimed territory.
+    /// @param[in] state Playfield cell state to evaluate.
+    /// @return True if Border, ClaimedSlow, or ClaimedFast.
+    [[nodiscard]] static bool isBorderOrClaimed(CellState state) noexcept;
+
 private:
     Point m_position {0, 0};
     DrawMode m_drawMode {DrawMode::None};
     std::uint8_t m_lives {3};
+    GameMode m_mode {DefaultGameMode};
     std::vector<Point> m_trail {};
 
     [[nodiscard]] static Point calculateNext(Point current, Direction dir) noexcept;
-    [[nodiscard]] static bool isBorderOrClaimed(CellState state) noexcept;
 };
 
 } // namespace qix

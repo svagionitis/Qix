@@ -60,3 +60,16 @@ TEST(GameEngineTest, ResetGameSession)
     EXPECT_EQ(view.stats.score, 0U);
     EXPECT_EQ(view.stats.lives, 3U);
 }
+
+TEST(GameEngineTest, ModeConfiguration)
+{
+    qix::QixGame classicGame {40, 30, 75, qix::GameMode::Classic};
+    EXPECT_EQ(classicGame.getGameMode(), qix::GameMode::Classic);
+    EXPECT_EQ(classicGame.getView().mode, qix::GameMode::Classic);
+    EXPECT_EQ(classicGame.getView().stats.mode, qix::GameMode::Classic);
+
+    qix::QixGame modernGame {40, 30, 75, qix::GameMode::Modern};
+    EXPECT_EQ(modernGame.getGameMode(), qix::GameMode::Modern);
+    EXPECT_EQ(modernGame.getView().mode, qix::GameMode::Modern);
+    EXPECT_EQ(modernGame.getView().stats.mode, qix::GameMode::Modern);
+}

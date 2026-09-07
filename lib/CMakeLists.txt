@@ -3,6 +3,8 @@ add_library(qix_core STATIC
     CollisionDetector.h
     Fuse.cpp
     Fuse.h
+    GameConfig.cpp
+    GameConfig.h
     IQixGame.h
     Marker.cpp
     Marker.h
