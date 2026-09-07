@@ -141,28 +141,36 @@ void SdlRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noexcep
     SDL_RenderFillRect(m_renderer.get(), &fillBar);
 
     // 4. LIVES
-    BitmapFont::drawText(m_renderer.get(), "LIVES:", 475, 18, 1, labelColor);
+    BitmapFont::drawText(m_renderer.get(), "LIVES:", 450, 18, 1, labelColor);
     for (int i = 0; i < stats.lives; ++i) {
-        drawFilledDiamond(535 + i * 16, 22, 5, redColor);
+        drawFilledDiamond(505 + i * 16, 22, 5, redColor);
     }
 
-    // 5. MULTIPLIER (if > 1)
-    int offsetRight = 200;
+    // 5. TIME
+    const auto secondsRemaining = (stats.timeRemainingMs + 999U) / 1000U;
+    const SDL_Color timerColor
+        = (stats.timeUp || secondsRemaining <= 10U) ? redColor : ((secondsRemaining <= 20U) ? yellowColor : greenColor);
+    BitmapFont::drawText(m_renderer.get(), "TIME:", screenW - 365, 18, 1, labelColor);
+    BitmapFont::drawText(m_renderer.get(), std::to_string(secondsRemaining) + "s", screenW - 320, 18, 1, timerColor);
+
+    // 6. MULTIPLIER / SPEED / LEVEL
     if (stats.multiplier > 1) {
-        BitmapFont::drawText(m_renderer.get(), "MULT:", screenW - 275, 18, 1, labelColor);
+        BitmapFont::drawText(m_renderer.get(), "MULT:", screenW - 265, 18, 1, labelColor);
         BitmapFont::drawText(
-            m_renderer.get(), std::to_string(stats.multiplier) + "X", screenW - 225, 18, 1, yellowColor);
-        offsetRight = 180;
+            m_renderer.get(), std::to_string(stats.multiplier) + "X", screenW - 220, 18, 1, yellowColor);
+
+        BitmapFont::drawText(m_renderer.get(), "SPD:", screenW - 165, 18, 1, labelColor);
+        BitmapFont::drawText(m_renderer.get(), std::to_string(delayMs) + "ms", screenW - 125, 18, 1, speedColor);
+
+        BitmapFont::drawText(m_renderer.get(), "LVL:", screenW - 65, 18, 1, labelColor);
+        BitmapFont::drawText(m_renderer.get(), std::to_string(stats.level), screenW - 25, 18, 1, purpleColor);
+    } else {
+        BitmapFont::drawText(m_renderer.get(), "SPEED:", screenW - 200, 18, 1, labelColor);
+        BitmapFont::drawText(m_renderer.get(), std::to_string(delayMs) + "ms", screenW - 145, 18, 1, speedColor);
+
+        BitmapFont::drawText(m_renderer.get(), "LEVEL:", screenW - 85, 18, 1, labelColor);
+        BitmapFont::drawText(m_renderer.get(), std::to_string(stats.level), screenW - 30, 18, 1, purpleColor);
     }
-
-    // 6. SPEED
-    BitmapFont::drawText(m_renderer.get(), "SPEED:", screenW - offsetRight, 18, 1, labelColor);
-    BitmapFont::drawText(
-        m_renderer.get(), std::to_string(delayMs) + "ms", screenW - offsetRight + 55, 18, 1, speedColor);
-
-    // 7. LEVEL
-    BitmapFont::drawText(m_renderer.get(), "LEVEL:", screenW - 85, 18, 1, labelColor);
-    BitmapFont::drawText(m_renderer.get(), std::to_string(stats.level), screenW - 30, 18, 1, purpleColor);
 }
 
 void SdlRenderer::drawPlayfield(const Playfield& playfield, const SDL_Rect& fieldRect) noexcept

@@ -90,34 +90,50 @@ void QixCanvas::drawHud(QPainter& painter)
 
     // Lives
     painter.setPen(QColor(160, 174, 192));
-    painter.drawText(475, 28, "LIVES:");
+    painter.drawText(450, 28, "LIVES:");
     for (int i = 0; i < m_view.stats.lives; ++i) {
         painter.setBrush(QColor(245, 101, 101));
         painter.setPen(Qt::NoPen);
-        painter.drawEllipse(530 + i * 16, 18, 12, 12);
+        painter.drawEllipse(505 + i * 16, 18, 12, 12);
     }
 
-    // Multiplier (if > 1)
-    int offsetRight = 200;
+    // Time
+    const auto secondsRemaining = (m_view.stats.timeRemainingMs + 999U) / 1000U;
+    const QColor timerColor = (m_view.stats.timeUp || secondsRemaining <= 10U)
+        ? QColor(245, 101, 101)
+        : ((secondsRemaining <= 20U) ? QColor(246, 224, 94) : QColor(72, 187, 120));
+    painter.setPen(QColor(160, 174, 192));
+    painter.drawText(width() - 365, 28, "TIME:");
+    painter.setPen(timerColor);
+    painter.drawText(width() - 320, 28, QString("%1s").arg(secondsRemaining));
+
+    // Multiplier (if > 1) / Speed / Level
     if (m_view.stats.multiplier > 1) {
         painter.setPen(QColor(160, 174, 192));
-        painter.drawText(width() - 275, 28, "MULT:");
+        painter.drawText(width() - 265, 28, "MULT:");
         painter.setPen(QColor(246, 224, 94));
-        painter.drawText(width() - 225, 28, QString("%1X").arg(m_view.stats.multiplier));
-        offsetRight = 180;
+        painter.drawText(width() - 220, 28, QString("%1X").arg(m_view.stats.multiplier));
+
+        painter.setPen(QColor(160, 174, 192));
+        painter.drawText(width() - 165, 28, "SPD:");
+        painter.setPen(QColor(56, 178, 172));
+        painter.drawText(width() - 125, 28, QString("%1ms").arg(m_delayMs));
+
+        painter.setPen(QColor(160, 174, 192));
+        painter.drawText(width() - 65, 28, "LVL:");
+        painter.setPen(QColor(183, 148, 244));
+        painter.drawText(width() - 25, 28, QString::number(m_view.stats.level));
+    } else {
+        painter.setPen(QColor(160, 174, 192));
+        painter.drawText(width() - 200, 28, "SPEED:");
+        painter.setPen(QColor(56, 178, 172));
+        painter.drawText(width() - 145, 28, QString("%1ms").arg(m_delayMs));
+
+        painter.setPen(QColor(160, 174, 192));
+        painter.drawText(width() - 85, 28, "LEVEL:");
+        painter.setPen(QColor(183, 148, 244));
+        painter.drawText(width() - 30, 28, QString::number(m_view.stats.level));
     }
-
-    // Speed / Delay
-    painter.setPen(QColor(160, 174, 192));
-    painter.drawText(width() - offsetRight, 28, "SPEED:");
-    painter.setPen(QColor(56, 178, 172));
-    painter.drawText(width() - offsetRight + 55, 28, QString("%1ms").arg(m_delayMs));
-
-    // Level
-    painter.setPen(QColor(160, 174, 192));
-    painter.drawText(width() - 85, 28, "LEVEL:");
-    painter.setPen(QColor(183, 148, 244));
-    painter.drawText(width() - 30, 28, QString::number(m_view.stats.level));
 
     painter.restore();
 }

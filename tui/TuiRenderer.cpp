@@ -96,6 +96,11 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     if (view.stats.multiplier > 1) {
         frame += "Mult: \033[1;33m" + std::to_string(view.stats.multiplier) + "x\033[0m | ";
     }
+    const auto secondsRemaining = (view.stats.timeRemainingMs + 999U) / 1000U;
+    const std::string timeColor = (view.stats.timeUp || secondsRemaining <= 10U)
+        ? "\033[1;31m"
+        : ((secondsRemaining <= 20U) ? "\033[1;33m" : "\033[1;32m");
+    frame += "Time: " + timeColor + std::to_string(secondsRemaining) + "s\033[0m | ";
     frame += "Delay: \033[1;36m" + std::to_string(delayMs) + "ms\033[0m | ";
 
     std::string stateStr = "READY";

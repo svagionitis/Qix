@@ -207,6 +207,8 @@ All client frontends support configurable startup speed and game mode via CLI fl
 - **The Qix**: A kinetic stick helix wandering inside the uncaptured territory. If it touches your active Stix trail while you are drawing, you lose a life.
 - **Sparx**: Patrol sparks moving along the perimeter. If one touches you while you are on a border, you lose a life.
 - **Fuse**: If you pause or hesitate while drawing a Stix, a burning Fuse ignites at the trail origin and races toward your marker. Keep moving to escape it!
+- **Level Countdown Timer & Sparx Escalation**: Each level features an active countdown timer (starting at 60s on Level 1 and tightening on higher levels).
+  - When time expires, a **Time's Up** warning is flagged and additional **Sparx** spawn at perimeter corners every 15 seconds, creating escalating danger until the level is completed.
 
 ---
 

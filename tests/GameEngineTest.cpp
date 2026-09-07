@@ -93,3 +93,60 @@ TEST(GameEngineTest, MultiplierDefaultsAndCarriesOverLevels)
     EXPECT_EQ(game.getView().stats.multiplier, 1U);
     EXPECT_FALSE(game.getView().stats.splitBonus);
 }
+
+TEST(GameEngineTest, CountdownTimerTicksWhenPlaying)
+{
+    qix::QixGame game {40, 30, 75};
+    const auto& view = game.getView();
+
+    EXPECT_EQ(view.stats.timeRemainingMs, 60000U);
+    EXPECT_EQ(view.stats.totalLevelTimeMs, 60000U);
+    EXPECT_FALSE(view.stats.timeUp);
+
+    // Timer does not tick down while state is Ready
+    game.step(100);
+    EXPECT_EQ(game.getView().stats.timeRemainingMs, 60000U);
+
+    // Transition to Playing
+    game.handleInput(qix::PlayerCommand {qix::Direction::Right, qix::DrawMode::None});
+    game.step(100);
+    EXPECT_EQ(game.getView().state, qix::GameState::Playing);
+    EXPECT_EQ(game.getView().stats.timeRemainingMs, 59900U);
+}
+
+TEST(GameEngineTest, CountdownTimerLevelProgressionAndReset)
+{
+    EXPECT_EQ(qix::QixGame::computeLevelTimeMs(1), 60000U);
+    EXPECT_EQ(qix::QixGame::computeLevelTimeMs(2), 55000U);
+    EXPECT_EQ(qix::QixGame::computeLevelTimeMs(3), 50000U);
+    EXPECT_EQ(qix::QixGame::computeLevelTimeMs(8), 30000U); // Clamps to 30s min
+
+    qix::QixGame game {40, 30, 75};
+    game.nextLevel();
+
+    EXPECT_EQ(game.getView().stats.level, 2U);
+    EXPECT_EQ(game.getView().stats.timeRemainingMs, 55000U);
+    EXPECT_EQ(game.getView().stats.totalLevelTimeMs, 55000U);
+
+    game.reset();
+    EXPECT_EQ(game.getView().stats.level, 1U);
+    EXPECT_EQ(game.getView().stats.timeRemainingMs, 60000U);
+}
+
+TEST(GameEngineTest, CountdownTimerExpirySpawnsEscalationSparx)
+{
+    qix::QixGame game {40, 30, 75};
+
+    // Transition to playing
+    game.handleInput(qix::PlayerCommand {qix::Direction::Left, qix::DrawMode::None});
+    game.step(16);
+    EXPECT_EQ(game.getView().sparxPositions.size(), 2U);
+
+    // Advance time past the 60s budget
+    game.step(60000);
+    const auto& view = game.getView();
+
+    EXPECT_TRUE(view.stats.timeUp);
+    EXPECT_EQ(view.stats.timeRemainingMs, 15000U);
+    EXPECT_GT(view.sparxPositions.size(), 2U);
+}

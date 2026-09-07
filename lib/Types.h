@@ -64,6 +64,9 @@ struct GameStats {
     GameMode mode {DefaultGameMode};
     std::uint8_t multiplier {1};
     bool splitBonus {false};
+    std::uint32_t timeRemainingMs {60000};
+    std::uint32_t totalLevelTimeMs {60000};
+    bool timeUp {false};
 };
 
 /// @brief A line segment defined by two points.

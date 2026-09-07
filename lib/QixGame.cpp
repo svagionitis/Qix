@@ -17,8 +17,6 @@ QixGame::QixGame(std::int32_t width, std::int32_t height, std::uint16_t targetPe
 
 void QixGame::step(std::uint32_t deltaMs) noexcept
 {
-    static_cast<void>(deltaMs);
-
     if (m_state == GameState::GameOver || m_state == GameState::LevelComplete) {
         updateSnapshot();
         return;
@@ -32,6 +30,8 @@ void QixGame::step(std::uint32_t deltaMs) noexcept
             return;
         }
     }
+
+    updateLevelTimer(deltaMs);
 
     const bool wasDrawing = m_marker.isDrawing();
     const auto oldTrailSize = m_marker.getTrail().size();
@@ -126,6 +126,10 @@ void QixGame::reset() noexcept
     m_stats.level = 1;
     m_stats.multiplier = 1;
     m_stats.splitBonus = false;
+    m_timeRemainingMs = computeLevelTimeMs(1);
+    m_stats.totalLevelTimeMs = m_timeRemainingMs;
+    m_stats.timeRemainingMs = m_timeRemainingMs;
+    m_stats.timeUp = false;
     m_state = GameState::Ready;
 
     setupEntities();
@@ -140,6 +144,10 @@ void QixGame::nextLevel() noexcept
     m_stats.claimedPercent = 0;
     m_stats.splitBonus = false;
     ++m_stats.level;
+    m_timeRemainingMs = computeLevelTimeMs(m_stats.level);
+    m_stats.totalLevelTimeMs = m_timeRemainingMs;
+    m_stats.timeRemainingMs = m_timeRemainingMs;
+    m_stats.timeUp = false;
     m_state = GameState::Ready;
 
     setupEntities();
@@ -207,6 +215,10 @@ void QixGame::handleDeath() noexcept
     } else {
         // Respawn marker at bottom safe border
         m_marker.resetPosition(Point {m_playfield.getWidth() / 2, m_playfield.getHeight() - 1});
+        m_timeRemainingMs = computeLevelTimeMs(m_stats.level);
+        m_stats.totalLevelTimeMs = m_timeRemainingMs;
+        m_stats.timeRemainingMs = m_timeRemainingMs;
+        m_stats.timeUp = false;
         m_state = GameState::Ready;
     }
 }
@@ -225,6 +237,33 @@ void QixGame::clearActiveStix() noexcept
 GameMode QixGame::getGameMode() const noexcept
 {
     return m_mode;
+}
+
+void QixGame::updateLevelTimer(std::uint32_t deltaMs) noexcept
+{
+    if (m_state != GameState::Playing) {
+        return;
+    }
+
+    if (deltaMs >= m_timeRemainingMs) {
+        m_stats.timeUp = true;
+        m_timeRemainingMs = 15000U;
+        spawnEscalationSparx();
+    } else {
+        m_timeRemainingMs -= deltaMs;
+    }
+    m_stats.timeRemainingMs = m_timeRemainingMs;
+}
+
+void QixGame::spawnEscalationSparx() noexcept
+{
+    if (m_sparxList.size() >= 8) {
+        return;
+    }
+
+    const bool clockwise = (m_sparxList.size() % 2 == 0);
+    const auto spawnX = clockwise ? 1 : (m_playfield.getWidth() - 2);
+    m_sparxList.emplace_back(Point {spawnX, 0}, clockwise, m_mode);
 }
 
 } // namespace qix

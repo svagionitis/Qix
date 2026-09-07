@@ -101,28 +101,39 @@ void RaylibRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noex
         barX, barY, fillW, barH, stats.claimedPercent >= stats.targetPercent ? greenColor : Color {59, 130, 246, 255});
 
     // 4. LIVES
-    DrawText("LIVES:", 475, textY, fontSize, labelColor);
+    DrawText("LIVES:", 450, textY, fontSize, labelColor);
     for (int i = 0; i < stats.lives; ++i) {
-        DrawPoly(Vector2 {static_cast<float>(535 + i * 16), 23.0f}, 4, 6.0f, 45.0f, redColor);
+        DrawPoly(Vector2 {static_cast<float>(505 + i * 16), 23.0f}, 4, 6.0f, 45.0f, redColor);
     }
 
-    // 5. MULTIPLIER (if > 1)
-    int offsetRight = 200;
+    // 5. TIME
+    const auto secondsRemaining = (stats.timeRemainingMs + 999U) / 1000U;
+    const Color timerColor
+        = (stats.timeUp || secondsRemaining <= 10U) ? redColor : ((secondsRemaining <= 20U) ? yellowColor : greenColor);
+    DrawText("TIME:", screenW - 365, textY, fontSize, labelColor);
+    const std::string timeStr = std::to_string(secondsRemaining) + "s";
+    DrawText(timeStr.c_str(), screenW - 320, textY, fontSize, timerColor);
+
+    // 6. MULTIPLIER / SPEED / LEVEL
     if (stats.multiplier > 1) {
-        DrawText("MULT:", screenW - 275, textY, fontSize, labelColor);
+        DrawText("MULT:", screenW - 265, textY, fontSize, labelColor);
         const std::string multStr = std::to_string(stats.multiplier) + "X";
-        DrawText(multStr.c_str(), screenW - 225, textY, fontSize, yellowColor);
-        offsetRight = 180;
+        DrawText(multStr.c_str(), screenW - 220, textY, fontSize, yellowColor);
+
+        DrawText("SPD:", screenW - 165, textY, fontSize, labelColor);
+        const std::string speedStr = std::to_string(delayMs) + "ms";
+        DrawText(speedStr.c_str(), screenW - 125, textY, fontSize, speedColor);
+
+        DrawText("LVL:", screenW - 65, textY, fontSize, labelColor);
+        DrawText(std::to_string(stats.level).c_str(), screenW - 25, textY, fontSize, purpleColor);
+    } else {
+        DrawText("SPEED:", screenW - 200, textY, fontSize, labelColor);
+        const std::string speedStr = std::to_string(delayMs) + "ms";
+        DrawText(speedStr.c_str(), screenW - 145, textY, fontSize, speedColor);
+
+        DrawText("LEVEL:", screenW - 85, textY, fontSize, labelColor);
+        DrawText(std::to_string(stats.level).c_str(), screenW - 30, textY, fontSize, purpleColor);
     }
-
-    // 6. SPEED
-    DrawText("SPEED:", screenW - offsetRight, textY, fontSize, labelColor);
-    const std::string speedStr = std::to_string(delayMs) + "ms";
-    DrawText(speedStr.c_str(), screenW - offsetRight + 55, textY, fontSize, speedColor);
-
-    // 7. LEVEL
-    DrawText("LEVEL:", screenW - 85, textY, fontSize, labelColor);
-    DrawText(std::to_string(stats.level).c_str(), screenW - 30, textY, fontSize, purpleColor);
 }
 
 void RaylibRenderer::drawPlayfield(const Playfield& playfield, const Rectangle& fieldRect) noexcept
