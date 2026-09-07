@@ -1,4 +1,4 @@
-Because **`libqix_core`** is completely headless and decoupled—exposing only the [IQixGame](file:///home/theon/Development/qix.git/lib/IQixGame.h) interface and immutable [GameView](file:///home/theon/Development/qix.git/lib/IQixGame.h#L13-L23) snapshots—virtually any C++ graphical toolkit or game engine can be connected as a client.
+Because **`libqix_core`** is completely headless and decoupled—exposing only the [IQixGame](../lib/IQixGame.h) interface and immutable [GameView](../lib/IQixGame.h#L13-L23) snapshots—virtually any C++ graphical toolkit or game engine can be connected as a client.
 
 Here are the best candidates suited for a retro arcade game like Qix:
 

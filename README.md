@@ -271,6 +271,7 @@ cmake --build build --target format
 For comprehensive software engineering design documents, see:
 - [Engineering Requirements Document (ERD)](.agents/erd.md)
 - [C4 Model Architecture Design & Diagrams](docs/architecture.md)
+- [Alternative GUIs & Game Engines Guide](docs/game-engines-guis.md)
 
 ## Author
 
