@@ -208,8 +208,8 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     }
 
     // 3. Controls Legend
-    frame += "\033[2mControls: [WASD/Arrows] Move | [Space] Slow | [F] Fast | [-/+] Speed | [R] Reset | [Q] "
-             "Quit\033[0m\n";
+    frame += "\033[2mControls: [WASD/Arrows] Move | [Space] Slow | [F] Fast | [X] Border | [-/+] Speed | [R] "
+             "Reset | [Q] Quit\033[0m\n";
 
     std::cout << frame << std::flush;
 }
@@ -314,6 +314,10 @@ PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
         case 'f':
         case 'F':
             cmd.drawMode = DrawMode::Fast;
+            break;
+        case 'x':
+        case 'X':
+            action = TuiAction::DisengageDraw;
             break;
         default:
             break;

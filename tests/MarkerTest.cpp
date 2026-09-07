@@ -113,3 +113,71 @@ TEST(MarkerTest, ModernModeClaimedCellsWalkable)
     EXPECT_TRUE(stepIntoFast);
     EXPECT_EQ(marker.getPosition(), (qix::Point {5, 2}));
 }
+
+TEST(MarkerTest, ReleasingDrawButtonHaltsMarkerOnStix)
+{
+    qix::Playfield field {20, 20};
+    qix::Marker marker {qix::Point {5, 0}, 3};
+
+    // Begin drawing Slow into empty territory
+    const bool startDraw = marker.move(field, qix::PlayerCommand {qix::Direction::Down, qix::DrawMode::Slow});
+    EXPECT_TRUE(startDraw);
+    EXPECT_TRUE(marker.isDrawing());
+    EXPECT_EQ(marker.getPosition(), (qix::Point {5, 1}));
+
+    // Releasing draw button (DrawMode::None) halts the marker mid-stroke
+    const bool releasedMove = marker.move(field, qix::PlayerCommand {qix::Direction::Down, qix::DrawMode::None});
+    EXPECT_FALSE(releasedMove);
+    EXPECT_TRUE(marker.isDrawing());
+    EXPECT_EQ(marker.getPosition(), (qix::Point {5, 1}));
+
+    // Re-pressing the matching draw button allows advancing again
+    const bool resumedMove = marker.move(field, qix::PlayerCommand {qix::Direction::Down, qix::DrawMode::Slow});
+    EXPECT_TRUE(resumedMove);
+    EXPECT_EQ(marker.getPosition(), (qix::Point {5, 2}));
+}
+
+TEST(MarkerTest, SwitchingDrawModeMidStrokeDisallowed)
+{
+    qix::Playfield field {20, 20};
+    qix::Marker marker {qix::Point {5, 0}, 3};
+
+    // Begin drawing Slow into empty territory
+    const bool startDraw = marker.move(field, qix::PlayerCommand {qix::Direction::Down, qix::DrawMode::Slow});
+    EXPECT_TRUE(startDraw);
+    EXPECT_EQ(marker.getPosition(), (qix::Point {5, 1}));
+
+    // Attempting to switch to Fast draw mid-stroke is rejected
+    const bool switchMode = marker.move(field, qix::PlayerCommand {qix::Direction::Down, qix::DrawMode::Fast});
+    EXPECT_FALSE(switchMode);
+    EXPECT_EQ(marker.getPosition(), (qix::Point {5, 1}));
+
+    // Continuing with active Slow mode succeeds
+    const bool continueSlow = marker.move(field, qix::PlayerCommand {qix::Direction::Down, qix::DrawMode::Slow});
+    EXPECT_TRUE(continueSlow);
+    EXPECT_EQ(marker.getPosition(), (qix::Point {5, 2}));
+}
+
+TEST(MarkerTest, HoldingDrawModeAdvancesStix)
+{
+    qix::Playfield field {20, 20};
+    qix::Marker marker {qix::Point {5, 0}, 3};
+
+    // Begin drawing Fast
+    const bool startDraw = marker.move(field, qix::PlayerCommand {qix::Direction::Down, qix::DrawMode::Fast});
+    EXPECT_TRUE(startDraw);
+    EXPECT_EQ(marker.getDrawMode(), qix::DrawMode::Fast);
+    EXPECT_EQ(marker.getPosition(), (qix::Point {5, 1}));
+
+    // Advance across empty cells while holding Fast
+    for (std::int32_t y = 2; y < 19; ++y) {
+        const bool advanced = marker.move(field, qix::PlayerCommand {qix::Direction::Down, qix::DrawMode::Fast});
+        EXPECT_TRUE(advanced);
+        EXPECT_EQ(marker.getPosition(), (qix::Point {5, y}));
+    }
+
+    // Connect to opposite border (y=19) while holding Fast
+    const bool closedLoop = marker.move(field, qix::PlayerCommand {qix::Direction::Down, qix::DrawMode::Fast});
+    EXPECT_TRUE(closedLoop);
+    EXPECT_EQ(marker.getPosition(), (qix::Point {5, 19}));
+}

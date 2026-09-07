@@ -182,10 +182,18 @@ You can select the ruleset mode at launch via CLI:
 | **Move Cursor** | `W`, `A`, `S`, `D` / Arrows | `W`, `A`, `S`, `D` / Arrows | `W`, `A`, `S`, `D` / Arrows | `W`, `A`, `S`, `D` / Arrows |
 | **Slow Draw (2x Points)** | Hold `Space` + Direction | Hold `Space` or `Ctrl` + Dir | Hold `Space` or `Ctrl` + Dir | Hold `Space` or `Ctrl` + Dir |
 | **Fast Draw (1x Points)** | Hold `F` + Direction | Hold `Shift` or `F` + Dir | Hold `Shift` or `F` + Dir | Hold `Shift` or `F` + Dir |
+| **Disengage Draw / Border** | `X` (Return to border nav) | Release draw key | Release draw key | Release draw key |
 | **Adjust Speed (Pacing)** | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) |
 | **Restart Session** | `R` | `R` | `R` | `R` |
 | **Next Level (on victory)**| Automatic / Step | `Space` or `Return` | `Space` or `Return` | `Space` or `Return` |
 | **Quit Game** | `Q` | `Escape` / Close Window | `Escape` / Close Window | `Escape` / Close Window |
+
+#### Authentic Two-Button Cabinet Hold-to-Draw Mechanics
+Just like the original 1981 *Qix* arcade cabinet equipped with dedicated Slow and Fast draw buttons:
+- **Continuous Hold**: You can freely navigate existing boundaries without pressing buttons. However, entering open territory and advancing an active Stix trail requires **actively holding down** the matching draw button.
+- **Mid-Stroke Release & The Fuse**: Releasing the draw button mid-stroke immediately halts the Marker in place. While halted, the Fuse hesitation counter ticks down; if you hesitate too long, the Fuse ignites at the trail origin and burns towards you!
+- **Draw Mode Lock**: The drawing mode is locked upon entering empty territory. Attempting to switch between Slow and Fast draw mid-stroke is rejected.
+- **Terminal Disengage (`qix_tui`)**: Because terminal emulators do not emit key release events, `Space` and `F` engage Slow and Fast draw, while `X` disengages back to border navigation. Completing a cut automatically resets the draw mode.
 
 All client frontends support configurable startup speed and game mode via CLI flags:
 ```bash

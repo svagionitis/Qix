@@ -61,6 +61,12 @@ bool Marker::move(Playfield& field, PlayerCommand cmd) noexcept
     }
 
     // Case 2: Marker is actively drawing a Stix line
+    // Hold-to-draw arcade rule: advancing the active Stix requires holding the matching draw button.
+    // Releasing the button (DrawMode::None) or attempting to switch draw modes mid-stroke halts the marker.
+    if (cmd.drawMode != m_drawMode) {
+        return false;
+    }
+
     // Disallow self-intersection with current trail
     const auto hitTrail = std::find(m_trail.begin(), m_trail.end(), nextPos);
     if (hitTrail != m_trail.end()) {

@@ -24,9 +24,13 @@ public:
     void resetPosition(Point resetPos) noexcept;
 
     /// @brief Move the marker in response to a player command.
+    /// @details Navigates along borders or draws a Stix trail into empty space.
+    /// In accordance with authentic two-button arcade controls, advancing an active Stix
+    /// requires continuously holding the matching DrawMode. Releasing the button or
+    /// attempting to switch draw modes mid-stroke halts the marker in place.
     /// @param[in] field Reference to active playfield for boundary verification.
     /// @param[in] cmd Direction and requested drawing mode.
-    /// @return True if movement occurred, false if blocked.
+    /// @return True if movement occurred, false if blocked or draw button released.
     bool move(Playfield& field, PlayerCommand cmd) noexcept;
 
     /// @brief Check if marker is actively drawing a Stix line.

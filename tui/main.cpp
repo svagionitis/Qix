@@ -44,6 +44,8 @@ int main(int argc, char* argv[])
         } else if (action == qix::tui::TuiAction::SpeedUp) {
             game.setBaseDelayMs(qix::SpeedConfig::speedUp(game.getBaseDelayMs()));
             delayMs = game.getCurrentDelayMs();
+        } else if (action == qix::tui::TuiAction::DisengageDraw) {
+            currentCmd.drawMode = qix::DrawMode::None;
         }
 
         if (cmd.direction != qix::Direction::None) {
@@ -53,8 +55,15 @@ int main(int argc, char* argv[])
             currentCmd.drawMode = cmd.drawMode;
         }
 
+        const bool wasDrawing = (game.getView().drawMode != qix::DrawMode::None);
+
         game.handleInput(currentCmd);
         game.step(delayMs);
+
+        const bool isDrawing = (game.getView().drawMode != qix::DrawMode::None);
+        if (wasDrawing && !isDrawing) {
+            currentCmd.drawMode = qix::DrawMode::None;
+        }
 
         renderer.render(game.getView(), delayMs);
 

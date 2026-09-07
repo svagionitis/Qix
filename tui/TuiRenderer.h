@@ -7,7 +7,7 @@
 namespace qix::tui {
 
 /// @brief Actions triggered from terminal key inputs.
-enum class TuiAction : std::uint8_t { None = 0, Quit, SpeedUp, SpeedDown, Restart };
+enum class TuiAction : std::uint8_t { None = 0, Quit, SpeedUp, SpeedDown, Restart, DisengageDraw };
 
 /// @class TuiRenderer
 /// @brief Cross-platform terminal renderer displaying the playfield, Qix ribbons, and HUD.
