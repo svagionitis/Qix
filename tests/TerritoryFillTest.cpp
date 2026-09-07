@@ -71,4 +71,76 @@ TEST(TerritoryFillTest, VictoryThresholdMet)
     EXPECT_EQ(result.claimedCellsCount, 8U);
     EXPECT_EQ(result.claimedPercent, 50U);
     EXPECT_TRUE(result.thresholdMet);
+    EXPECT_FALSE(result.splitOccurred);
+}
+
+TEST(TerritoryFillTest, SplitQixDetectsSeparationAndAwardsThreshold)
+{
+    // 10x10 field
+    qix::Playfield field {10, 10};
+    qix::TerritoryFill fill {10, 10};
+
+    // Draw vertical dividing line along x = 5 from y = 0 to y = 9
+    std::vector<qix::Point> trail {};
+    for (std::int32_t y {0}; y < 10; ++y) {
+        trail.push_back(qix::Point {5, y});
+    }
+
+    // Place Qix 1 on left side (x = 2, y = 5), Qix 2 on right side (x = 7, y = 5)
+    std::vector<qix::Point> qixPositions {qix::Point {2, 5}, qix::Point {7, 5}};
+
+    const auto result = fill.execute(field, trail, qixPositions, qix::DrawMode::Slow, 75);
+
+    // Splitting the Qixes should trigger splitOccurred and complete the level immediately
+    EXPECT_TRUE(result.splitOccurred);
+    EXPECT_TRUE(result.thresholdMet);
+
+    // Both compartments hold an active Qix, so neither side is claimed
+    EXPECT_EQ(field.getCell(2, 5), qix::CellState::Empty);
+    EXPECT_EQ(field.getCell(7, 5), qix::CellState::Empty);
+}
+
+TEST(TerritoryFillTest, TwoQixSameSideNoSplit)
+{
+    // 10x10 field
+    qix::Playfield field {10, 10};
+    qix::TerritoryFill fill {10, 10};
+
+    // Trail at x = 3 from y = 0 to y = 9
+    std::vector<qix::Point> trail {};
+    for (std::int32_t y {0}; y < 10; ++y) {
+        trail.push_back(qix::Point {3, y});
+    }
+
+    // Both Qixes on the right side
+    std::vector<qix::Point> qixPositions {qix::Point {5, 5}, qix::Point {7, 5}};
+
+    const auto result = fill.execute(field, trail, qixPositions, qix::DrawMode::Fast, 75);
+
+    EXPECT_FALSE(result.splitOccurred);
+    EXPECT_FALSE(result.thresholdMet);
+    EXPECT_EQ(result.claimedCellsCount, 16U);
+
+    // Left side cells are claimed
+    EXPECT_EQ(field.getCell(1, 1), qix::CellState::ClaimedFast);
+    // Right side cells remain empty
+    EXPECT_EQ(field.getCell(5, 5), qix::CellState::Empty);
+}
+
+TEST(TerritoryFillTest, ScoreMultiplierApplied)
+{
+    qix::Playfield field {10, 10};
+    qix::TerritoryFill fill {10, 10};
+
+    std::vector<qix::Point> trail {};
+    for (std::int32_t y {0}; y < 10; ++y) {
+        trail.push_back(qix::Point {3, y});
+    }
+
+    std::vector<qix::Point> qixPositions {qix::Point {6, 5}};
+
+    // Multiplier of 3x with Slow Draw (200 pts/cell * 3 = 600 pts/cell * 16 cells = 9600 pts)
+    const auto result = fill.execute(field, trail, qixPositions, qix::DrawMode::Slow, 75, 3);
+    EXPECT_EQ(result.claimedCellsCount, 16U);
+    EXPECT_EQ(result.pointsAwarded, 16U * 200U * 3U);
 }

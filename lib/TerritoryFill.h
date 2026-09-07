@@ -15,6 +15,7 @@ struct FillResult {
     std::uint16_t claimedPercent {0};
     std::uint32_t pointsAwarded {0};
     bool thresholdMet {false};
+    bool splitOccurred {false};
 };
 
 /// @class TerritoryFill
@@ -33,9 +34,10 @@ public:
     /// @param[in] qixPositions Coordinates of all active Qix entities.
     /// @param[in] mode Drawing speed used (DrawMode::Slow awards 2x points).
     /// @param[in] targetPercent Victory threshold (e.g. 75%).
-    /// @return FillResult detailing cells claimed, percentage, and points.
+    /// @param[in] multiplier Active score multiplier (1x up to 9x, default 1).
+    /// @return FillResult detailing cells claimed, percentage, points, and whether a split occurred.
     FillResult execute(Playfield& field, const std::vector<Point>& trail, const std::vector<Point>& qixPositions,
-        DrawMode mode, std::uint16_t targetPercent) noexcept;
+        DrawMode mode, std::uint16_t targetPercent, std::uint8_t multiplier = 1) noexcept;
 
 private:
     std::int32_t m_width {0};
@@ -43,7 +45,8 @@ private:
     std::vector<std::uint8_t> m_visited {};
     std::vector<Point> m_queue {};
 
-    void floodFromQix(const Playfield& field, Point startPos) noexcept;
+    [[nodiscard]] Point findSeed(const Playfield& field, Point startPos) const noexcept;
+    void floodFromSeed(const Playfield& field, Point seed) noexcept;
 };
 
 } // namespace qix

@@ -53,7 +53,7 @@ void RaylibRenderer::render(const GameView& view, std::uint32_t delayMs) noexcep
     }
 
     // 4. Overlays
-    drawOverlays(view.state);
+    drawOverlays(view.state, view.stats);
 
     EndDrawing();
 
@@ -106,14 +106,23 @@ void RaylibRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noex
         DrawPoly(Vector2 {static_cast<float>(535 + i * 16), 23.0f}, 4, 6.0f, 45.0f, redColor);
     }
 
-    // 5. SPEED
-    DrawText("SPEED:", screenW - 200, textY, fontSize, labelColor);
-    const std::string speedStr = std::to_string(delayMs) + "ms";
-    DrawText(speedStr.c_str(), screenW - 145, textY, fontSize, speedColor);
+    // 5. MULTIPLIER (if > 1)
+    int offsetRight = 200;
+    if (stats.multiplier > 1) {
+        DrawText("MULT:", screenW - 275, textY, fontSize, labelColor);
+        const std::string multStr = std::to_string(stats.multiplier) + "X";
+        DrawText(multStr.c_str(), screenW - 225, textY, fontSize, yellowColor);
+        offsetRight = 180;
+    }
 
-    // 6. LEVEL
-    DrawText("LEVEL:", screenW - 90, textY, fontSize, labelColor);
-    DrawText(std::to_string(stats.level).c_str(), screenW - 35, textY, fontSize, purpleColor);
+    // 6. SPEED
+    DrawText("SPEED:", screenW - offsetRight, textY, fontSize, labelColor);
+    const std::string speedStr = std::to_string(delayMs) + "ms";
+    DrawText(speedStr.c_str(), screenW - offsetRight + 55, textY, fontSize, speedColor);
+
+    // 7. LEVEL
+    DrawText("LEVEL:", screenW - 85, textY, fontSize, labelColor);
+    DrawText(std::to_string(stats.level).c_str(), screenW - 30, textY, fontSize, purpleColor);
 }
 
 void RaylibRenderer::drawPlayfield(const Playfield& playfield, const Rectangle& fieldRect) noexcept
@@ -230,7 +239,7 @@ void RaylibRenderer::drawEntities(const GameView& view, const Rectangle& fieldRe
     DrawPoly(markerPos, 4, 7.0f, 45.0f, markerColor);
 }
 
-void RaylibRenderer::drawOverlays(GameState state) noexcept
+void RaylibRenderer::drawOverlays(GameState state, const GameStats& stats) noexcept
 {
     if (state == GameState::Playing || state == GameState::Ready) {
         return;
@@ -243,15 +252,18 @@ void RaylibRenderer::drawOverlays(GameState state) noexcept
     DrawRectangle(0, 0, screenW, screenH, Color {0, 0, 0, 180});
 
     if (state == GameState::LevelComplete) {
-        const char* text1 = "LEVEL COMPLETE!";
-        const char* text2 = "Press [Space] for Next Level";
+        const char* text1 = stats.splitBonus ? "QIX SPLIT BONUS!" : "LEVEL COMPLETE!";
+        const std::string text2 = stats.splitBonus
+            ? ("Multiplier Increased to " + std::to_string(stats.multiplier) + "X! Press [Space]")
+            : "Press [Space] for Next Level";
         const int font1 = 28;
         const int font2 = 18;
         const int w1 = MeasureText(text1, font1);
-        const int w2 = MeasureText(text2, font2);
+        const int w2 = MeasureText(text2.c_str(), font2);
 
-        DrawText(text1, (screenW - w1) / 2, screenH / 2 - 30, font1, Color {74, 222, 128, 255});
-        DrawText(text2, (screenW - w2) / 2, screenH / 2 + 15, font2, Color {243, 244, 246, 255});
+        DrawText(text1, (screenW - w1) / 2, screenH / 2 - 30, font1,
+            stats.splitBonus ? Color {250, 204, 21, 255} : Color {74, 222, 128, 255});
+        DrawText(text2.c_str(), (screenW - w2) / 2, screenH / 2 + 15, font2, Color {243, 244, 246, 255});
     } else if (state == GameState::GameOver) {
         const char* text1 = "GAME OVER";
         const char* text2 = "Press [R] to Restart";

@@ -49,7 +49,7 @@ private:
     void drawPlayfield(const Playfield& playfield, const Rectangle& fieldRect) noexcept;
     void drawQixRibbons(const std::vector<std::deque<LineSegment>>& ribbons, const Rectangle& fieldRect) noexcept;
     void drawEntities(const GameView& view, const Rectangle& fieldRect) noexcept;
-    void drawOverlays(GameState state) noexcept;
+    void drawOverlays(GameState state, const GameStats& stats) noexcept;
 };
 
 } // namespace qix::raylib

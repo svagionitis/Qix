@@ -77,7 +77,7 @@ private:
     void drawPlayfield(const Playfield& playfield, const SDL_Rect& fieldRect) noexcept;
     void drawQixRibbons(const std::vector<std::deque<LineSegment>>& ribbons, const SDL_Rect& fieldRect) noexcept;
     void drawEntities(const GameView& view, const SDL_Rect& fieldRect) noexcept;
-    void drawOverlays(GameState state) noexcept;
+    void drawOverlays(GameState state, const GameStats& stats) noexcept;
 
     void drawFilledDiamond(int cx, int cy, int radius, SDL_Color color) noexcept;
     void drawThickLine(int x1, int y1, int x2, int y2, int thickness, SDL_Color color) noexcept;

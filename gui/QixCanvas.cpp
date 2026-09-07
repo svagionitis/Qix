@@ -97,17 +97,27 @@ void QixCanvas::drawHud(QPainter& painter)
         painter.drawEllipse(530 + i * 16, 18, 12, 12);
     }
 
+    // Multiplier (if > 1)
+    int offsetRight = 200;
+    if (m_view.stats.multiplier > 1) {
+        painter.setPen(QColor(160, 174, 192));
+        painter.drawText(width() - 275, 28, "MULT:");
+        painter.setPen(QColor(246, 224, 94));
+        painter.drawText(width() - 225, 28, QString("%1X").arg(m_view.stats.multiplier));
+        offsetRight = 180;
+    }
+
     // Speed / Delay
     painter.setPen(QColor(160, 174, 192));
-    painter.drawText(width() - 200, 28, "SPEED:");
+    painter.drawText(width() - offsetRight, 28, "SPEED:");
     painter.setPen(QColor(56, 178, 172));
-    painter.drawText(width() - 145, 28, QString("%1ms").arg(m_delayMs));
+    painter.drawText(width() - offsetRight + 55, 28, QString("%1ms").arg(m_delayMs));
 
     // Level
     painter.setPen(QColor(160, 174, 192));
-    painter.drawText(width() - 90, 28, "LEVEL:");
+    painter.drawText(width() - 85, 28, "LEVEL:");
     painter.setPen(QColor(183, 148, 244));
-    painter.drawText(width() - 35, 28, QString::number(m_view.stats.level));
+    painter.drawText(width() - 30, 28, QString::number(m_view.stats.level));
 
     painter.restore();
 }
@@ -252,8 +262,15 @@ void QixCanvas::drawOverlays(QPainter& painter)
     painter.setFont(font);
 
     if (m_view.state == GameState::LevelComplete) {
-        painter.setPen(QColor(74, 222, 128));
-        painter.drawText(rect(), Qt::AlignCenter, "LEVEL COMPLETE!\nPress [Space] for Next Level");
+        if (m_view.stats.splitBonus) {
+            painter.setPen(QColor(250, 204, 21));
+            painter.drawText(rect(), Qt::AlignCenter,
+                QString("QIX SPLIT BONUS!\nMultiplier: %1X\nPress [Space] for Next Level")
+                    .arg(m_view.stats.multiplier));
+        } else {
+            painter.setPen(QColor(74, 222, 128));
+            painter.drawText(rect(), Qt::AlignCenter, "LEVEL COMPLETE!\nPress [Space] for Next Level");
+        }
     } else if (m_view.state == GameState::GameOver) {
         painter.setPen(QColor(248, 113, 113));
         painter.drawText(rect(), Qt::AlignCenter, "GAME OVER\nPress [R] to Restart");

@@ -13,7 +13,8 @@ TerritoryFill::TerritoryFill(std::int32_t width, std::int32_t height) noexcept
 }
 
 FillResult TerritoryFill::execute(Playfield& field, const std::vector<Point>& trail,
-    const std::vector<Point>& qixPositions, DrawMode mode, std::uint16_t targetPercent) noexcept
+    const std::vector<Point>& qixPositions, DrawMode mode, std::uint16_t targetPercent,
+    std::uint8_t multiplier) noexcept
 {
     // Convert all points along the completed Stix line into permanent borders
     for (const auto& pt : trail) {
@@ -23,9 +24,35 @@ FillResult TerritoryFill::execute(Playfield& field, const std::vector<Point>& tr
     // Reset pre-allocated visited buffer
     std::fill(m_visited.begin(), m_visited.end(), 0);
 
-    // Flood-fill all empty regions reachable by any Qix entity
+    // Locate seeds for all Qix positions
+    std::vector<Point> validSeeds {};
+    validSeeds.reserve(qixPositions.size());
     for (const auto& qpos : qixPositions) {
-        floodFromQix(field, qpos);
+        const auto seed = findSeed(field, qpos);
+        if (seed.x != -1 && seed.y != -1) {
+            validSeeds.push_back(seed);
+        }
+    }
+
+    bool splitOccurred {false};
+
+    if (!validSeeds.empty()) {
+        // Flood from first Qix seed
+        floodFromSeed(field, validSeeds[0]);
+
+        // If multiple Qixes are present, check whether any subsequent Qix was unreachable
+        if (validSeeds.size() >= 2) {
+            const auto width = field.getWidth();
+            for (std::size_t i {1}; i < validSeeds.size(); ++i) {
+                const auto idx = static_cast<std::size_t>(validSeeds[i].y) * static_cast<std::size_t>(width)
+                    + static_cast<std::size_t>(validSeeds[i].x);
+                if (m_visited[idx] == 0) {
+                    splitOccurred = true;
+                    // Flood fill remaining Qix region so its territory is also preserved
+                    floodFromSeed(field, validSeeds[i]);
+                }
+            }
+        }
     }
 
     // Any empty cell unvisited by the Qix flood-fill is an enclosed region to be claimed
@@ -55,40 +82,47 @@ FillResult TerritoryFill::execute(Playfield& field, const std::vector<Point>& tr
             = static_cast<std::uint16_t>((static_cast<std::uint64_t>(result.totalClaimedSoFar) * 100) / totalPlayable);
     }
 
-    // Slow draw awards double points (200 pts per cell vs 100 pts)
-    const std::uint32_t ptsPerCell = (mode == DrawMode::Slow) ? 200U : 100U;
-    result.pointsAwarded = freshlyClaimed * ptsPerCell;
-    result.thresholdMet = (result.claimedPercent >= targetPercent);
+    const auto safeMultiplier = std::max<std::uint32_t>(1U, static_cast<std::uint32_t>(multiplier));
+    const std::uint32_t basePtsPerCell = (mode == DrawMode::Slow) ? 200U : 100U;
+    result.pointsAwarded = freshlyClaimed * basePtsPerCell * safeMultiplier;
+    result.splitOccurred = splitOccurred;
+    result.thresholdMet = splitOccurred || (result.claimedPercent >= targetPercent);
 
     return result;
 }
 
-void TerritoryFill::floodFromQix(const Playfield& field, Point startPos) noexcept
+Point TerritoryFill::findSeed(const Playfield& field, Point startPos) const noexcept
 {
-    m_queue.clear();
+    if (field.isInBounds(startPos.x, startPos.y) && field.getCell(startPos.x, startPos.y) == CellState::Empty) {
+        return startPos;
+    }
 
-    // Ensure start coordinate is an empty cell; if not, check immediate neighbors
-    Point seed = startPos;
-    if (field.getCell(seed.x, seed.y) != CellState::Empty) {
-        bool foundSeed = false;
-        for (std::int32_t dy {-1}; dy <= 1 && !foundSeed; ++dy) {
-            for (std::int32_t dx {-1}; dx <= 1 && !foundSeed; ++dx) {
-                const auto nx = startPos.x + dx;
-                const auto ny = startPos.y + dy;
-                if (field.isInBounds(nx, ny) && field.getCell(nx, ny) == CellState::Empty) {
-                    seed = Point {nx, ny};
-                    foundSeed = true;
-                }
+    for (std::int32_t dy {-1}; dy <= 1; ++dy) {
+        for (std::int32_t dx {-1}; dx <= 1; ++dx) {
+            const auto nx = startPos.x + dx;
+            const auto ny = startPos.y + dy;
+            if (field.isInBounds(nx, ny) && field.getCell(nx, ny) == CellState::Empty) {
+                return Point {nx, ny};
             }
         }
-        if (!foundSeed) {
-            return;
-        }
+    }
+    return Point {-1, -1};
+}
+
+void TerritoryFill::floodFromSeed(const Playfield& field, Point seed) noexcept
+{
+    if (!field.isInBounds(seed.x, seed.y) || field.getCell(seed.x, seed.y) != CellState::Empty) {
+        return;
     }
 
     const auto width = field.getWidth();
     const auto seedIdx
         = static_cast<std::size_t>(seed.y) * static_cast<std::size_t>(width) + static_cast<std::size_t>(seed.x);
+    if (m_visited[seedIdx] != 0) {
+        return;
+    }
+
+    m_queue.clear();
     m_visited[seedIdx] = 1;
     m_queue.push_back(seed);
 

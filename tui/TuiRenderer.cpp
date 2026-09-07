@@ -93,13 +93,18 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
         + std::to_string(view.stats.targetPercent) + "%\033[0m | ";
     frame += "Lives: \033[1;31m" + std::to_string(view.stats.lives) + "\033[0m | ";
     frame += "Level: \033[1;35m" + std::to_string(view.stats.level) + "\033[0m | ";
+    if (view.stats.multiplier > 1) {
+        frame += "Mult: \033[1;33m" + std::to_string(view.stats.multiplier) + "x\033[0m | ";
+    }
     frame += "Delay: \033[1;36m" + std::to_string(delayMs) + "ms\033[0m | ";
 
     std::string stateStr = "READY";
     if (view.state == GameState::Playing) {
         stateStr = "PLAYING";
     } else if (view.state == GameState::LevelComplete) {
-        stateStr = "\033[1;32mVICTORY!\033[0m";
+        stateStr = view.stats.splitBonus
+            ? ("\033[1;33mSPLIT BONUS! (" + std::to_string(view.stats.multiplier) + "x)\033[0m")
+            : "\033[1;32mVICTORY!\033[0m";
     } else if (view.state == GameState::GameOver) {
         stateStr = "\033[1;31mGAME OVER\033[0m";
     }

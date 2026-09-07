@@ -31,7 +31,7 @@ enum class CellState : std::uint8_t { Empty = 0, Border, ClaimedSlow, ClaimedFas
 /// @brief Ruleset configuration governing movement constraints.
 enum class GameMode : std::uint8_t {
     Classic = 0, ///< Strict 1981 arcade rules: navigation restricted to perimeter borders only.
-    Modern = 1   ///< Modern rules: navigation permitted on both borders and inside claimed shapes.
+    Modern = 1 ///< Modern rules: navigation permitted on both borders and inside claimed shapes.
 };
 
 #if defined(QIX_DEFAULT_CLASSIC_MODE) && (QIX_DEFAULT_CLASSIC_MODE == 0)
@@ -62,6 +62,8 @@ struct GameStats {
     std::uint8_t lives {3};
     std::uint8_t level {1};
     GameMode mode {DefaultGameMode};
+    std::uint8_t multiplier {1};
+    bool splitBonus {false};
 };
 
 /// @brief A line segment defined by two points.

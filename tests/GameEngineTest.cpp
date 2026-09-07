@@ -73,3 +73,23 @@ TEST(GameEngineTest, ModeConfiguration)
     EXPECT_EQ(modernGame.getView().mode, qix::GameMode::Modern);
     EXPECT_EQ(modernGame.getView().stats.mode, qix::GameMode::Modern);
 }
+
+TEST(GameEngineTest, MultiplierDefaultsAndCarriesOverLevels)
+{
+    qix::QixGame game {40, 30, 75};
+    const auto& view = game.getView();
+    EXPECT_EQ(view.stats.multiplier, 1U);
+    EXPECT_FALSE(view.stats.splitBonus);
+
+    // Advancing level preserves multiplier
+    game.nextLevel();
+    EXPECT_EQ(game.getView().stats.level, 2U);
+    EXPECT_EQ(game.getView().stats.multiplier, 1U);
+    EXPECT_FALSE(game.getView().stats.splitBonus);
+
+    // Reset restores multiplier to 1
+    game.reset();
+    EXPECT_EQ(game.getView().stats.level, 1U);
+    EXPECT_EQ(game.getView().stats.multiplier, 1U);
+    EXPECT_FALSE(game.getView().stats.splitBonus);
+}

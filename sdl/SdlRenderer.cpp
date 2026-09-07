@@ -78,7 +78,7 @@ void SdlRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     }
 
     // 4. Overlays
-    drawOverlays(view.state);
+    drawOverlays(view.state, view.stats);
 
     ++m_colorCycle;
 }
@@ -146,13 +146,23 @@ void SdlRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noexcep
         drawFilledDiamond(535 + i * 16, 22, 5, redColor);
     }
 
-    // 5. SPEED
-    BitmapFont::drawText(m_renderer.get(), "SPEED:", screenW - 200, 18, 1, labelColor);
-    BitmapFont::drawText(m_renderer.get(), std::to_string(delayMs) + "ms", screenW - 145, 18, 1, speedColor);
+    // 5. MULTIPLIER (if > 1)
+    int offsetRight = 200;
+    if (stats.multiplier > 1) {
+        BitmapFont::drawText(m_renderer.get(), "MULT:", screenW - 275, 18, 1, labelColor);
+        BitmapFont::drawText(
+            m_renderer.get(), std::to_string(stats.multiplier) + "X", screenW - 225, 18, 1, yellowColor);
+        offsetRight = 180;
+    }
 
-    // 6. LEVEL
-    BitmapFont::drawText(m_renderer.get(), "LEVEL:", screenW - 90, 18, 1, labelColor);
-    BitmapFont::drawText(m_renderer.get(), std::to_string(stats.level), screenW - 35, 18, 1, purpleColor);
+    // 6. SPEED
+    BitmapFont::drawText(m_renderer.get(), "SPEED:", screenW - offsetRight, 18, 1, labelColor);
+    BitmapFont::drawText(
+        m_renderer.get(), std::to_string(delayMs) + "ms", screenW - offsetRight + 55, 18, 1, speedColor);
+
+    // 7. LEVEL
+    BitmapFont::drawText(m_renderer.get(), "LEVEL:", screenW - 85, 18, 1, labelColor);
+    BitmapFont::drawText(m_renderer.get(), std::to_string(stats.level), screenW - 30, 18, 1, purpleColor);
 }
 
 void SdlRenderer::drawPlayfield(const Playfield& playfield, const SDL_Rect& fieldRect) noexcept
@@ -270,7 +280,7 @@ void SdlRenderer::drawEntities(const GameView& view, const SDL_Rect& fieldRect) 
     drawFilledDiamond(mx, my, 7, markerColor);
 }
 
-void SdlRenderer::drawOverlays(GameState state) noexcept
+void SdlRenderer::drawOverlays(GameState state, const GameStats& stats) noexcept
 {
     if (state == GameState::Playing || state == GameState::Ready) {
         return;
@@ -285,15 +295,18 @@ void SdlRenderer::drawOverlays(GameState state) noexcept
     SDL_RenderFillRect(m_renderer.get(), &fullScreen);
 
     if (state == GameState::LevelComplete) {
-        const std::string line1 = "LEVEL COMPLETE!";
-        const std::string line2 = "Press [Space] for Next Level";
+        const std::string line1 = stats.splitBonus ? "QIX SPLIT BONUS!" : "LEVEL COMPLETE!";
+        const std::string line2 = stats.splitBonus
+            ? ("Multiplier: " + std::to_string(stats.multiplier) + "X! Press [Space]")
+            : "Press [Space] for Next Level";
         const int scale = 2;
         const int x1 = std::max(20, (screenW - static_cast<int>(line1.length()) * 8 * scale) / 2);
         const int y1 = screenH / 2 - 30;
         const int x2 = std::max(20, (screenW - static_cast<int>(line2.length()) * 8 * 1) / 2);
         const int y2 = screenH / 2 + 15;
 
-        BitmapFont::drawText(m_renderer.get(), line1, x1, y1, scale, SDL_Color {74, 222, 128, 255});
+        const SDL_Color titleCol = stats.splitBonus ? SDL_Color {250, 204, 21, 255} : SDL_Color {74, 222, 128, 255};
+        BitmapFont::drawText(m_renderer.get(), line1, x1, y1, scale, titleCol);
         BitmapFont::drawText(m_renderer.get(), line2, x2, y2, 1, SDL_Color {243, 244, 246, 255});
     } else if (state == GameState::GameOver) {
         const std::string line1 = "GAME OVER";

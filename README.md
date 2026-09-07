@@ -199,6 +199,9 @@ All client frontends support configurable startup speed and game mode via CLI fl
 - **Loop Closure**: When your Stix connects back to any existing border or claimed territory, the field partitions. The region containing the **Qix** remains empty; the opposite enclosed region is claimed!
 - **Slow Draw Bonus**: Claiming area with Slow Draw awards **200 points per cell**; Fast Draw awards **100 points per cell**.
 - **Victory**: Reach or exceed the **75%** threshold to complete the level. Level 2 and beyond adds a second Qix!
+- **Qix Split Mechanic**: Starting on Level 2 (where two Qix entities roam), you can complete the level immediately by drawing a Stix that walls off one Qix from the other into separate enclosures.
+  - Successfully splitting the Qixes awards an immediate level victory and increments your **permanent score multiplier** (scaling from $1\times$ up to $9\times$).
+  - The multiplier persists across subsequent levels for the remainder of your game session, boosting all future cell capture scores ($P = \text{cells} \times \text{ptsPerCell} \times \text{multiplier}$).
 
 ### Enemies & Hazards
 - **The Qix**: A kinetic stick helix wandering inside the uncaptured territory. If it touches your active Stix trail while you are drawing, you lose a life.

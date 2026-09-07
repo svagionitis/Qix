@@ -56,8 +56,8 @@ void QixGame::step(std::uint32_t deltaMs) noexcept
                 qixPositions.push_back(qix.getHead().start);
             }
 
-            const auto fillRes = m_fill.execute(
-                m_playfield, m_marker.getTrail(), qixPositions, m_marker.getDrawMode(), m_stats.targetPercent);
+            const auto fillRes = m_fill.execute(m_playfield, m_marker.getTrail(), qixPositions, m_marker.getDrawMode(),
+                m_stats.targetPercent, m_stats.multiplier);
 
             m_stats.score += fillRes.pointsAwarded;
             m_stats.claimedCells = fillRes.totalClaimedSoFar;
@@ -66,7 +66,14 @@ void QixGame::step(std::uint32_t deltaMs) noexcept
             m_marker.clearTrail();
             m_fuse.reset();
 
-            if (fillRes.thresholdMet) {
+            if (fillRes.splitOccurred) {
+                if (m_stats.multiplier < 9) {
+                    ++m_stats.multiplier;
+                }
+                m_stats.splitBonus = true;
+                m_state = GameState::LevelComplete;
+            } else if (fillRes.thresholdMet) {
+                m_stats.splitBonus = false;
                 m_state = GameState::LevelComplete;
             }
         }
@@ -117,6 +124,8 @@ void QixGame::reset() noexcept
     m_stats.claimedPercent = 0;
     m_stats.lives = 3;
     m_stats.level = 1;
+    m_stats.multiplier = 1;
+    m_stats.splitBonus = false;
     m_state = GameState::Ready;
 
     setupEntities();
@@ -129,6 +138,7 @@ void QixGame::nextLevel() noexcept
     m_marker.resetPosition(Point {m_playfield.getWidth() / 2, m_playfield.getHeight() - 1});
     m_stats.claimedCells = 0;
     m_stats.claimedPercent = 0;
+    m_stats.splitBonus = false;
     ++m_stats.level;
     m_state = GameState::Ready;
 
