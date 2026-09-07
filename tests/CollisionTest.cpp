@@ -72,3 +72,55 @@ TEST(CollisionTest, SparxClassicVsModernTraversal)
     // Clockwise search from Direction::Right will check Down (5, 1) first, which is accepted in Modern
     EXPECT_EQ(modernSparx.getPosition(), (qix::Point {5, 1}));
 }
+
+TEST(CollisionTest, SuperSparxTraversesActiveStix)
+{
+    qix::Playfield field {20, 20};
+    // Active Stix trail extending down from (5, 0)
+    field.setCell(5, 1, qix::CellState::ActiveStix);
+    field.setCell(5, 2, qix::CellState::ActiveStix);
+
+    qix::Sparx superSparx {qix::Point {5, 0}, true, qix::GameMode::Classic, true};
+    EXPECT_TRUE(superSparx.isSuper());
+
+    // Step 1: Detects ActiveStix at (5, 1) and enters trail
+    superSparx.update(field);
+    EXPECT_EQ(superSparx.getPosition(), (qix::Point {5, 1}));
+
+    // Step 2: Advances down trail to (5, 2)
+    superSparx.update(field);
+    EXPECT_EQ(superSparx.getPosition(), (qix::Point {5, 2}));
+}
+
+TEST(CollisionTest, RegularSparxIgnoresActiveStix)
+{
+    qix::Playfield field {20, 20};
+    // Active Stix trail at (5, 1)
+    field.setCell(5, 1, qix::CellState::ActiveStix);
+
+    // Regular Sparx at (5, 0)
+    qix::Sparx regularSparx {qix::Point {5, 0}, true, qix::GameMode::Classic, false};
+    EXPECT_FALSE(regularSparx.isSuper());
+
+    // Update must NOT enter (5, 1)
+    regularSparx.update(field);
+    EXPECT_NE(regularSparx.getPosition(), (qix::Point {5, 1}));
+    EXPECT_EQ(regularSparx.getPosition(), (qix::Point {6, 0}));
+}
+
+TEST(CollisionTest, SuperSparxHitsMarkerOnStix)
+{
+    qix::Playfield field {20, 20};
+    qix::Marker marker {qix::Point {5, 0}, 3};
+    // Draw stix down into field to (5, 1)
+    marker.move(field, qix::PlayerCommand {qix::Direction::Down, qix::DrawMode::Slow});
+    EXPECT_TRUE(marker.isDrawing());
+    EXPECT_EQ(marker.getPosition(), (qix::Point {5, 1}));
+
+    std::vector<qix::Qix> qixList {};
+    std::vector<qix::Sparx> sparxList {qix::Sparx {marker.getPosition(), true, qix::GameMode::Classic, true}};
+    qix::Fuse fuse {};
+
+    const auto event = qix::CollisionDetector::check(marker, qixList, sparxList, fuse);
+    EXPECT_EQ(event, qix::CollisionEvent::MarkerHitBySparx);
+}

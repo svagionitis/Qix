@@ -227,10 +227,23 @@ void RaylibRenderer::drawEntities(const GameView& view, const Rectangle& fieldRe
     }
 
     // 2. Sparx
-    for (const auto& sp : view.sparxPositions) {
-        const Vector2 center {fieldRect.x + (static_cast<float>(sp.x) + 0.5f) * cellW,
-            fieldRect.y + (static_cast<float>(sp.y) + 0.5f) * cellH};
-        DrawPoly(center, 4, 6.0f, 45.0f, Color {236, 72, 153, 255});
+    if (!view.sparxList.empty()) {
+        for (const auto& sp : view.sparxList) {
+            const Vector2 center {fieldRect.x + (static_cast<float>(sp.position.x) + 0.5f) * cellW,
+                fieldRect.y + (static_cast<float>(sp.position.y) + 0.5f) * cellH};
+            if (sp.isSuper) {
+                DrawPoly(center, 4, 8.0f, 45.0f, Color {56, 189, 248, 255});
+                DrawPoly(center, 4, 4.0f, 45.0f, WHITE);
+            } else {
+                DrawPoly(center, 4, 6.0f, 45.0f, Color {236, 72, 153, 255});
+            }
+        }
+    } else {
+        for (const auto& sp : view.sparxPositions) {
+            const Vector2 center {fieldRect.x + (static_cast<float>(sp.x) + 0.5f) * cellW,
+                fieldRect.y + (static_cast<float>(sp.y) + 0.5f) * cellH};
+            DrawPoly(center, 4, 6.0f, 45.0f, Color {236, 72, 153, 255});
+        }
     }
 
     // 3. Fuse

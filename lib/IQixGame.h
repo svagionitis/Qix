@@ -17,6 +17,7 @@ struct GameView {
     std::vector<Point> stixTrail {};
     std::vector<std::deque<LineSegment>> qixRibbons {};
     std::vector<Point> sparxPositions {};
+    std::vector<SparxInfo> sparxList {};
     std::optional<Point> fusePos {std::nullopt};
     GameStats stats {};
     GameState state {GameState::Ready};

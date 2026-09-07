@@ -262,10 +262,24 @@ void SdlRenderer::drawEntities(const GameView& view, const SDL_Rect& fieldRect) 
     }
 
     // 2. Sparx
-    for (const auto& sp : view.sparxPositions) {
-        const int cx = static_cast<int>(fieldRect.x + (sp.x + 0.5) * cellW);
-        const int cy = static_cast<int>(fieldRect.y + (sp.y + 0.5) * cellH);
-        drawFilledDiamond(cx, cy, 6, SDL_Color {236, 72, 153, 255});
+    if (!view.sparxList.empty()) {
+        for (const auto& sp : view.sparxList) {
+            const int cx = static_cast<int>(fieldRect.x + (sp.position.x + 0.5) * cellW);
+            const int cy = static_cast<int>(fieldRect.y + (sp.position.y + 0.5) * cellH);
+            if (sp.isSuper) {
+                // Super Sparx: outer cyan diamond with bright white center
+                drawFilledDiamond(cx, cy, 7, SDL_Color {56, 189, 248, 255});
+                drawFilledDiamond(cx, cy, 4, SDL_Color {255, 255, 255, 255});
+            } else {
+                drawFilledDiamond(cx, cy, 6, SDL_Color {236, 72, 153, 255});
+            }
+        }
+    } else {
+        for (const auto& sp : view.sparxPositions) {
+            const int cx = static_cast<int>(fieldRect.x + (sp.x + 0.5) * cellW);
+            const int cy = static_cast<int>(fieldRect.y + (sp.y + 0.5) * cellH);
+            drawFilledDiamond(cx, cy, 6, SDL_Color {236, 72, 153, 255});
+        }
     }
 
     // 3. Fuse

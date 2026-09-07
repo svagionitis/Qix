@@ -3,10 +3,11 @@
 
 namespace qix {
 
-Sparx::Sparx(Point startPos, bool clockwise, GameMode mode) noexcept
+Sparx::Sparx(Point startPos, bool clockwise, GameMode mode, bool isSuper) noexcept
     : m_position {startPos}
     , m_clockwise {clockwise}
     , m_mode {mode}
+    , m_isSuper {isSuper}
 {
 }
 
@@ -56,6 +57,40 @@ void Sparx::update(const Playfield& field) noexcept
         }
     }
 
+    // 1. If Super Sparx, prioritize following active Stix trail in forward/turn directions
+    if (m_isSuper) {
+        for (std::size_t i {0}; i < 3; ++i) {
+            const auto dir = searchDirs[i];
+            Point candidate {m_position.x, m_position.y};
+            switch (dir) {
+            case Direction::Up:
+                --candidate.y;
+                break;
+            case Direction::Down:
+                ++candidate.y;
+                break;
+            case Direction::Left:
+                --candidate.x;
+                break;
+            case Direction::Right:
+                ++candidate.x;
+                break;
+            case Direction::None:
+            default:
+                break;
+            }
+
+            if (field.isInBounds(candidate.x, candidate.y)) {
+                if (field.getCell(candidate.x, candidate.y) == CellState::ActiveStix) {
+                    m_position = candidate;
+                    m_lastDir = dir;
+                    return;
+                }
+            }
+        }
+    }
+
+    // 2. Standard perimeter traversal
     for (const auto dir : searchDirs) {
         Point candidate {m_position.x, m_position.y};
         switch (dir) {
@@ -95,6 +130,16 @@ Point Sparx::getPosition() const noexcept
 bool Sparx::checkCollision(Point markerPos) const noexcept
 {
     return m_position == markerPos;
+}
+
+bool Sparx::isSuper() const noexcept
+{
+    return m_isSuper;
+}
+
+void Sparx::setSuper(bool isSuper) noexcept
+{
+    m_isSuper = isSuper;
 }
 
 GameMode Sparx::getGameMode() const noexcept

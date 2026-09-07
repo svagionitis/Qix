@@ -146,14 +146,25 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
 
             // Sparx
             bool isSparx = false;
-            for (const auto& sp : view.sparxPositions) {
-                if (p == sp) {
-                    isSparx = true;
-                    break;
+            bool isSuper = false;
+            if (!view.sparxList.empty()) {
+                for (const auto& sp : view.sparxList) {
+                    if (p == sp.position) {
+                        isSparx = true;
+                        isSuper = sp.isSuper;
+                        break;
+                    }
+                }
+            } else {
+                for (const auto& sp : view.sparxPositions) {
+                    if (p == sp) {
+                        isSparx = true;
+                        break;
+                    }
                 }
             }
             if (isSparx) {
-                frame += "\033[1;35m$\033[0m";
+                frame += isSuper ? "\033[1;36mS\033[0m" : "\033[1;35m$\033[0m";
                 continue;
             }
 

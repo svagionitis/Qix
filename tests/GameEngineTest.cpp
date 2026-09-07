@@ -233,3 +233,48 @@ TEST(GameEngineTest, LevelCompleteAwardsThresholdOvershootBonus)
     EXPECT_EQ(game.getView().stats.level, 2U);
     EXPECT_EQ(game.getView().stats.thresholdBonus, 0U);
 }
+
+TEST(GameEngineTest, Level3SpawnsSuperSparx)
+{
+    qix::QixGame game {40, 30, 75};
+    // Level 1: Regular Sparx
+    for (const auto& sp : game.getView().sparxList) {
+        EXPECT_FALSE(sp.isSuper);
+    }
+
+    // Level 2: Regular Sparx
+    game.nextLevel();
+    for (const auto& sp : game.getView().sparxList) {
+        EXPECT_FALSE(sp.isSuper);
+    }
+
+    // Level 3: Super Sparx
+    game.nextLevel();
+    EXPECT_EQ(game.getView().stats.level, 3U);
+    ASSERT_EQ(game.getView().sparxList.size(), 2U);
+    for (const auto& sp : game.getView().sparxList) {
+        EXPECT_TRUE(sp.isSuper);
+    }
+}
+
+TEST(GameEngineTest, TimerEscalationSpawnsSuperSparx)
+{
+    qix::QixGame game {40, 30, 75};
+    // Start playing so timer ticks
+    game.handleInput(qix::PlayerCommand {qix::Direction::Left, qix::DrawMode::None});
+    game.step(16);
+
+    // Level 1 initial 2 Sparx are regular
+    ASSERT_EQ(game.getView().sparxList.size(), 2U);
+    EXPECT_FALSE(game.getView().sparxList[0].isSuper);
+    EXPECT_FALSE(game.getView().sparxList[1].isSuper);
+
+    // Fast-forward countdown timer past 60s
+    game.step(60000U);
+
+    // Time up, additional Sparx spawned should be Super Sparx
+    const auto& view = game.getView();
+    EXPECT_TRUE(view.stats.timeUp);
+    EXPECT_GT(view.sparxList.size(), 2U);
+    EXPECT_TRUE(view.sparxList[2].isSuper);
+}

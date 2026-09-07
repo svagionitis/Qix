@@ -12,13 +12,15 @@ namespace qix {
 /// @details Follows the edge of captured territory; kills the player on boundary contact.
 class Sparx {
 public:
-    /// @brief Construct Sparx with starting position, initial movement direction, and game mode.
+    /// @brief Construct Sparx with starting position, initial movement direction, game mode, and super status.
     /// @param[in] startPos Coordinate on perimeter.
     /// @param[in] clockwise True for clockwise traversal, false for counter-clockwise.
     /// @param[in] mode Active game ruleset mode (Classic or Modern).
-    explicit Sparx(Point startPos, bool clockwise = true, GameMode mode = DefaultGameMode) noexcept;
+    /// @param[in] isSuper True if this Sparx can chase down active Stix trails.
+    explicit Sparx(
+        Point startPos, bool clockwise = true, GameMode mode = DefaultGameMode, bool isSuper = false) noexcept;
 
-    /// @brief Advance Sparx position along the perimeter by one cell step.
+    /// @brief Advance Sparx position along the perimeter or active Stix by one cell step.
     /// @param[in] field Reference to playfield to detect perimeter connectivity.
     void update(const Playfield& field) noexcept;
 
@@ -30,6 +32,14 @@ public:
     /// @param[in] markerPos Coordinates of the player marker.
     /// @return True if positions match.
     [[nodiscard]] bool checkCollision(Point markerPos) const noexcept;
+
+    /// @brief Check whether this is a Super Sparx capable of traversing active Stix.
+    /// @return True if Super Sparx.
+    [[nodiscard]] bool isSuper() const noexcept;
+
+    /// @brief Configure Super Sparx state.
+    /// @param[in] isSuper True to enable Super Sparx behavior.
+    void setSuper(bool isSuper) noexcept;
 
     /// @brief Retrieve active game mode ruleset.
     /// @return Active GameMode.
@@ -54,6 +64,7 @@ private:
     bool m_clockwise {true};
     Direction m_lastDir {Direction::Right};
     GameMode m_mode {DefaultGameMode};
+    bool m_isSuper {false};
 };
 
 } // namespace qix

@@ -182,10 +182,11 @@ void QixGame::setupEntities() noexcept
     }
 
     m_sparxList.clear();
+    const bool isSuper = (m_stats.level >= 3);
     // Sparx 1: Clockwise from top-left
-    m_sparxList.emplace_back(Point {1, 0}, true, m_mode);
+    m_sparxList.emplace_back(Point {1, 0}, true, m_mode, isSuper);
     // Sparx 2: Counter-clockwise from top-right
-    m_sparxList.emplace_back(Point {m_playfield.getWidth() - 2, 0}, false, m_mode);
+    m_sparxList.emplace_back(Point {m_playfield.getWidth() - 2, 0}, false, m_mode, isSuper);
 
     m_fuse.reset();
     m_fuse.setIdleLimit(computeFuseLimit(m_stats.level));
@@ -204,8 +205,10 @@ void QixGame::updateSnapshot() noexcept
     }
 
     m_view.sparxPositions.clear();
+    m_view.sparxList.clear();
     for (const auto& sparx : m_sparxList) {
         m_view.sparxPositions.push_back(sparx.getPosition());
+        m_view.sparxList.push_back(SparxInfo {sparx.getPosition(), sparx.isSuper()});
     }
 
     m_view.fusePos = m_fuse.getPosition();
@@ -227,6 +230,7 @@ void QixGame::handleDeath() noexcept
     } else {
         // Respawn marker at bottom safe border
         m_marker.resetPosition(Point {m_playfield.getWidth() / 2, m_playfield.getHeight() - 1});
+        setupEntities();
         m_timeRemainingMs = computeLevelTimeMs(m_stats.level);
         m_stats.totalLevelTimeMs = m_timeRemainingMs;
         m_stats.timeRemainingMs = m_timeRemainingMs;
@@ -293,7 +297,7 @@ void QixGame::spawnEscalationSparx() noexcept
 
     const bool clockwise = (m_sparxList.size() % 2 == 0);
     const auto spawnX = clockwise ? 1 : (m_playfield.getWidth() - 2);
-    m_sparxList.emplace_back(Point {spawnX, 0}, clockwise, m_mode);
+    m_sparxList.emplace_back(Point {spawnX, 0}, clockwise, m_mode, true);
 }
 
 } // namespace qix

@@ -227,17 +227,46 @@ void QixCanvas::drawEntities(QPainter& painter, const QRect& fieldRect)
     }
 
     // 2. Sparx
-    for (const auto& sp : m_view.sparxPositions) {
-        const double cx = fieldRect.left() + (sp.x + 0.5) * cellW;
-        const double cy = fieldRect.top() + (sp.y + 0.5) * cellH;
+    if (!m_view.sparxList.empty()) {
+        for (const auto& sp : m_view.sparxList) {
+            const double cx = fieldRect.left() + (sp.position.x + 0.5) * cellW;
+            const double cy = fieldRect.top() + (sp.position.y + 0.5) * cellH;
 
-        // Glowing red/magenta diamond
-        painter.setBrush(QColor(236, 72, 153));
-        painter.setPen(QPen(QColor(255, 255, 255), 1.0));
+            if (sp.isSuper) {
+                // Super Sparx: bright cyan diamond with white center
+                painter.setBrush(QColor(56, 189, 248));
+                painter.setPen(QPen(QColor(255, 255, 255), 1.5));
+                QPolygonF diamond;
+                diamond << QPointF(cx, cy - 7) << QPointF(cx + 7, cy) << QPointF(cx, cy + 7) << QPointF(cx - 7, cy);
+                painter.drawPolygon(diamond);
 
-        QPolygonF diamond;
-        diamond << QPointF(cx, cy - 6) << QPointF(cx + 6, cy) << QPointF(cx, cy + 6) << QPointF(cx - 6, cy);
-        painter.drawPolygon(diamond);
+                painter.setBrush(QColor(255, 255, 255));
+                painter.setPen(Qt::NoPen);
+                QPolygonF inner;
+                inner << QPointF(cx, cy - 3) << QPointF(cx + 3, cy) << QPointF(cx, cy + 3) << QPointF(cx - 3, cy);
+                painter.drawPolygon(inner);
+            } else {
+                // Glowing red/magenta diamond
+                painter.setBrush(QColor(236, 72, 153));
+                painter.setPen(QPen(QColor(255, 255, 255), 1.0));
+
+                QPolygonF diamond;
+                diamond << QPointF(cx, cy - 6) << QPointF(cx + 6, cy) << QPointF(cx, cy + 6) << QPointF(cx - 6, cy);
+                painter.drawPolygon(diamond);
+            }
+        }
+    } else {
+        for (const auto& sp : m_view.sparxPositions) {
+            const double cx = fieldRect.left() + (sp.x + 0.5) * cellW;
+            const double cy = fieldRect.top() + (sp.y + 0.5) * cellH;
+
+            painter.setBrush(QColor(236, 72, 153));
+            painter.setPen(QPen(QColor(255, 255, 255), 1.0));
+
+            QPolygonF diamond;
+            diamond << QPointF(cx, cy - 6) << QPointF(cx + 6, cy) << QPointF(cx, cy + 6) << QPointF(cx - 6, cy);
+            painter.drawPolygon(diamond);
+        }
     }
 
     // 3. Fuse

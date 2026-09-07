@@ -77,6 +77,12 @@ struct LineSegment {
     Point end {0, 0};
 };
 
+/// @brief Sparx render snapshot descriptor.
+struct SparxInfo {
+    Point position {0, 0};
+    bool isSuper {false};
+};
+
 } // namespace qix
 
 #endif // QIX_LIB_TYPES_H
