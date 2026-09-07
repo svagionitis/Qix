@@ -48,9 +48,14 @@ public:
     /// @brief Clear the recorded Stix trail points.
     void clearTrail() noexcept;
 
+    /// @brief Maximum allowable life count.
+    static constexpr std::uint8_t MaxLives {9};
+
     /// @brief Query remaining lives.
-    /// @return Number of lives.
     [[nodiscard]] std::uint8_t getLives() const noexcept;
+
+    /// @brief Increment remaining lives by one (capped at MaxLives).
+    void incrementLives() noexcept;
 
     /// @brief Decrement remaining lives by one upon player death.
     void decrementLives() noexcept;

@@ -69,6 +69,7 @@ struct GameStats {
     bool timeUp {false};
     std::uint32_t currentDelayMs {75U};
     std::uint32_t thresholdBonus {0};
+    std::uint32_t nextExtraLifeScore {50000U};
 };
 
 /// @brief A line segment defined by two points.

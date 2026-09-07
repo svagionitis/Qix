@@ -55,6 +55,20 @@ TEST(MarkerTest, LivesAccounting)
     EXPECT_FALSE(marker.isAlive());
 }
 
+TEST(MarkerTest, IncrementLivesAndCapAtMaximum)
+{
+    qix::Marker marker {qix::Point {0, 0}, 8};
+    EXPECT_EQ(marker.getLives(), 8U);
+
+    // Increment to 9 (MaxLives)
+    marker.incrementLives();
+    EXPECT_EQ(marker.getLives(), 9U);
+
+    // Capped at MaxLives (9)
+    marker.incrementLives();
+    EXPECT_EQ(marker.getLives(), 9U);
+}
+
 TEST(MarkerTest, ClassicModeClaimedCellsImpassable)
 {
     qix::Playfield field {20, 20};

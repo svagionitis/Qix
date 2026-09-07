@@ -116,6 +116,13 @@ std::uint8_t Marker::getLives() const noexcept
     return m_lives;
 }
 
+void Marker::incrementLives() noexcept
+{
+    if (m_lives < MaxLives) {
+        ++m_lives;
+    }
+}
+
 void Marker::decrementLives() noexcept
 {
     if (m_lives > 0) {

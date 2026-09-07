@@ -72,9 +72,12 @@ private:
     GameState m_state {GameState::Ready};
     GameView m_view {};
     PlayerCommand m_pendingCmd {};
+    static constexpr std::uint32_t ExtraLifeInterval {50000U};
+
     std::uint32_t m_timeRemainingMs {60000};
     std::uint32_t m_baseDelayMs {SpeedConfig::DefaultDelayMs};
     std::uint32_t m_currentDelayMs {SpeedConfig::DefaultDelayMs};
+    std::uint32_t m_nextExtraLifeScore {ExtraLifeInterval};
 
     void setupEntities() noexcept;
     void updateSnapshot() noexcept;

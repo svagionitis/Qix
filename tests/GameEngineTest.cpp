@@ -278,3 +278,42 @@ TEST(GameEngineTest, TimerEscalationSpawnsSuperSparx)
     EXPECT_GT(view.sparxList.size(), 2U);
     EXPECT_TRUE(view.sparxList[2].isSuper);
 }
+
+TEST(GameEngineTest, ExtraLifeAwardedAtScoreMilestone)
+{
+    // 200x60 field: Qix centered at cx = 100, cy = 30
+    qix::QixGame game {200, 60, 75};
+    EXPECT_EQ(game.getView().stats.lives, 3U);
+    EXPECT_EQ(game.getView().stats.nextExtraLifeScore, 50000U);
+
+    // Move left along bottom border from (100, 59) to (6, 59) (94 steps)
+    for (std::int32_t i {0}; i < 94; ++i) {
+        game.handleInput(qix::PlayerCommand {qix::Direction::Left, qix::DrawMode::None});
+        game.step(16);
+    }
+
+    // Draw up along x=6 to top border (6, 0) in Slow draw mode
+    // Encloses x=1..5 (5 columns * 58 rows = 290 cells * 200 pts = 58,000 pts)
+    for (std::int32_t y {59}; y >= 0; --y) {
+        game.handleInput(qix::PlayerCommand {qix::Direction::Up, qix::DrawMode::Slow});
+        game.step(16);
+    }
+
+    const auto& view = game.getView();
+    EXPECT_GE(view.stats.score, 50000U);
+    // Extra life awarded: 3 -> 4 lives
+    EXPECT_EQ(view.stats.lives, 4U);
+    // Next milestone advanced to 100,000
+    EXPECT_EQ(view.stats.nextExtraLifeScore, 100000U);
+
+    // Advancing level preserves extra lives and milestone
+    game.nextLevel();
+    EXPECT_EQ(game.getView().stats.level, 2U);
+    EXPECT_EQ(game.getView().stats.lives, 4U);
+    EXPECT_EQ(game.getView().stats.nextExtraLifeScore, 100000U);
+
+    // Reset restores initial session state (3 lives, 50,000 milestone)
+    game.reset();
+    EXPECT_EQ(game.getView().stats.lives, 3U);
+    EXPECT_EQ(game.getView().stats.nextExtraLifeScore, 50000U);
+}

@@ -202,6 +202,7 @@ All client frontends support configurable startup speed and game mode via CLI fl
 - **Qix Split Mechanic**: Starting on Level 2 (where two Qix entities roam), you can complete the level immediately by drawing a Stix that walls off one Qix from the other into separate enclosures.
   - Successfully splitting the Qixes awards an immediate level victory and increments your **permanent score multiplier** (scaling from $1\times$ up to $9\times$).
 - **Threshold Overshoot Bonus**: Reaching or exceeding 75% completes the level. Any territory claimed **beyond** the 75% target awards a classic arcade bonus of **1,000 points per 1% over threshold** (multiplied by the active score multiplier: $\text{Bonus} = (\text{claimed\%} - 75) \times 1,000 \times \text{multiplier}$).
+- **Extra Life Score Milestones**: Players earn a bonus life every **50,000 points** (e.g. 50k, 100k, 150k, capped at 9 lives). Bonus lives carry over across levels for the remainder of your game session.
 - **Automatic Speed Escalation**: Advancing through levels automatically escalates simulation speed (reducing tick delay by 5ms per level down to 20ms / 50 FPS) and tightens Fuse hesitation tolerance (igniting faster when paused). Players can still adjust baseline speed at runtime using `-` / `+` keys.
 
 ### Enemies & Hazards

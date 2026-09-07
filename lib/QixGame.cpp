@@ -68,6 +68,13 @@ void QixGame::step(std::uint32_t deltaMs) noexcept
             m_stats.claimedPercent = fillRes.claimedPercent;
             m_stats.thresholdBonus = fillRes.thresholdBonus;
 
+            while (m_stats.score >= m_nextExtraLifeScore) {
+                m_marker.incrementLives();
+                m_nextExtraLifeScore += ExtraLifeInterval;
+            }
+            m_stats.nextExtraLifeScore = m_nextExtraLifeScore;
+            m_stats.lives = m_marker.getLives();
+
             m_marker.clearTrail();
             m_fuse.reset();
 
@@ -128,6 +135,8 @@ void QixGame::reset() noexcept
     m_stats.claimedCells = 0;
     m_stats.claimedPercent = 0;
     m_stats.lives = 3;
+    m_nextExtraLifeScore = ExtraLifeInterval;
+    m_stats.nextExtraLifeScore = m_nextExtraLifeScore;
     m_stats.level = 1;
     m_stats.multiplier = 1;
     m_stats.splitBonus = false;
