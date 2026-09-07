@@ -1,6 +1,27 @@
 cmake_minimum_required(VERSION 3.20)
 
+# Auto-detect vcpkg toolchain if not explicitly provided
+if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+    if(DEFINED ENV{VCPKG_ROOT} AND EXISTS "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
+        set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+    elseif(EXISTS "C:/vcpkg/scripts/buildsystems/vcpkg.cmake")
+        set(CMAKE_TOOLCHAIN_FILE "C:/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+    endif()
+endif()
+
 project(qix VERSION 1.0.0 LANGUAGES CXX)
+
+# Auto-detect installed Qt on Windows
+if(WIN32)
+    file(GLOB QT_CANDIDATE_PATHS "C:/Qt/6.*/msvc2019_64" "C:/Qt/6.*/msvc2022_64" "C:/Qt/5.*/msvc2019_64")
+    if(QT_CANDIDATE_PATHS)
+        list(GET QT_CANDIDATE_PATHS -1 LATEST_QT_PATH)
+        if(NOT "${LATEST_QT_PATH}" IN_LIST CMAKE_PREFIX_PATH)
+            list(APPEND CMAKE_PREFIX_PATH "${LATEST_QT_PATH}")
+            message(STATUS "Auto-detected Qt at: ${LATEST_QT_PATH}")
+        endif()
+    endif()
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

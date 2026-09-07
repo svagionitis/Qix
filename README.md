@@ -100,15 +100,17 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
 | :--- | :--- | :--- |
 | **C++ Compiler** | GCC 9+, Clang 10+, or MSVC 2019+ (C++17) | Core Engine & Clients |
 | **CMake** | $\ge 3.20$ | Build configuration |
-| **Ninja** or **Make** | Any recent version | Build generator |
-| **GoogleTest** (`gtest`) | 1.10+ | Unit test suite (`BUILD_TESTS=ON`) |
+| **vcpkg** | Any recent version | Windows package manager (`sdl2`, `raylib`) |
+| **SDL2** | 2.0+ | Desktop SDL2 client (`BUILD_SDL=ON`) |
+| **Raylib** | 4.5+ | Desktop Raylib client (`BUILD_RAYLIB=ON`) |
 | **Qt5 / Qt6** (`Widgets`, `Gui`, `Core`) | Qt 5.15+ or Qt 6.x | Desktop GUI client (`BUILD_GUI=ON`) |
+| **GoogleTest** (`gtest`) | 1.10+ | Unit test suite (`BUILD_TESTS=ON`) |
 | **clang-format** | 12+ (optional) | Code style check & auto-formatting |
 
 On Ubuntu / Debian:
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential cmake ninja-build libgtest-dev qtbase5-dev libncurses-dev clang-format
+sudo apt-get install -y build-essential cmake ninja-build libgtest-dev qtbase5-dev libsdl2-dev libraylib-dev clang-format
 ```
 
 ---
@@ -123,23 +125,30 @@ cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_TESTS=ON \
     -DBUILD_TUI=ON \
     -DBUILD_GUI=ON \
+    -DBUILD_SDL=ON \
+    -DBUILD_RAYLIB=ON \
     -DBUILD_BENCHMARKS=ON
 
 # 2. Compile all targets
 cmake --build build -j$(nproc)
 ```
 
-### Windows (MSVC)
+### Windows (MSVC & vcpkg)
 
-```cmd
-:: Using Visual Studio Developer Command Prompt
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release ^
-    -DBUILD_TESTS=ON ^
-    -DBUILD_TUI=ON ^
-    -DBUILD_GUI=ON ^
-    -DBUILD_BENCHMARKS=ON
+The repository includes a `vcpkg.json` manifest providing `sdl2` and `raylib`. CMake will automatically detect `C:/vcpkg` or `$env:VCPKG_ROOT` as well as any installed Qt6/Qt5 installations.
 
-cmake --build build
+```powershell
+# 1. Configure with vcpkg integration (automatically installs dependencies)
+cmake -B build -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
+
+# 2. Build all client targets
+cmake --build build --config Release
+
+# Or build individual clients:
+cmake --build build --config Release --target qix_tui     # Terminal Client
+cmake --build build --config Release --target qix_sdl     # SDL2 Arcade Client
+cmake --build build --config Release --target qix_raylib  # Raylib Neon Client
+cmake --build build --config Release --target qix_gui     # Qt Desktop Client
 ```
 
 ### CMake Build Options

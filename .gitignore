@@ -3,10 +3,10 @@
 # ==============================================================================
 
 # CMake & Build Artifacts
-build/
-build-*/
+build*/
 out/
 bin/
+vcpkg_installed/
 *.o
 *.obj
 *.a

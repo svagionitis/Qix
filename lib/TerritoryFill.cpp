@@ -22,7 +22,7 @@ FillResult TerritoryFill::execute(Playfield& field, const std::vector<Point>& tr
     }
 
     // Reset pre-allocated visited buffer
-    std::fill(m_visited.begin(), m_visited.end(), 0);
+    std::fill(m_visited.begin(), m_visited.end(), std::uint8_t {0});
 
     // Locate seeds for all Qix positions
     std::vector<Point> validSeeds {};

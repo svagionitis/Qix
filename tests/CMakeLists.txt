@@ -1,24 +1,28 @@
-find_package(GTest REQUIRED)
+find_package(GTest QUIET)
 
-add_executable(qix_tests
-    PlayfieldTest.cpp
-    MarkerTest.cpp
-    TerritoryFillTest.cpp
-    CollisionTest.cpp
-    GameEngineTest.cpp
-    GameConfigTest.cpp
-    HighScoreTableTest.cpp
-    SpeedConfigTest.cpp
-)
+if(GTest_FOUND)
+    add_executable(qix_tests
+        PlayfieldTest.cpp
+        MarkerTest.cpp
+        TerritoryFillTest.cpp
+        CollisionTest.cpp
+        GameEngineTest.cpp
+        GameConfigTest.cpp
+        HighScoreTableTest.cpp
+        SpeedConfigTest.cpp
+    )
 
-target_link_libraries(qix_tests
-    PRIVATE
-        qix_core
-        GTest::gtest
-        GTest::gtest_main
-)
+    target_link_libraries(qix_tests
+        PRIVATE
+            qix_core
+            GTest::gtest
+            GTest::gtest_main
+    )
 
-apply_compiler_flags(qix_tests)
+    apply_compiler_flags(qix_tests)
 
-include(GoogleTest)
-gtest_discover_tests(qix_tests)
+    include(GoogleTest)
+    gtest_discover_tests(qix_tests)
+else()
+    message(STATUS "GoogleTest not found. Skipping qix_tests.")
+endif()
