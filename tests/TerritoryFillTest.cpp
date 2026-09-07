@@ -143,4 +143,52 @@ TEST(TerritoryFillTest, ScoreMultiplierApplied)
     const auto result = fill.execute(field, trail, qixPositions, qix::DrawMode::Slow, 75, 3);
     EXPECT_EQ(result.claimedCellsCount, 16U);
     EXPECT_EQ(result.pointsAwarded, 16U * 200U * 3U);
+    EXPECT_EQ(result.thresholdBonus, 0U);
+}
+
+TEST(TerritoryFillTest, ThresholdOvershootBonusCalculation)
+{
+    // 10x10 field: 64 playable interior cells
+    qix::Playfield field {10, 10};
+    qix::TerritoryFill fill {10, 10};
+
+    // Partition at x = 8, claiming x = 1..7 (56 cells = 87% of 64)
+    std::vector<qix::Point> trail {};
+    for (std::int32_t y {0}; y < 10; ++y) {
+        trail.push_back(qix::Point {8, y});
+    }
+
+    std::vector<qix::Point> qixPositions {qix::Point {9, 5}}; // Qix on right
+
+    // Multiplier 2x, Fast Draw (100 pts/cell)
+    // 87% claimed - 75% target = 12% overshoot
+    // thresholdBonus = 12 * 1000 * 2 = 24000
+    // base points = 56 * 100 * 2 = 11200
+    // total = 35200
+    const auto result = fill.execute(field, trail, qixPositions, qix::DrawMode::Fast, 75, 2);
+    EXPECT_TRUE(result.thresholdMet);
+    EXPECT_EQ(result.claimedPercent, 87U);
+    EXPECT_EQ(result.thresholdBonus, 24000U);
+    EXPECT_EQ(result.pointsAwarded, 11200U + 24000U);
+}
+
+TEST(TerritoryFillTest, ExactThresholdZeroBonus)
+{
+    // 10x10 field: 64 playable interior cells
+    qix::Playfield field {10, 10};
+    qix::TerritoryFill fill {10, 10};
+
+    // Partition at x = 7, claiming x = 1..6 (48 cells = exactly 75% of 64)
+    std::vector<qix::Point> trail {};
+    for (std::int32_t y {0}; y < 10; ++y) {
+        trail.push_back(qix::Point {7, y});
+    }
+
+    std::vector<qix::Point> qixPositions {qix::Point {8, 5}}; // Qix on right
+
+    const auto result = fill.execute(field, trail, qixPositions, qix::DrawMode::Slow, 75, 1);
+    EXPECT_TRUE(result.thresholdMet);
+    EXPECT_EQ(result.claimedPercent, 75U);
+    EXPECT_EQ(result.thresholdBonus, 0U);
+    EXPECT_EQ(result.pointsAwarded, 48U * 200U * 1U);
 }

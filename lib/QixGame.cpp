@@ -66,6 +66,7 @@ void QixGame::step(std::uint32_t deltaMs) noexcept
             m_stats.score += fillRes.pointsAwarded;
             m_stats.claimedCells = fillRes.totalClaimedSoFar;
             m_stats.claimedPercent = fillRes.claimedPercent;
+            m_stats.thresholdBonus = fillRes.thresholdBonus;
 
             m_marker.clearTrail();
             m_fuse.reset();
@@ -130,6 +131,7 @@ void QixGame::reset() noexcept
     m_stats.level = 1;
     m_stats.multiplier = 1;
     m_stats.splitBonus = false;
+    m_stats.thresholdBonus = 0;
     m_timeRemainingMs = computeLevelTimeMs(1);
     m_stats.totalLevelTimeMs = m_timeRemainingMs;
     m_stats.timeRemainingMs = m_timeRemainingMs;
@@ -149,6 +151,7 @@ void QixGame::nextLevel() noexcept
     m_stats.claimedCells = 0;
     m_stats.claimedPercent = 0;
     m_stats.splitBonus = false;
+    m_stats.thresholdBonus = 0;
     ++m_stats.level;
     m_timeRemainingMs = computeLevelTimeMs(m_stats.level);
     m_stats.totalLevelTimeMs = m_timeRemainingMs;

@@ -88,6 +88,12 @@ FillResult TerritoryFill::execute(Playfield& field, const std::vector<Point>& tr
     result.splitOccurred = splitOccurred;
     result.thresholdMet = splitOccurred || (result.claimedPercent >= targetPercent);
 
+    if (result.claimedPercent > targetPercent) {
+        const auto overshoot = static_cast<std::uint32_t>(result.claimedPercent - targetPercent);
+        result.thresholdBonus = overshoot * 1000U * safeMultiplier;
+        result.pointsAwarded += result.thresholdBonus;
+    }
+
     return result;
 }
 

@@ -107,9 +107,14 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     if (view.state == GameState::Playing) {
         stateStr = "PLAYING";
     } else if (view.state == GameState::LevelComplete) {
-        stateStr = view.stats.splitBonus
-            ? ("\033[1;33mSPLIT BONUS! (" + std::to_string(view.stats.multiplier) + "x)\033[0m")
-            : "\033[1;32mVICTORY!\033[0m";
+        if (view.stats.splitBonus) {
+            stateStr = "\033[1;33mSPLIT BONUS! (" + std::to_string(view.stats.multiplier) + "x)\033[0m";
+        } else if (view.stats.thresholdBonus > 0) {
+            stateStr = "\033[1;32mVICTORY! \033[1;33m(+" + std::to_string(view.stats.thresholdBonus)
+                + " THRESHOLD BONUS)\033[0m";
+        } else {
+            stateStr = "\033[1;32mVICTORY!\033[0m";
+        }
     } else if (view.state == GameState::GameOver) {
         stateStr = "\033[1;31mGAME OVER\033[0m";
     }

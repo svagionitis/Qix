@@ -201,7 +201,7 @@ All client frontends support configurable startup speed and game mode via CLI fl
 - **Victory**: Reach or exceed the **75%** threshold to complete the level. Level 2 and beyond adds a second Qix!
 - **Qix Split Mechanic**: Starting on Level 2 (where two Qix entities roam), you can complete the level immediately by drawing a Stix that walls off one Qix from the other into separate enclosures.
   - Successfully splitting the Qixes awards an immediate level victory and increments your **permanent score multiplier** (scaling from $1\times$ up to $9\times$).
-  - The multiplier persists across subsequent levels for the remainder of your game session, boosting all future cell capture scores ($P = \text{cells} \times \text{ptsPerCell} \times \text{multiplier}$).
+- **Threshold Overshoot Bonus**: Reaching or exceeding 75% completes the level. Any territory claimed **beyond** the 75% target awards a classic arcade bonus of **1,000 points per 1% over threshold** (multiplied by the active score multiplier: $\text{Bonus} = (\text{claimed\%} - 75) \times 1,000 \times \text{multiplier}$).
 - **Automatic Speed Escalation**: Advancing through levels automatically escalates simulation speed (reducing tick delay by 5ms per level down to 20ms / 50 FPS) and tightens Fuse hesitation tolerance (igniting faster when paused). Players can still adjust baseline speed at runtime using `-` / `+` keys.
 
 ### Enemies & Hazards

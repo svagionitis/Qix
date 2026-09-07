@@ -14,6 +14,7 @@ struct FillResult {
     std::uint32_t totalClaimedSoFar {0};
     std::uint16_t claimedPercent {0};
     std::uint32_t pointsAwarded {0};
+    std::uint32_t thresholdBonus {0};
     bool thresholdMet {false};
     bool splitOccurred {false};
 };

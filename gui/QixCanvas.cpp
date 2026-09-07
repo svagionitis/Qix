@@ -283,6 +283,15 @@ void QixCanvas::drawOverlays(QPainter& painter)
             painter.drawText(rect(), Qt::AlignCenter,
                 QString("QIX SPLIT BONUS!\nMultiplier: %1X\nPress [Space] for Next Level")
                     .arg(m_view.stats.multiplier));
+        } else if (m_view.stats.thresholdBonus > 0) {
+            painter.setPen(QColor(74, 222, 128));
+            const auto overshoot = (m_view.stats.claimedPercent > m_view.stats.targetPercent)
+                ? (m_view.stats.claimedPercent - m_view.stats.targetPercent)
+                : 0;
+            painter.drawText(rect(), Qt::AlignCenter,
+                QString("LEVEL COMPLETE!\nTHRESHOLD BONUS: +%1 PTS (+%2%)\nPress [Space] for Next Level")
+                    .arg(m_view.stats.thresholdBonus)
+                    .arg(overshoot));
         } else {
             painter.setPen(QColor(74, 222, 128));
             painter.drawText(rect(), Qt::AlignCenter, "LEVEL COMPLETE!\nPress [Space] for Next Level");

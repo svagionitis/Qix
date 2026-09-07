@@ -201,3 +201,35 @@ TEST(GameEngineTest, FuseLimitEscalatesWithLevel)
     EXPECT_EQ(qix::QixGame::computeFuseLimit(3), 21U);
     EXPECT_EQ(qix::QixGame::computeFuseLimit(10), 10U); // Clamped at 10 minimum
 }
+
+TEST(GameEngineTest, LevelCompleteAwardsThresholdOvershootBonus)
+{
+    // 80x60 field, targetPercent = 0 so claiming any territory triggers completion with overshoot
+    qix::QixGame game {80, 60, 0};
+
+    // Move left along bottom border from (40, 59) to (2, 59)
+    for (std::int32_t i {0}; i < 38; ++i) {
+        game.handleInput(qix::PlayerCommand {qix::Direction::Left, qix::DrawMode::None});
+        game.step(16);
+    }
+
+    // Draw up along x=2 to top border (2, 0) in Slow draw mode
+    for (std::int32_t y {59}; y >= 0; --y) {
+        game.handleInput(qix::PlayerCommand {qix::Direction::Up, qix::DrawMode::Slow});
+        game.step(16);
+    }
+
+    const auto& view = game.getView();
+    EXPECT_EQ(view.state, qix::GameState::LevelComplete);
+    EXPECT_EQ(view.stats.claimedCells, 58U);
+    EXPECT_EQ(view.stats.claimedPercent, 1U);
+    // 1% claimed - 0% target = 1% overshoot * 1000 pts * 1x multiplier = 1000 pts bonus
+    EXPECT_EQ(view.stats.thresholdBonus, 1000U);
+    // 58 cells * 200 pts (Slow) + 1000 bonus = 12600 pts
+    EXPECT_EQ(view.stats.score, 12600U);
+
+    // Advancing level clears the threshold bonus
+    game.nextLevel();
+    EXPECT_EQ(game.getView().stats.level, 2U);
+    EXPECT_EQ(game.getView().stats.thresholdBonus, 0U);
+}
