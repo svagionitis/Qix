@@ -3,6 +3,7 @@
 
 #include "CollisionDetector.h"
 #include "Fuse.h"
+#include "HighScoreTable.h"
 #include "IQixGame.h"
 #include "Marker.h"
 #include "Playfield.h"
@@ -40,6 +41,10 @@ public:
     [[nodiscard]] std::uint32_t getBaseDelayMs() const noexcept override;
     [[nodiscard]] std::uint32_t getCurrentDelayMs() const noexcept override;
     void setBaseDelayMs(std::uint32_t delayMs) noexcept override;
+
+    [[nodiscard]] const HighScoreTable& getHighScoreTable() const noexcept override;
+    void inputInitialsChar(char c) noexcept override;
+    void confirmInitials() noexcept override;
 
     /// @brief Calculate initial level time budget in milliseconds.
     /// @param[in] level Current game level (1-indexed).
@@ -79,12 +84,16 @@ private:
     std::uint32_t m_currentDelayMs {SpeedConfig::DefaultDelayMs};
     std::uint32_t m_nextExtraLifeScore {ExtraLifeInterval};
 
+    HighScoreTable m_highScoreTable {};
+    NameEntryState m_nameEntry {};
+
     void setupEntities() noexcept;
     void updateSnapshot() noexcept;
     void handleDeath() noexcept;
     void clearActiveStix() noexcept;
     void updateLevelTimer(std::uint32_t deltaMs) noexcept;
     void spawnEscalationSparx() noexcept;
+    void handleNameEntryInput(PlayerCommand cmd) noexcept;
 };
 
 } // namespace qix

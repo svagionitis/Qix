@@ -1,6 +1,7 @@
 #ifndef QIX_LIB_TYPES_H
 #define QIX_LIB_TYPES_H
 
+#include <array>
 #include <cstdint>
 #include <vector>
 
@@ -44,7 +45,7 @@ inline constexpr GameMode DefaultGameMode {GameMode::Classic};
 enum class DrawMode : std::uint8_t { None = 0, Slow, Fast };
 
 /// @brief State of the game session.
-enum class GameState : std::uint8_t { Ready = 0, Playing, PlayerDying, LevelComplete, GameOver };
+enum class GameState : std::uint8_t { Ready = 0, Playing, PlayerDying, LevelComplete, GameOver, NameEntry, HallOfFame };
 
 /// @brief Player input command.
 struct PlayerCommand {
@@ -55,6 +56,7 @@ struct PlayerCommand {
 /// @brief Real-time game statistics.
 struct GameStats {
     std::uint32_t score {0};
+    std::uint32_t highScore {0};
     std::uint32_t claimedCells {0};
     std::uint32_t totalEmptyCells {0};
     std::uint16_t claimedPercent {0};
@@ -70,6 +72,13 @@ struct GameStats {
     std::uint32_t currentDelayMs {75U};
     std::uint32_t thresholdBonus {0};
     std::uint32_t nextExtraLifeScore {50000U};
+};
+
+/// @brief Active 3-letter initials entry state for Hall of Fame qualification.
+struct NameEntryState {
+    std::array<char, 3> initials {'A', 'A', 'A'};
+    std::uint8_t cursorIndex {0};
+    std::size_t rank {0};
 };
 
 /// @brief A line segment defined by two points.

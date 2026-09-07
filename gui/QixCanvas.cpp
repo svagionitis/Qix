@@ -1,4 +1,5 @@
 #include "QixCanvas.h"
+#include "HighScoreTable.h"
 #include <QColor>
 #include <QFont>
 #include <QPainter>
@@ -66,22 +67,28 @@ void QixCanvas::drawHud(QPainter& painter)
 
     // Score
     painter.setPen(QColor(160, 174, 192));
-    painter.drawText(20, 28, "SCORE:");
+    painter.drawText(15, 28, "SCORE:");
     painter.setPen(QColor(246, 224, 94));
-    painter.drawText(75, 28, QString::number(m_view.stats.score));
+    painter.drawText(70, 28, QString::number(m_view.stats.score));
+
+    // High Score
+    painter.setPen(QColor(160, 174, 192));
+    painter.drawText(135, 28, "HIGH:");
+    painter.setPen(QColor(250, 204, 21));
+    painter.drawText(180, 28, QString::number(m_view.stats.highScore));
 
     // Claimed Percentage
     painter.setPen(QColor(160, 174, 192));
-    painter.drawText(175, 28, "CLAIMED:");
+    painter.drawText(250, 28, "CLAIM:");
     const auto percent = m_view.stats.claimedPercent;
     const auto target = m_view.stats.targetPercent;
     painter.setPen(percent >= target ? QColor(72, 187, 120) : QColor(99, 179, 237));
-    painter.drawText(245, 28, QString("%1% / %2%").arg(percent).arg(target));
+    painter.drawText(305, 28, QString("%1% / %2%").arg(percent).arg(target));
 
     // Progress Bar
-    const int barX = 345;
+    const int barX = 395;
     const int barY = 16;
-    const int barW = 110;
+    const int barW = 80;
     const int barH = 14;
     painter.setPen(Qt::NoPen);
     painter.fillRect(barX, barY, barW, barH, QColor(30, 41, 59));
@@ -301,12 +308,12 @@ void QixCanvas::drawOverlays(QPainter& painter)
     }
 
     painter.save();
-    painter.fillRect(rect(), QColor(0, 0, 0, 170));
-
-    QFont font("Monospace", 24, QFont::Bold);
-    painter.setFont(font);
+    painter.fillRect(rect(), QColor(0, 0, 0, 200));
 
     if (m_view.state == GameState::LevelComplete) {
+        QFont font("Monospace", 24, QFont::Bold);
+        painter.setFont(font);
+
         if (m_view.stats.splitBonus) {
             painter.setPen(QColor(250, 204, 21));
             painter.drawText(rect(), Qt::AlignCenter,
@@ -325,11 +332,130 @@ void QixCanvas::drawOverlays(QPainter& painter)
             painter.setPen(QColor(74, 222, 128));
             painter.drawText(rect(), Qt::AlignCenter, "LEVEL COMPLETE!\nPress [Space] for Next Level");
         }
+    } else if (m_view.state == GameState::NameEntry) {
+        drawNameEntry(painter);
+    } else if (m_view.state == GameState::HallOfFame) {
+        drawHallOfFame(painter, false);
     } else if (m_view.state == GameState::GameOver) {
-        painter.setPen(QColor(248, 113, 113));
-        painter.drawText(rect(), Qt::AlignCenter, "GAME OVER\nPress [R] to Restart");
+        drawHallOfFame(painter, true);
     }
 
+    painter.restore();
+}
+
+void QixCanvas::drawNameEntry(QPainter& painter)
+{
+    const int w = width();
+    const int h = height();
+
+    painter.save();
+    painter.setPen(QColor(250, 204, 21));
+    painter.setFont(QFont("Monospace", 22, QFont::Bold));
+    painter.drawText(QRect(0, h / 2 - 140, w, 40), Qt::AlignCenter, "ARCADE HALL OF FAME");
+
+    painter.setPen(QColor(99, 179, 237));
+    painter.setFont(QFont("Monospace", 14, QFont::Bold));
+    painter.drawText(QRect(0, h / 2 - 95, w, 30), Qt::AlignCenter,
+        QString("NEW HIGH SCORE! RANK #%1 - SCORE: %2").arg(m_view.nameEntry.rank).arg(m_view.stats.score));
+
+    painter.setPen(QColor(243, 244, 246));
+    painter.setFont(QFont("Monospace", 12));
+    painter.drawText(QRect(0, h / 2 - 60, w, 25), Qt::AlignCenter, "ENTER YOUR INITIALS");
+
+    // 3 letter boxes
+    const int boxW = 54;
+    const int boxH = 65;
+    const int gap = 24;
+    const int totalW = 3 * boxW + 2 * gap;
+    const int startX = (w - totalW) / 2;
+    const int boxY = h / 2 - 20;
+
+    for (std::uint8_t i {0}; i < 3; ++i) {
+        const int bx = startX + static_cast<int>(i) * (boxW + gap);
+        const bool isActive = (m_view.nameEntry.cursorIndex == i);
+
+        painter.fillRect(bx, boxY, boxW, boxH, QColor(15, 23, 42));
+        painter.setPen(QPen(isActive ? QColor(250, 204, 21) : QColor(71, 85, 105), isActive ? 3 : 1));
+        painter.drawRect(bx, boxY, boxW, boxH);
+
+        if (isActive) {
+            painter.setPen(QColor(250, 204, 21));
+            painter.setFont(QFont("Monospace", 12, QFont::Bold));
+            painter.drawText(QRect(bx, boxY - 20, boxW, 20), Qt::AlignCenter, "^");
+            painter.drawText(QRect(bx, boxY + boxH, boxW, 20), Qt::AlignCenter, "v");
+        }
+
+        painter.setPen(QColor(248, 250, 252));
+        painter.setFont(QFont("Monospace", 26, QFont::Bold));
+        painter.drawText(QRect(bx, boxY, boxW, boxH), Qt::AlignCenter, QString(m_view.nameEntry.initials[i]));
+    }
+
+    painter.setPen(QColor(148, 163, 184));
+    painter.setFont(QFont("Monospace", 11));
+    painter.drawText(
+        QRect(0, h / 2 + 75, w, 25), Qt::AlignCenter, "[UP/DOWN] Letter   [LEFT/RIGHT] Slot   [ENTER/SPACE] Confirm");
+    painter.restore();
+}
+
+void QixCanvas::drawHallOfFame(QPainter& painter, bool isGameOver)
+{
+    const int w = width();
+    const int h = height();
+
+    painter.save();
+    int curY = h / 2 - 160;
+
+    if (isGameOver) {
+        painter.setPen(QColor(248, 113, 113));
+        painter.setFont(QFont("Monospace", 22, QFont::Bold));
+        painter.drawText(QRect(0, curY, w, 35), Qt::AlignCenter, "GAME OVER");
+        curY += 40;
+    }
+
+    painter.setPen(QColor(250, 204, 21));
+    painter.setFont(QFont("Monospace", 20, QFont::Bold));
+    painter.drawText(QRect(0, curY, w, 32), Qt::AlignCenter, "ARCADE HALL OF FAME");
+    curY += 38;
+
+    painter.setPen(QColor(99, 179, 237));
+    painter.setFont(QFont("Monospace", 12, QFont::Bold));
+    const QString header = "RANK     NAME       SCORE      LVL    MODE";
+    painter.drawText(QRect(0, curY, w, 22), Qt::AlignCenter, header);
+    curY += 26;
+
+    if (m_view.highScoreTable != nullptr) {
+        const auto& entries = m_view.highScoreTable->getEntries();
+        const std::size_t maxRows = std::min(entries.size(), static_cast<std::size_t>(8));
+
+        painter.setFont(QFont("Monospace", 12));
+        for (std::size_t i {0}; i < maxRows; ++i) {
+            const auto& e = entries[i];
+            QColor rowColor(148, 163, 184);
+            if (i == 0) {
+                rowColor = QColor(250, 204, 21);
+            } else if (i == 1) {
+                rowColor = QColor(226, 232, 240);
+            } else if (i == 2) {
+                rowColor = QColor(245, 158, 11);
+            }
+
+            painter.setPen(rowColor);
+            const char* modeStr = (e.mode == GameMode::Classic) ? "CLASSIC" : "MODERN";
+            const QString rowStr = QString("%1.      %-4s    %2      %3     %-7s")
+                                       .arg(i + 1, 2)
+                                       .arg(QString::fromStdString(e.initials))
+                                       .arg(e.score, 8)
+                                       .arg(e.level, 2, 10, QChar('0'))
+                                       .arg(modeStr);
+            painter.drawText(QRect(0, curY, w, 20), Qt::AlignCenter, rowStr);
+            curY += 22;
+        }
+    }
+
+    curY += 15;
+    painter.setPen(QColor(243, 244, 246));
+    painter.setFont(QFont("Monospace", 12, QFont::Bold));
+    painter.drawText(QRect(0, curY, w, 25), Qt::AlignCenter, "Press [R] or [SPACE] to Play Again");
     painter.restore();
 }
 

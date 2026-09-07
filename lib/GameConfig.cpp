@@ -6,13 +6,12 @@ namespace qix {
 
 namespace {
 
-[[nodiscard]] std::string toLower(std::string str) noexcept
-{
-    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
-        return static_cast<char>(std::tolower(c));
-    });
-    return str;
-}
+    [[nodiscard]] std::string toLower(std::string str) noexcept
+    {
+        std::transform(
+            str.begin(), str.end(), str.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return str;
+    }
 
 } // namespace
 

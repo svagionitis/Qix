@@ -33,6 +33,29 @@ int main(int argc, char* argv[])
                 delayMs = game.getCurrentDelayMs();
                 continue;
             }
+        } else if (game.getView().state == qix::GameState::NameEntry) {
+            if (action == qix::tui::TuiAction::Confirm || cmd.drawMode != qix::DrawMode::None) {
+                if (game.getView().nameEntry.cursorIndex < 2) {
+                    game.handleInput(qix::PlayerCommand {qix::Direction::Right, qix::DrawMode::None});
+                } else {
+                    game.confirmInitials();
+                }
+            } else if (cmd.direction != qix::Direction::None) {
+                game.handleInput(cmd);
+            }
+            renderer.render(game.getView(), delayMs);
+            std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
+            continue;
+        } else if (game.getView().state == qix::GameState::HallOfFame
+            || game.getView().state == qix::GameState::GameOver) {
+            if (action == qix::tui::TuiAction::Restart || action == qix::tui::TuiAction::Confirm
+                || cmd.drawMode != qix::DrawMode::None) {
+                game.reset();
+                delayMs = game.getCurrentDelayMs();
+            }
+            renderer.render(game.getView(), delayMs);
+            std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
+            continue;
         }
 
         if (action == qix::tui::TuiAction::Restart) {

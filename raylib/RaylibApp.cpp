@@ -57,8 +57,54 @@ void RaylibApp::processInput() noexcept
             }
             return;
         }
-    } else if (view.state == GameState::GameOver) {
-        if (IsKeyPressed(KEY_R)) {
+    } else if (view.state == GameState::NameEntry) {
+        if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
+            if (m_game) {
+                m_game->handleInput(PlayerCommand {Direction::Up, DrawMode::None});
+            }
+            return;
+        }
+        if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
+            if (m_game) {
+                m_game->handleInput(PlayerCommand {Direction::Down, DrawMode::None});
+            }
+            return;
+        }
+        if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) {
+            if (m_game) {
+                m_game->handleInput(PlayerCommand {Direction::Left, DrawMode::None});
+            }
+            return;
+        }
+        if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
+            if (m_game) {
+                m_game->handleInput(PlayerCommand {Direction::Right, DrawMode::None});
+            }
+            return;
+        }
+        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER) || IsKeyPressed(KEY_SPACE)) {
+            if (m_game) {
+                if (view.nameEntry.cursorIndex < 2) {
+                    m_game->handleInput(PlayerCommand {Direction::Right, DrawMode::None});
+                } else {
+                    m_game->confirmInitials();
+                }
+            }
+            return;
+        }
+
+        int key = GetCharPressed();
+        while (key > 0) {
+            if ((key >= 'a' && key <= 'z') || (key >= 'A' && key <= 'Z') || (key >= '0' && key <= '9')) {
+                if (m_game) {
+                    m_game->inputInitialsChar(static_cast<char>(key));
+                }
+            }
+            key = GetCharPressed();
+        }
+        return;
+    } else if (view.state == GameState::HallOfFame || view.state == GameState::GameOver) {
+        if (IsKeyPressed(KEY_R) || IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
             if (m_game) {
                 m_game->reset();
                 m_delayMs = m_game->getCurrentDelayMs();

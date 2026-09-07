@@ -1,5 +1,7 @@
 #include "RaylibRenderer.h"
+#include "HighScoreTable.h"
 #include <algorithm>
+#include <cstdio>
 
 namespace qix::raylib {
 
@@ -53,7 +55,7 @@ void RaylibRenderer::render(const GameView& view, std::uint32_t delayMs) noexcep
     }
 
     // 4. Overlays
-    drawOverlays(view.state, view.stats);
+    drawOverlays(view);
 
     EndDrawing();
 
@@ -80,20 +82,24 @@ void RaylibRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noex
     const int textY = 15;
 
     // 1. SCORE
-    DrawText("SCORE:", 20, textY, fontSize, labelColor);
-    DrawText(std::to_string(stats.score).c_str(), 75, textY, fontSize, yellowColor);
+    DrawText("SCORE:", 15, textY, fontSize, labelColor);
+    DrawText(std::to_string(stats.score).c_str(), 72, textY, fontSize, yellowColor);
+
+    // HIGH
+    DrawText("HIGH:", 135, textY, fontSize, labelColor);
+    DrawText(std::to_string(stats.highScore).c_str(), 180, textY, fontSize, Color {250, 204, 21, 255});
 
     // 2. CLAIMED %
-    DrawText("CLAIMED:", 175, textY, fontSize, labelColor);
+    DrawText("CLAIM:", 255, textY, fontSize, labelColor);
     const std::string claimStr
         = std::to_string(stats.claimedPercent) + "% / " + std::to_string(stats.targetPercent) + "%";
     DrawText(
-        claimStr.c_str(), 245, textY, fontSize, stats.claimedPercent >= stats.targetPercent ? greenColor : cyanColor);
+        claimStr.c_str(), 310, textY, fontSize, stats.claimedPercent >= stats.targetPercent ? greenColor : cyanColor);
 
     // 3. Progress Bar
-    const int barX = 345;
+    const int barX = 405;
     const int barY = 16;
-    const int barW = 110;
+    const int barW = 75;
     const int barH = 14;
     DrawRectangle(barX, barY, barW, barH, Color {30, 41, 59, 255});
     const int fillW = std::min(barW, (barW * static_cast<int>(stats.claimedPercent)) / 100);
@@ -101,9 +107,9 @@ void RaylibRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noex
         barX, barY, fillW, barH, stats.claimedPercent >= stats.targetPercent ? greenColor : Color {59, 130, 246, 255});
 
     // 4. LIVES
-    DrawText("LIVES:", 450, textY, fontSize, labelColor);
+    DrawText("LIVES:", 495, textY, fontSize, labelColor);
     for (int i = 0; i < stats.lives; ++i) {
-        DrawPoly(Vector2 {static_cast<float>(505 + i * 16), 23.0f}, 4, 6.0f, 45.0f, redColor);
+        DrawPoly(Vector2 {static_cast<float>(550 + i * 16), 23.0f}, 4, 6.0f, 45.0f, redColor);
     }
 
     // 5. TIME
@@ -263,9 +269,9 @@ void RaylibRenderer::drawEntities(const GameView& view, const Rectangle& fieldRe
     DrawPoly(markerPos, 4, 7.0f, 45.0f, markerColor);
 }
 
-void RaylibRenderer::drawOverlays(GameState state, const GameStats& stats) noexcept
+void RaylibRenderer::drawOverlays(const GameView& view) noexcept
 {
-    if (state == GameState::Playing || state == GameState::Ready) {
+    if (view.state == GameState::Playing || view.state == GameState::Ready) {
         return;
     }
 
@@ -273,43 +279,159 @@ void RaylibRenderer::drawOverlays(GameState state, const GameStats& stats) noexc
     const int screenH = GetScreenHeight();
 
     // Semi-transparent blackout
-    DrawRectangle(0, 0, screenW, screenH, Color {0, 0, 0, 180});
+    DrawRectangle(0, 0, screenW, screenH, Color {0, 0, 0, 200});
 
-    if (state == GameState::LevelComplete) {
-        const char* text1 = stats.splitBonus ? "QIX SPLIT BONUS!" : "LEVEL COMPLETE!";
+    if (view.state == GameState::LevelComplete) {
+        const char* text1 = view.stats.splitBonus ? "QIX SPLIT BONUS!" : "LEVEL COMPLETE!";
         const int font1 = 28;
         const int w1 = MeasureText(text1, font1);
         DrawText(text1, (screenW - w1) / 2, screenH / 2 - 35, font1,
-            stats.splitBonus ? Color {250, 204, 21, 255} : Color {74, 222, 128, 255});
+            view.stats.splitBonus ? Color {250, 204, 21, 255} : Color {74, 222, 128, 255});
 
-        if (!stats.splitBonus && stats.thresholdBonus > 0) {
-            const auto overshoot
-                = (stats.claimedPercent > stats.targetPercent) ? (stats.claimedPercent - stats.targetPercent) : 0U;
-            const std::string bonusText
-                = "+" + std::to_string(stats.thresholdBonus) + " THRESHOLD BONUS (+" + std::to_string(overshoot) + "%)";
+        if (!view.stats.splitBonus && view.stats.thresholdBonus > 0) {
+            const auto overshoot = (view.stats.claimedPercent > view.stats.targetPercent)
+                ? (view.stats.claimedPercent - view.stats.targetPercent)
+                : 0U;
+            const std::string bonusText = "+" + std::to_string(view.stats.thresholdBonus) + " THRESHOLD BONUS (+"
+                + std::to_string(overshoot) + "%)";
             const int fontB = 20;
             const int wb = MeasureText(bonusText.c_str(), fontB);
             DrawText(bonusText.c_str(), (screenW - wb) / 2, screenH / 2, fontB, Color {250, 204, 21, 255});
         }
 
-        const std::string text2 = stats.splitBonus
-            ? ("Multiplier Increased to " + std::to_string(stats.multiplier) + "X! Press [Space]")
+        const std::string text2 = view.stats.splitBonus
+            ? ("Multiplier Increased to " + std::to_string(view.stats.multiplier) + "X! Press [Space]")
             : "Press [Space] for Next Level";
         const int font2 = 18;
         const int w2 = MeasureText(text2.c_str(), font2);
-        const int y2 = (!stats.splitBonus && stats.thresholdBonus > 0) ? (screenH / 2 + 28) : (screenH / 2 + 15);
+        const int y2
+            = (!view.stats.splitBonus && view.stats.thresholdBonus > 0) ? (screenH / 2 + 28) : (screenH / 2 + 15);
         DrawText(text2.c_str(), (screenW - w2) / 2, y2, font2, Color {243, 244, 246, 255});
-    } else if (state == GameState::GameOver) {
-        const char* text1 = "GAME OVER";
-        const char* text2 = "Press [R] to Restart";
-        const int font1 = 28;
-        const int font2 = 18;
-        const int w1 = MeasureText(text1, font1);
-        const int w2 = MeasureText(text2, font2);
-
-        DrawText(text1, (screenW - w1) / 2, screenH / 2 - 30, font1, Color {248, 113, 113, 255});
-        DrawText(text2, (screenW - w2) / 2, screenH / 2 + 15, font2, Color {243, 244, 246, 255});
+    } else if (view.state == GameState::NameEntry) {
+        drawNameEntry(view.nameEntry, view.stats);
+    } else if (view.state == GameState::HallOfFame) {
+        drawHallOfFame(view.highScoreTable, false);
+    } else if (view.state == GameState::GameOver) {
+        drawHallOfFame(view.highScoreTable, true);
     }
+}
+
+void RaylibRenderer::drawNameEntry(const NameEntryState& entry, const GameStats& stats) noexcept
+{
+    const int screenW = GetScreenWidth();
+    const int screenH = GetScreenHeight();
+
+    const char* title = "ARCADE HALL OF FAME";
+    const int fontTitle = 30;
+    const int wTitle = MeasureText(title, fontTitle);
+    DrawText(title, (screenW - wTitle) / 2, screenH / 2 - 140, fontTitle, Color {250, 204, 21, 255});
+
+    const std::string rankStr
+        = "NEW RECORD! RANK #" + std::to_string(entry.rank) + " - SCORE: " + std::to_string(stats.score);
+    const int fontSub = 18;
+    const int wSub = MeasureText(rankStr.c_str(), fontSub);
+    DrawText(rankStr.c_str(), (screenW - wSub) / 2, screenH / 2 - 95, fontSub, Color {99, 179, 237, 255});
+
+    const char* prompt = "ENTER YOUR INITIALS";
+    const int fontPrompt = 16;
+    const int wPrompt = MeasureText(prompt, fontPrompt);
+    DrawText(prompt, (screenW - wPrompt) / 2, screenH / 2 - 60, fontPrompt, Color {243, 244, 246, 255});
+
+    // 3 Letter Boxes
+    const int boxW = 50;
+    const int boxH = 60;
+    const int gap = 20;
+    const int totalW = 3 * boxW + 2 * gap;
+    const int startX = (screenW - totalW) / 2;
+    const int boxY = screenH / 2 - 20;
+
+    for (std::uint8_t i {0}; i < 3; ++i) {
+        const int bx = startX + static_cast<int>(i) * (boxW + gap);
+        const bool isActive = (entry.cursorIndex == i);
+
+        DrawRectangle(bx, boxY, boxW, boxH, Color {15, 23, 42, 255});
+        DrawRectangleLinesEx(Rectangle {static_cast<float>(bx), static_cast<float>(boxY), static_cast<float>(boxW),
+                                 static_cast<float>(boxH)},
+            2.0f, isActive ? Color {250, 204, 21, 255} : Color {71, 85, 105, 255});
+
+        if (isActive) {
+            DrawText("^", bx + boxW / 2 - 5, boxY - 18, 18, Color {250, 204, 21, 255});
+            DrawText("v", bx + boxW / 2 - 5, boxY + boxH + 2, 18, Color {250, 204, 21, 255});
+        }
+
+        const char letterStr[2] = {entry.initials[i], '\0'};
+        const int fontChar = 32;
+        const int wChar = MeasureText(letterStr, fontChar);
+        DrawText(letterStr, bx + (boxW - wChar) / 2, boxY + 14, fontChar, Color {248, 250, 252, 255});
+    }
+
+    const char* navHelp = "[UP/DOWN] Letter   [LEFT/RIGHT] Slot   [ENTER/SPACE] Confirm";
+    const int fontHelp = 14;
+    const int wHelp = MeasureText(navHelp, fontHelp);
+    DrawText(navHelp, (screenW - wHelp) / 2, screenH / 2 + 75, fontHelp, Color {148, 163, 184, 255});
+}
+
+void RaylibRenderer::drawHallOfFame(const HighScoreTable* table, bool isGameOver) noexcept
+{
+    const int screenW = GetScreenWidth();
+    const int screenH = GetScreenHeight();
+
+    int curY = screenH / 2 - 160;
+
+    if (isGameOver) {
+        const char* goText = "GAME OVER";
+        const int fontGo = 26;
+        const int wGo = MeasureText(goText, fontGo);
+        DrawText(goText, (screenW - wGo) / 2, curY, fontGo, Color {248, 113, 113, 255});
+        curY += 35;
+    }
+
+    const char* title = "ARCADE HALL OF FAME";
+    const int fontTitle = 22;
+    const int wTitle = MeasureText(title, fontTitle);
+    DrawText(title, (screenW - wTitle) / 2, curY, fontTitle, Color {250, 204, 21, 255});
+    curY += 32;
+
+    const char* header = "RANK     NAME       SCORE      LVL    MODE";
+    const int fontRow = 15;
+    const int wHeader = MeasureText(header, fontRow);
+    DrawText(header, (screenW - wHeader) / 2, curY, fontRow, Color {99, 179, 237, 255});
+    curY += 22;
+
+    DrawLine((screenW - wHeader) / 2, curY, (screenW + wHeader) / 2, curY, Color {51, 65, 85, 255});
+    curY += 8;
+
+    if (table != nullptr) {
+        const auto& entries = table->getEntries();
+        const std::size_t maxRows = std::min(entries.size(), static_cast<std::size_t>(7));
+
+        for (std::size_t i {0}; i < maxRows; ++i) {
+            const auto& e = entries[i];
+            Color rowColor {148, 163, 184, 255};
+            if (i == 0) {
+                rowColor = Color {250, 204, 21, 255}; // Gold
+            } else if (i == 1) {
+                rowColor = Color {226, 232, 240, 255}; // Silver
+            } else if (i == 2) {
+                rowColor = Color {245, 158, 11, 255}; // Bronze
+            }
+
+            char rowBuf[64];
+            const char* modeStr = (e.mode == GameMode::Classic) ? "CLASSIC" : "MODERN";
+            std::snprintf(rowBuf, sizeof(rowBuf), "%2zu.      %-4s    %8u      %02u     %-7s", i + 1,
+                e.initials.c_str(), e.score, static_cast<unsigned>(e.level), modeStr);
+
+            const int wRow = MeasureText(rowBuf, fontRow);
+            DrawText(rowBuf, (screenW - wRow) / 2, curY, fontRow, rowColor);
+            curY += 20;
+        }
+    }
+
+    curY += 15;
+    const char* prompt = "Press [R] or [SPACE] to Play Again";
+    const int fontPrompt = 16;
+    const int wPrompt = MeasureText(prompt, fontPrompt);
+    DrawText(prompt, (screenW - wPrompt) / 2, curY, fontPrompt, Color {243, 244, 246, 255});
 }
 
 } // namespace qix::raylib

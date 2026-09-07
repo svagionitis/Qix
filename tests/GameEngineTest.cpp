@@ -317,3 +317,123 @@ TEST(GameEngineTest, ExtraLifeAwardedAtScoreMilestone)
     EXPECT_EQ(game.getView().stats.lives, 3U);
     EXPECT_EQ(game.getView().stats.nextExtraLifeScore, 50000U);
 }
+
+TEST(GameEngineTest, LiveHighScoreTrackingInHUD)
+{
+    qix::QixGame game {80, 60, 50};
+    const auto initialHighScore = game.getView().stats.highScore;
+    EXPECT_GT(initialHighScore, 0U);
+
+    // Initial score is 0, high score reflects table best
+    EXPECT_EQ(game.getView().stats.score, 0U);
+    EXPECT_EQ(game.getView().stats.highScore, initialHighScore);
+}
+
+TEST(GameEngineTest, NameEntryInputNavigationAndConfirmation)
+{
+    qix::QixGame game {80, 60, 50};
+
+    // Helper to cause death via fuse hesitation while drawing
+    auto killPlayerViaFuse = [&game]() {
+        const auto pos = game.getView().markerPos;
+        const auto dir = (pos.y == 0) ? qix::Direction::Down : qix::Direction::Up;
+        game.handleInput(qix::PlayerCommand {dir, qix::DrawMode::Slow});
+        game.step(16);
+
+        // Hesitate until fuse burns and catches marker
+        for (std::int32_t i {0}; i < 30; ++i) {
+            game.handleInput(qix::PlayerCommand {qix::Direction::None, qix::DrawMode::Slow});
+            game.step(16);
+            if (game.getView().state == qix::GameState::NameEntry || game.getView().state == qix::GameState::GameOver) {
+                break;
+            }
+        }
+    };
+
+    // First kill 2 lives (3 -> 2 -> 1) with 0 score
+    killPlayerViaFuse();
+    EXPECT_EQ(game.getView().stats.lives, 2U);
+    EXPECT_EQ(game.getView().state, qix::GameState::Ready);
+
+    killPlayerViaFuse();
+    EXPECT_EQ(game.getView().stats.lives, 1U);
+    EXPECT_EQ(game.getView().state, qix::GameState::Ready);
+
+    // Score points: move to x=2, draw up to (2, 0)
+    for (std::int32_t i {0}; i < 38; ++i) {
+        game.handleInput(qix::PlayerCommand {qix::Direction::Left, qix::DrawMode::None});
+        game.step(16);
+    }
+    for (std::int32_t y {59}; y >= 0; --y) {
+        game.handleInput(qix::PlayerCommand {qix::Direction::Up, qix::DrawMode::Slow});
+        game.step(16);
+    }
+    EXPECT_GT(game.getView().stats.score, 0U);
+    const auto finalScore = game.getView().stats.score;
+
+    // Move right along top border from (2, 0) to (40, 0)
+    for (std::int32_t i {0}; i < 38; ++i) {
+        game.handleInput(qix::PlayerCommand {qix::Direction::Right, qix::DrawMode::None});
+        game.step(16);
+    }
+
+    // Final death (1 -> 0 lives)
+    killPlayerViaFuse();
+
+    // If score qualifies, state is NameEntry; otherwise GameOver
+    if (game.getHighScoreTable().qualifies(finalScore)) {
+        EXPECT_EQ(game.getView().state, qix::GameState::NameEntry);
+        EXPECT_EQ(game.getView().nameEntry.cursorIndex, 0U);
+        EXPECT_EQ(game.getView().nameEntry.initials[0], 'A');
+
+        // Up arrow: 'A' -> 'B'
+        game.handleInput(qix::PlayerCommand {qix::Direction::Up, qix::DrawMode::None});
+        EXPECT_EQ(game.getView().nameEntry.initials[0], 'B');
+
+        // Down arrow: 'B' -> 'A'
+        game.handleInput(qix::PlayerCommand {qix::Direction::Down, qix::DrawMode::None});
+        EXPECT_EQ(game.getView().nameEntry.initials[0], 'A');
+
+        // Right arrow: advance to cursor index 1
+        game.handleInput(qix::PlayerCommand {qix::Direction::Right, qix::DrawMode::None});
+        EXPECT_EQ(game.getView().nameEntry.cursorIndex, 1U);
+
+        // Input char directly
+        game.inputInitialsChar('C');
+        EXPECT_EQ(game.getView().nameEntry.initials[1], 'C');
+
+        // Confirm initials advances to HallOfFame
+        game.confirmInitials();
+        EXPECT_EQ(game.getView().state, qix::GameState::HallOfFame);
+
+        // Reset returns to Ready
+        game.reset();
+        EXPECT_EQ(game.getView().state, qix::GameState::Ready);
+    }
+}
+
+TEST(GameEngineTest, ZeroScoreGameOverDirectly)
+{
+    qix::QixGame game {80, 60, 50};
+
+    auto killPlayerViaFuse = [&game]() {
+        game.handleInput(qix::PlayerCommand {qix::Direction::Up, qix::DrawMode::Slow});
+        game.step(16);
+        for (std::int32_t i {0}; i < 30; ++i) {
+            game.handleInput(qix::PlayerCommand {qix::Direction::None, qix::DrawMode::Slow});
+            game.step(16);
+            if (game.getView().state == qix::GameState::GameOver) {
+                break;
+            }
+        }
+    };
+
+    // Kill all 3 lives with 0 score
+    killPlayerViaFuse();
+    killPlayerViaFuse();
+    killPlayerViaFuse();
+
+    // With 0 score, player does not qualify, transitions straight to GameOver
+    EXPECT_EQ(game.getView().stats.lives, 0U);
+    EXPECT_EQ(game.getView().state, qix::GameState::GameOver);
+}

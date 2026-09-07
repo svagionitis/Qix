@@ -5,6 +5,8 @@ add_library(qix_core STATIC
     Fuse.h
     GameConfig.cpp
     GameConfig.h
+    HighScoreTable.cpp
+    HighScoreTable.h
     IQixGame.h
     Marker.cpp
     Marker.h

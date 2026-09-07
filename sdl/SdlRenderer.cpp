@@ -1,6 +1,8 @@
 #include "SdlRenderer.h"
+#include "HighScoreTable.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 
 namespace qix::sdl {
 
@@ -78,7 +80,7 @@ void SdlRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     }
 
     // 4. Overlays
-    drawOverlays(view.state, view.stats);
+    drawOverlays(view);
 
     ++m_colorCycle;
 }
@@ -112,20 +114,24 @@ void SdlRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noexcep
     const SDL_Color redColor {245, 101, 101, 255};
 
     // 1. SCORE
-    BitmapFont::drawText(m_renderer.get(), "SCORE:", 20, 18, 1, labelColor);
-    BitmapFont::drawText(m_renderer.get(), std::to_string(stats.score), 75, 18, 1, yellowColor);
+    BitmapFont::drawText(m_renderer.get(), "SCORE:", 15, 18, 1, labelColor);
+    BitmapFont::drawText(m_renderer.get(), std::to_string(stats.score), 70, 18, 1, yellowColor);
+
+    // HIGH SCORE
+    BitmapFont::drawText(m_renderer.get(), "HI:", 135, 18, 1, labelColor);
+    BitmapFont::drawText(m_renderer.get(), std::to_string(stats.highScore), 165, 18, 1, SDL_Color {250, 204, 21, 255});
 
     // 2. CLAIMED %
-    BitmapFont::drawText(m_renderer.get(), "CLAIMED:", 175, 18, 1, labelColor);
+    BitmapFont::drawText(m_renderer.get(), "CLAIM:", 240, 18, 1, labelColor);
     const std::string claimStr
         = std::to_string(stats.claimedPercent) + "% / " + std::to_string(stats.targetPercent) + "%";
     BitmapFont::drawText(
-        m_renderer.get(), claimStr, 245, 18, 1, stats.claimedPercent >= stats.targetPercent ? greenColor : cyanColor);
+        m_renderer.get(), claimStr, 295, 18, 1, stats.claimedPercent >= stats.targetPercent ? greenColor : cyanColor);
 
     // 3. Progress Bar
-    const int barX = 345;
+    const int barX = 390;
     const int barY = 16;
-    const int barW = 110;
+    const int barW = 80;
     const int barH = 14;
     SDL_Rect bgBar {barX, barY, barW, barH};
     SDL_SetRenderDrawColor(m_renderer.get(), 30, 41, 59, 255);
@@ -302,9 +308,9 @@ void SdlRenderer::drawEntities(const GameView& view, const SDL_Rect& fieldRect) 
     drawFilledDiamond(mx, my, 7, markerColor);
 }
 
-void SdlRenderer::drawOverlays(GameState state, const GameStats& stats) noexcept
+void SdlRenderer::drawOverlays(const GameView& view) noexcept
 {
-    if (state == GameState::Playing || state == GameState::Ready) {
+    if (view.state == GameState::Playing || view.state == GameState::Ready) {
         return;
     }
 
@@ -313,45 +319,163 @@ void SdlRenderer::drawOverlays(GameState state, const GameStats& stats) noexcept
 
     // Semi-transparent blackout
     SDL_Rect fullScreen {0, 0, screenW, screenH};
-    SDL_SetRenderDrawColor(m_renderer.get(), 0, 0, 0, 180);
+    SDL_SetRenderDrawColor(m_renderer.get(), 0, 0, 0, 200);
     SDL_RenderFillRect(m_renderer.get(), &fullScreen);
 
-    if (state == GameState::LevelComplete) {
-        const std::string line1 = stats.splitBonus ? "QIX SPLIT BONUS!" : "LEVEL COMPLETE!";
+    if (view.state == GameState::LevelComplete) {
+        const std::string line1 = view.stats.splitBonus ? "QIX SPLIT BONUS!" : "LEVEL COMPLETE!";
         const int scale = 2;
         const int x1 = std::max(20, (screenW - static_cast<int>(line1.length()) * 8 * scale) / 2);
         const int y1 = screenH / 2 - 35;
-        const SDL_Color titleCol = stats.splitBonus ? SDL_Color {250, 204, 21, 255} : SDL_Color {74, 222, 128, 255};
+        const SDL_Color titleCol
+            = view.stats.splitBonus ? SDL_Color {250, 204, 21, 255} : SDL_Color {74, 222, 128, 255};
         BitmapFont::drawText(m_renderer.get(), line1, x1, y1, scale, titleCol);
 
-        if (!stats.splitBonus && stats.thresholdBonus > 0) {
-            const auto overshoot
-                = (stats.claimedPercent > stats.targetPercent) ? (stats.claimedPercent - stats.targetPercent) : 0U;
-            const std::string bonusLine
-                = "+" + std::to_string(stats.thresholdBonus) + " THRESHOLD BONUS (+" + std::to_string(overshoot) + "%)";
+        if (!view.stats.splitBonus && view.stats.thresholdBonus > 0) {
+            const auto overshoot = (view.stats.claimedPercent > view.stats.targetPercent)
+                ? (view.stats.claimedPercent - view.stats.targetPercent)
+                : 0U;
+            const std::string bonusLine = "+" + std::to_string(view.stats.thresholdBonus) + " THRESHOLD BONUS (+"
+                + std::to_string(overshoot) + "%)";
             const int xb = std::max(20, (screenW - static_cast<int>(bonusLine.length()) * 8 * 1) / 2);
             const int yb = screenH / 2;
             BitmapFont::drawText(m_renderer.get(), bonusLine, xb, yb, 1, SDL_Color {250, 204, 21, 255});
         }
 
-        const std::string line2 = stats.splitBonus
-            ? ("Multiplier: " + std::to_string(stats.multiplier) + "X! Press [Space]")
+        const std::string line2 = view.stats.splitBonus
+            ? ("Multiplier: " + std::to_string(view.stats.multiplier) + "X! Press [Space]")
             : "Press [Space] for Next Level";
         const int x2 = std::max(20, (screenW - static_cast<int>(line2.length()) * 8 * 1) / 2);
-        const int y2 = (!stats.splitBonus && stats.thresholdBonus > 0) ? (screenH / 2 + 25) : (screenH / 2 + 15);
+        const int y2
+            = (!view.stats.splitBonus && view.stats.thresholdBonus > 0) ? (screenH / 2 + 25) : (screenH / 2 + 15);
         BitmapFont::drawText(m_renderer.get(), line2, x2, y2, 1, SDL_Color {243, 244, 246, 255});
-    } else if (state == GameState::GameOver) {
-        const std::string line1 = "GAME OVER";
-        const std::string line2 = "Press [R] to Restart";
-        const int scale = 2;
-        const int x1 = std::max(20, (screenW - static_cast<int>(line1.length()) * 8 * scale) / 2);
-        const int y1 = screenH / 2 - 30;
-        const int x2 = std::max(20, (screenW - static_cast<int>(line2.length()) * 8 * 1) / 2);
-        const int y2 = screenH / 2 + 15;
-
-        BitmapFont::drawText(m_renderer.get(), line1, x1, y1, scale, SDL_Color {248, 113, 113, 255});
-        BitmapFont::drawText(m_renderer.get(), line2, x2, y2, 1, SDL_Color {243, 244, 246, 255});
+    } else if (view.state == GameState::NameEntry) {
+        drawNameEntry(view.nameEntry, view.stats);
+    } else if (view.state == GameState::HallOfFame) {
+        drawHallOfFame(view.highScoreTable, false);
+    } else if (view.state == GameState::GameOver) {
+        drawHallOfFame(view.highScoreTable, true);
     }
+}
+
+void SdlRenderer::drawNameEntry(const NameEntryState& entry, const GameStats& stats) noexcept
+{
+    const int screenW = getWidth();
+    const int screenH = getHeight();
+
+    const std::string title = "ARCADE HALL OF FAME";
+    const int scaleTitle = 2;
+    const int xTitle = std::max(10, (screenW - static_cast<int>(title.length()) * 8 * scaleTitle) / 2);
+    BitmapFont::drawText(m_renderer.get(), title, xTitle, screenH / 2 - 130, scaleTitle, SDL_Color {250, 204, 21, 255});
+
+    const std::string rankStr
+        = "NEW RECORD! RANK #" + std::to_string(entry.rank) + " - SCORE: " + std::to_string(stats.score);
+    const int xRank = std::max(10, (screenW - static_cast<int>(rankStr.length()) * 8 * 1) / 2);
+    BitmapFont::drawText(m_renderer.get(), rankStr, xRank, screenH / 2 - 90, 1, SDL_Color {99, 179, 237, 255});
+
+    const std::string prompt = "ENTER YOUR INITIALS";
+    const int xPrompt = std::max(10, (screenW - static_cast<int>(prompt.length()) * 8 * 1) / 2);
+    BitmapFont::drawText(m_renderer.get(), prompt, xPrompt, screenH / 2 - 60, 1, SDL_Color {243, 244, 246, 255});
+
+    // 3 letter boxes
+    const int boxW = 44;
+    const int boxH = 50;
+    const int gap = 20;
+    const int totalW = 3 * boxW + 2 * gap;
+    const int startX = (screenW - totalW) / 2;
+    const int boxY = screenH / 2 - 20;
+
+    for (std::uint8_t i {0}; i < 3; ++i) {
+        const int bx = startX + static_cast<int>(i) * (boxW + gap);
+        const bool isActive = (entry.cursorIndex == i);
+
+        SDL_Rect bg {bx, boxY, boxW, boxH};
+        SDL_SetRenderDrawColor(m_renderer.get(), 15, 23, 42, 255);
+        SDL_RenderFillRect(m_renderer.get(), &bg);
+
+        if (isActive) {
+            SDL_SetRenderDrawColor(m_renderer.get(), 250, 204, 21, 255);
+            SDL_RenderDrawRect(m_renderer.get(), &bg);
+            BitmapFont::drawText(
+                m_renderer.get(), "^", bx + (boxW - 8) / 2, boxY - 14, 1, SDL_Color {250, 204, 21, 255});
+            BitmapFont::drawText(
+                m_renderer.get(), "v", bx + (boxW - 8) / 2, boxY + boxH + 4, 1, SDL_Color {250, 204, 21, 255});
+        } else {
+            SDL_SetRenderDrawColor(m_renderer.get(), 71, 85, 105, 255);
+            SDL_RenderDrawRect(m_renderer.get(), &bg);
+        }
+
+        const std::string chStr(1, entry.initials[i]);
+        const int charScale = 3;
+        const int charW = 8 * charScale;
+        const int charH = 8 * charScale;
+        BitmapFont::drawText(m_renderer.get(), chStr, bx + (boxW - charW) / 2, boxY + (boxH - charH) / 2, charScale,
+            SDL_Color {248, 250, 252, 255});
+    }
+
+    const std::string help = "[UP/DOWN] Letter   [LEFT/RIGHT] Slot   [ENTER/SPACE] Confirm";
+    const int xHelp = std::max(10, (screenW - static_cast<int>(help.length()) * 8 * 1) / 2);
+    BitmapFont::drawText(m_renderer.get(), help, xHelp, screenH / 2 + 65, 1, SDL_Color {148, 163, 184, 255});
+}
+
+void SdlRenderer::drawHallOfFame(const HighScoreTable* table, bool isGameOver) noexcept
+{
+    const int screenW = getWidth();
+    const int screenH = getHeight();
+
+    int curY = screenH / 2 - 150;
+
+    if (isGameOver) {
+        const std::string go = "GAME OVER";
+        const int xGo = std::max(10, (screenW - static_cast<int>(go.length()) * 8 * 2) / 2);
+        BitmapFont::drawText(m_renderer.get(), go, xGo, curY, 2, SDL_Color {248, 113, 113, 255});
+        curY += 35;
+    }
+
+    const std::string title = "*** ARCADE HALL OF FAME ***";
+    const int xTitle = std::max(10, (screenW - static_cast<int>(title.length()) * 8 * 1) / 2);
+    BitmapFont::drawText(m_renderer.get(), title, xTitle, curY, 1, SDL_Color {250, 204, 21, 255});
+    curY += 25;
+
+    const std::string header = "RANK     NAME       SCORE      LVL    MODE";
+    const int xHeader = std::max(10, (screenW - static_cast<int>(header.length()) * 8 * 1) / 2);
+    BitmapFont::drawText(m_renderer.get(), header, xHeader, curY, 1, SDL_Color {99, 179, 237, 255});
+    curY += 14;
+
+    SDL_SetRenderDrawColor(m_renderer.get(), 51, 65, 85, 255);
+    SDL_RenderDrawLine(m_renderer.get(), xHeader, curY, xHeader + static_cast<int>(header.length()) * 8, curY);
+    curY += 6;
+
+    if (table != nullptr) {
+        const auto& entries = table->getEntries();
+        const std::size_t maxRows = std::min(entries.size(), static_cast<std::size_t>(7));
+
+        for (std::size_t i {0}; i < maxRows; ++i) {
+            const auto& e = entries[i];
+            SDL_Color rowColor {148, 163, 184, 255};
+            if (i == 0) {
+                rowColor = SDL_Color {250, 204, 21, 255};
+            } else if (i == 1) {
+                rowColor = SDL_Color {226, 232, 240, 255};
+            } else if (i == 2) {
+                rowColor = SDL_Color {245, 158, 11, 255};
+            }
+
+            char rowBuf[64];
+            const char* modeStr = (e.mode == GameMode::Classic) ? "CLASSIC" : "MODERN";
+            std::snprintf(rowBuf, sizeof(rowBuf), "%2zu.      %-4s    %8u      %02u     %-7s", i + 1,
+                e.initials.c_str(), e.score, static_cast<unsigned>(e.level), modeStr);
+
+            const int xRow = std::max(10, (screenW - static_cast<int>(std::string(rowBuf).length()) * 8 * 1) / 2);
+            BitmapFont::drawText(m_renderer.get(), rowBuf, xRow, curY, 1, rowColor);
+            curY += 16;
+        }
+    }
+
+    curY += 15;
+    const std::string prompt = "PRESS [R] OR [SPACE] TO PLAY AGAIN";
+    const int xPrompt = std::max(10, (screenW - static_cast<int>(prompt.length()) * 8 * 1) / 2);
+    BitmapFont::drawText(m_renderer.get(), prompt, xPrompt, curY, 1, SDL_Color {243, 244, 246, 255});
 }
 
 void SdlRenderer::drawFilledDiamond(int cx, int cy, int radius, SDL_Color color) noexcept

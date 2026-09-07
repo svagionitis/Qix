@@ -39,8 +39,8 @@ TEST(GameConfigTest, ParseArgcArgvArray)
 
 TEST(GameConfigTest, MalformedOrUnknownArgs)
 {
-    EXPECT_EQ(qix::GameConfig::parseGameMode({"--mode", "unsupported"}, qix::GameMode::Classic),
-        qix::GameMode::Classic);
+    EXPECT_EQ(
+        qix::GameConfig::parseGameMode({"--mode", "unsupported"}, qix::GameMode::Classic), qix::GameMode::Classic);
     EXPECT_EQ(qix::GameConfig::parseGameMode({"--mode"}, qix::GameMode::Classic), qix::GameMode::Classic);
     EXPECT_EQ(qix::GameConfig::parseGameMode({"-m"}, qix::GameMode::Modern), qix::GameMode::Modern);
     EXPECT_EQ(qix::GameConfig::parseGameMode(0, nullptr), qix::DefaultGameMode);

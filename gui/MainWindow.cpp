@@ -80,12 +80,55 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
         if (event->key() == Qt::Key_Space || event->key() == Qt::Key_Return) {
             m_game->nextLevel();
             setDelayMs(m_game->getCurrentDelayMs());
+            m_canvas->updateView(m_game->getView());
             return;
         }
-    } else if (view.state == GameState::GameOver) {
-        if (event->key() == Qt::Key_R) {
+    } else if (view.state == GameState::NameEntry) {
+        if (event->key() == Qt::Key_Up || event->key() == Qt::Key_W) {
+            m_game->handleInput(PlayerCommand {Direction::Up, DrawMode::None});
+            m_canvas->updateView(m_game->getView());
+            return;
+        }
+        if (event->key() == Qt::Key_Down || event->key() == Qt::Key_S) {
+            m_game->handleInput(PlayerCommand {Direction::Down, DrawMode::None});
+            m_canvas->updateView(m_game->getView());
+            return;
+        }
+        if (event->key() == Qt::Key_Left || event->key() == Qt::Key_A) {
+            m_game->handleInput(PlayerCommand {Direction::Left, DrawMode::None});
+            m_canvas->updateView(m_game->getView());
+            return;
+        }
+        if (event->key() == Qt::Key_Right || event->key() == Qt::Key_D) {
+            m_game->handleInput(PlayerCommand {Direction::Right, DrawMode::None});
+            m_canvas->updateView(m_game->getView());
+            return;
+        }
+        if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter || event->key() == Qt::Key_Space) {
+            if (view.nameEntry.cursorIndex < 2) {
+                m_game->handleInput(PlayerCommand {Direction::Right, DrawMode::None});
+            } else {
+                m_game->confirmInitials();
+            }
+            m_canvas->updateView(m_game->getView());
+            return;
+        }
+        const QString text = event->text();
+        if (!text.isEmpty()) {
+            const QChar ch = text.at(0);
+            if (ch.isLetterOrNumber()) {
+                m_game->inputInitialsChar(static_cast<char>(ch.toUpper().toLatin1()));
+                m_canvas->updateView(m_game->getView());
+                return;
+            }
+        }
+        return;
+    } else if (view.state == GameState::HallOfFame || view.state == GameState::GameOver) {
+        if (event->key() == Qt::Key_R || event->key() == Qt::Key_Space || event->key() == Qt::Key_Return
+            || event->key() == Qt::Key_Enter) {
             m_game->reset();
             setDelayMs(m_game->getCurrentDelayMs());
+            m_canvas->updateView(m_game->getView());
             return;
         }
     }

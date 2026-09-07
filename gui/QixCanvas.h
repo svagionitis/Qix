@@ -36,6 +36,8 @@ private:
     void drawQixRibbons(QPainter& painter, const QRect& fieldRect);
     void drawEntities(QPainter& painter, const QRect& fieldRect);
     void drawOverlays(QPainter& painter);
+    void drawNameEntry(QPainter& painter);
+    void drawHallOfFame(QPainter& painter, bool isGameOver);
 };
 
 } // namespace qix::gui

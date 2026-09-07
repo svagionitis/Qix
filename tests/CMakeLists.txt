@@ -7,6 +7,7 @@ add_executable(qix_tests
     CollisionTest.cpp
     GameEngineTest.cpp
     GameConfigTest.cpp
+    HighScoreTableTest.cpp
     SpeedConfigTest.cpp
 )
 

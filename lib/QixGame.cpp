@@ -16,12 +16,15 @@ QixGame::QixGame(std::int32_t width, std::int32_t height, std::uint16_t targetPe
     m_stats.totalEmptyCells = m_playfield.getInteriorCount();
     m_stats.mode = mode;
     m_stats.currentDelayMs = m_currentDelayMs;
+    static_cast<void>(m_highScoreTable.loadFromFile(HighScoreTable::getDefaultFilePath()));
+    m_stats.highScore = m_highScoreTable.getHighScore();
     reset();
 }
 
 void QixGame::step(std::uint32_t deltaMs) noexcept
 {
-    if (m_state == GameState::GameOver || m_state == GameState::LevelComplete) {
+    if (m_state == GameState::GameOver || m_state == GameState::LevelComplete || m_state == GameState::NameEntry
+        || m_state == GameState::HallOfFame) {
         updateSnapshot();
         return;
     }
@@ -120,6 +123,9 @@ void QixGame::step(std::uint32_t deltaMs) noexcept
 void QixGame::handleInput(PlayerCommand cmd) noexcept
 {
     m_pendingCmd = cmd;
+    if (m_state == GameState::NameEntry) {
+        handleNameEntryInput(cmd);
+    }
 }
 
 const GameView& QixGame::getView() const noexcept
@@ -147,6 +153,7 @@ void QixGame::reset() noexcept
     m_stats.timeUp = false;
     m_currentDelayMs = m_baseDelayMs;
     m_stats.currentDelayMs = m_currentDelayMs;
+    m_stats.highScore = m_highScoreTable.getHighScore();
     m_state = GameState::Ready;
 
     setupEntities();
@@ -223,9 +230,14 @@ void QixGame::updateSnapshot() noexcept
     m_view.fusePos = m_fuse.getPosition();
     m_stats.lives = m_marker.getLives();
     m_stats.mode = m_mode;
+    if (m_stats.score > m_stats.highScore) {
+        m_stats.highScore = m_stats.score;
+    }
     m_view.stats = m_stats;
     m_view.state = m_state;
     m_view.mode = m_mode;
+    m_view.nameEntry = m_nameEntry;
+    m_view.highScoreTable = &m_highScoreTable;
 }
 
 void QixGame::handleDeath() noexcept
@@ -235,7 +247,14 @@ void QixGame::handleDeath() noexcept
     m_fuse.reset();
 
     if (!m_marker.isAlive()) {
-        m_state = GameState::GameOver;
+        if (m_highScoreTable.qualifies(m_stats.score)) {
+            m_state = GameState::NameEntry;
+            m_nameEntry.initials = {'A', 'A', 'A'};
+            m_nameEntry.cursorIndex = 0;
+            m_nameEntry.rank = m_highScoreTable.getRank(m_stats.score);
+        } else {
+            m_state = GameState::GameOver;
+        }
     } else {
         // Respawn marker at bottom safe border
         m_marker.resetPosition(Point {m_playfield.getWidth() / 2, m_playfield.getHeight() - 1});
@@ -246,6 +265,8 @@ void QixGame::handleDeath() noexcept
         m_stats.timeUp = false;
         m_state = GameState::Ready;
     }
+
+    updateSnapshot();
 }
 
 void QixGame::clearActiveStix() noexcept
@@ -307,6 +328,87 @@ void QixGame::spawnEscalationSparx() noexcept
     const bool clockwise = (m_sparxList.size() % 2 == 0);
     const auto spawnX = clockwise ? 1 : (m_playfield.getWidth() - 2);
     m_sparxList.emplace_back(Point {spawnX, 0}, clockwise, m_mode, true);
+}
+
+const HighScoreTable& QixGame::getHighScoreTable() const noexcept
+{
+    return m_highScoreTable;
+}
+
+void QixGame::inputInitialsChar(char c) noexcept
+{
+    if (m_state != GameState::NameEntry) {
+        return;
+    }
+
+    const auto uc = static_cast<unsigned char>(c);
+    if (std::isalnum(uc) == 0 && c != '!' && c != '.' && c != '?') {
+        return;
+    }
+
+    m_nameEntry.initials[m_nameEntry.cursorIndex] = static_cast<char>(std::toupper(uc));
+    if (m_nameEntry.cursorIndex < 2) {
+        ++m_nameEntry.cursorIndex;
+    }
+    updateSnapshot();
+}
+
+void QixGame::confirmInitials() noexcept
+{
+    if (m_state != GameState::NameEntry) {
+        return;
+    }
+
+    const std::string initialsStr(m_nameEntry.initials.data(), 3);
+    static_cast<void>(m_highScoreTable.insert(initialsStr, m_stats.score, m_stats.level, m_mode));
+    static_cast<void>(m_highScoreTable.saveToFile(HighScoreTable::getDefaultFilePath()));
+    m_stats.highScore = m_highScoreTable.getHighScore();
+    m_state = GameState::HallOfFame;
+    updateSnapshot();
+}
+
+void QixGame::handleNameEntryInput(PlayerCommand cmd) noexcept
+{
+    if (m_state != GameState::NameEntry) {
+        return;
+    }
+
+    if (cmd.direction == Direction::Up) {
+        char& c = m_nameEntry.initials[m_nameEntry.cursorIndex];
+        if (c == 'Z') {
+            c = 'A';
+        } else if (c >= 'A' && c < 'Z') {
+            ++c;
+        } else {
+            c = 'A';
+        }
+    } else if (cmd.direction == Direction::Down) {
+        char& c = m_nameEntry.initials[m_nameEntry.cursorIndex];
+        if (c == 'A') {
+            c = 'Z';
+        } else if (c > 'A' && c <= 'Z') {
+            --c;
+        } else {
+            c = 'Z';
+        }
+    } else if (cmd.direction == Direction::Left) {
+        if (m_nameEntry.cursorIndex > 0) {
+            --m_nameEntry.cursorIndex;
+        }
+    } else if (cmd.direction == Direction::Right) {
+        if (m_nameEntry.cursorIndex < 2) {
+            ++m_nameEntry.cursorIndex;
+        }
+    } else if (cmd.drawMode != DrawMode::None) {
+        if (m_nameEntry.cursorIndex < 2) {
+            ++m_nameEntry.cursorIndex;
+        } else {
+            confirmInitials();
+            return;
+        }
+    }
+
+    updateSnapshot();
 }
 
 } // namespace qix

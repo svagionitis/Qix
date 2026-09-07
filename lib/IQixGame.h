@@ -9,6 +9,8 @@
 
 namespace qix {
 
+class HighScoreTable;
+
 /// @brief Immutable view of the current game state rendered by clients.
 struct GameView {
     const Playfield* playfield {nullptr};
@@ -22,6 +24,8 @@ struct GameView {
     GameStats stats {};
     GameState state {GameState::Ready};
     GameMode mode {DefaultGameMode};
+    NameEntryState nameEntry {};
+    const HighScoreTable* highScoreTable {nullptr};
 };
 
 /// @class IQixGame
@@ -63,6 +67,17 @@ public:
     /// @brief Update baseline tick delay and recalculate active level delay.
     /// @param[in] delayMs New baseline tick delay in milliseconds.
     virtual void setBaseDelayMs(std::uint32_t delayMs) noexcept = 0;
+
+    /// @brief Retrieve reference to Hall of Fame leaderboard.
+    /// @return Reference to HighScoreTable.
+    [[nodiscard]] virtual const HighScoreTable& getHighScoreTable() const noexcept = 0;
+
+    /// @brief Process direct character input during 3-letter initials entry.
+    /// @param[in] c Character entered by player.
+    virtual void inputInitialsChar(char c) noexcept = 0;
+
+    /// @brief Confirm and submit current initials in NameEntry state.
+    virtual void confirmInitials() noexcept = 0;
 };
 
 } // namespace qix

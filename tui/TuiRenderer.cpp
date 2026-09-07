@@ -1,4 +1,6 @@
 #include "TuiRenderer.h"
+#include "HighScoreTable.h"
+#include <algorithm>
 #include <cstdio>
 #include <iostream>
 #include <string>
@@ -89,6 +91,7 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     // 1. HUD Header
     frame += "\033[1;36m=== QIX C++17 ARCADE ENGINE ===\033[0m\n";
     frame += "Score: \033[1;33m" + std::to_string(view.stats.score) + "\033[0m | ";
+    frame += "High: \033[1;33m" + std::to_string(view.stats.highScore) + "\033[0m | ";
     frame += "Claimed: \033[1;32m" + std::to_string(view.stats.claimedPercent) + "% / "
         + std::to_string(view.stats.targetPercent) + "%\033[0m | ";
     frame += "Lives: \033[1;31m" + std::to_string(view.stats.lives) + "\033[0m | ";
@@ -115,10 +118,25 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
         } else {
             stateStr = "\033[1;32mVICTORY!\033[0m";
         }
+    } else if (view.state == GameState::NameEntry) {
+        stateStr = "\033[1;33mENTER INITIALS\033[0m";
+    } else if (view.state == GameState::HallOfFame) {
+        stateStr = "\033[1;36mHALL OF FAME\033[0m";
     } else if (view.state == GameState::GameOver) {
         stateStr = "\033[1;31mGAME OVER\033[0m";
     }
     frame += "State: " + stateStr + "\n";
+
+    if (view.state == GameState::NameEntry) {
+        renderNameEntry(frame, view.nameEntry, view.stats);
+        std::cout << frame << std::flush;
+        return;
+    }
+    if (view.state == GameState::HallOfFame || view.state == GameState::GameOver) {
+        renderHallOfFame(frame, view.highScoreTable, view.state == GameState::GameOver);
+        std::cout << frame << std::flush;
+        return;
+    }
 
     // 2. Playfield Grid
     const auto width = view.playfield->getWidth();
@@ -319,12 +337,72 @@ PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
         case 'X':
             action = TuiAction::DisengageDraw;
             break;
+        case '\n':
+        case '\r':
+            action = TuiAction::Confirm;
+            break;
         default:
             break;
         }
     }
 
     return cmd;
+}
+
+void TuiRenderer::renderNameEntry(std::string& frame, const NameEntryState& entry, const GameStats& stats) noexcept
+{
+    frame += "\n";
+    frame += "  \033[1;33m+------------------------------------------------------------+\033[0m\n";
+    frame += "  \033[1;33m|                 * ARCADE HALL OF FAME *                    |\033[0m\n";
+    char rankBuf[128];
+    std::snprintf(rankBuf, sizeof(rankBuf), "  |   NEW HIGH SCORE RECORD! RANK #%zu - SCORE: %-15u  |\n", entry.rank,
+        stats.score);
+    frame += rankBuf;
+    frame += "  |                                                            |\n";
+    frame += "  |                 ENTER YOUR 3-LETTER INITIALS               |\n";
+    frame += "  |                                                            |\n";
+
+    std::string slot0 = (entry.cursorIndex == 0) ? ("\033[1;33m[" + std::string(1, entry.initials[0]) + "]\033[0m")
+                                                 : (" " + std::string(1, entry.initials[0]) + " ");
+    std::string slot1 = (entry.cursorIndex == 1) ? ("\033[1;33m[" + std::string(1, entry.initials[1]) + "]\033[0m")
+                                                 : (" " + std::string(1, entry.initials[1]) + " ");
+    std::string slot2 = (entry.cursorIndex == 2) ? ("\033[1;33m[" + std::string(1, entry.initials[2]) + "]\033[0m")
+                                                 : (" " + std::string(1, entry.initials[2]) + " ");
+
+    frame += "  |                           " + slot0 + "  " + slot1 + "  " + slot2 + "                        |\n";
+    frame += "  |                                                            |\n";
+    frame += "  \033[1;36m|   [W/S] Change Letter   [A/D] Move Slot   [Space/Enter] OK |\033[0m\n";
+    frame += "  \033[1;33m+------------------------------------------------------------+\033[0m\n";
+}
+
+void TuiRenderer::renderHallOfFame(std::string& frame, const HighScoreTable* table, bool isGameOver) noexcept
+{
+    frame += "\n";
+    if (isGameOver) {
+        frame += "  \033[1;31m========================= GAME OVER =========================\033[0m\n";
+    }
+    frame += "  \033[1;33m+------------------------------------------------------------+\033[0m\n";
+    frame += "  \033[1;33m|                 * ARCADE HALL OF FAME *                    |\033[0m\n";
+    frame += "  \033[1;36m|  RANK   NAME         SCORE          LEVEL      MODE        |\033[0m\n";
+    frame += "  \033[1;36m|  --------------------------------------------------------  |\033[0m\n";
+
+    if (table != nullptr) {
+        const auto& entries = table->getEntries();
+        const std::size_t maxRows = std::min(entries.size(), static_cast<std::size_t>(8));
+
+        for (std::size_t i {0}; i < maxRows; ++i) {
+            const auto& e = entries[i];
+            const char* modeStr = (e.mode == GameMode::Classic) ? "CLASSIC" : "MODERN";
+            char rowBuf[128];
+            std::snprintf(rowBuf, sizeof(rowBuf), "  |  %2zu.    %-4s        %8u            %2u      %-7s |\n", i + 1,
+                e.initials.c_str(), e.score, static_cast<unsigned>(e.level), modeStr);
+            frame += rowBuf;
+        }
+    }
+
+    frame += "  |                                                            |\n";
+    frame += "  \033[1;32m|              Press [R] or [Space] to Play Again            |\033[0m\n";
+    frame += "  \033[1;33m+------------------------------------------------------------+\033[0m\n";
 }
 
 } // namespace qix::tui

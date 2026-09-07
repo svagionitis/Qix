@@ -78,8 +78,49 @@ void SdlApp::processEvents(bool& running) noexcept
                     }
                     continue;
                 }
-            } else if (view.state == GameState::GameOver) {
-                if (key == SDLK_r) {
+            } else if (view.state == GameState::NameEntry) {
+                if (key == SDLK_UP || key == SDLK_w) {
+                    if (m_game) {
+                        m_game->handleInput(PlayerCommand {Direction::Up, DrawMode::None});
+                    }
+                    continue;
+                }
+                if (key == SDLK_DOWN || key == SDLK_s) {
+                    if (m_game) {
+                        m_game->handleInput(PlayerCommand {Direction::Down, DrawMode::None});
+                    }
+                    continue;
+                }
+                if (key == SDLK_LEFT || key == SDLK_a) {
+                    if (m_game) {
+                        m_game->handleInput(PlayerCommand {Direction::Left, DrawMode::None});
+                    }
+                    continue;
+                }
+                if (key == SDLK_RIGHT || key == SDLK_d) {
+                    if (m_game) {
+                        m_game->handleInput(PlayerCommand {Direction::Right, DrawMode::None});
+                    }
+                    continue;
+                }
+                if (key == SDLK_RETURN || key == SDLK_KP_ENTER || key == SDLK_SPACE) {
+                    if (m_game) {
+                        if (view.nameEntry.cursorIndex < 2) {
+                            m_game->handleInput(PlayerCommand {Direction::Right, DrawMode::None});
+                        } else {
+                            m_game->confirmInitials();
+                        }
+                    }
+                    continue;
+                }
+                if ((key >= SDLK_a && key <= SDLK_z) || (key >= SDLK_0 && key <= SDLK_9)) {
+                    if (m_game) {
+                        m_game->inputInitialsChar(static_cast<char>(key));
+                    }
+                    continue;
+                }
+            } else if (view.state == GameState::HallOfFame || view.state == GameState::GameOver) {
+                if (key == SDLK_r || key == SDLK_SPACE || key == SDLK_RETURN || key == SDLK_KP_ENTER) {
                     if (m_game) {
                         m_game->reset();
                         setDelayMs(m_game->getCurrentDelayMs());
