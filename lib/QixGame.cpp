@@ -2,16 +2,20 @@
 
 namespace qix {
 
-QixGame::QixGame(std::int32_t width, std::int32_t height, std::uint16_t targetPercent, GameMode mode) noexcept
+QixGame::QixGame(std::int32_t width, std::int32_t height, std::uint16_t targetPercent, GameMode mode,
+    std::uint32_t baseDelayMs) noexcept
     : m_playfield {width, height}
     , m_marker {Point {width / 2, height - 1}, 3, mode}
     , m_fuse {25}
     , m_fill {width, height}
     , m_mode {mode}
+    , m_baseDelayMs {SpeedConfig::clampDelay(baseDelayMs)}
+    , m_currentDelayMs {m_baseDelayMs}
 {
     m_stats.targetPercent = targetPercent;
     m_stats.totalEmptyCells = m_playfield.getInteriorCount();
     m_stats.mode = mode;
+    m_stats.currentDelayMs = m_currentDelayMs;
     reset();
 }
 
@@ -130,6 +134,8 @@ void QixGame::reset() noexcept
     m_stats.totalLevelTimeMs = m_timeRemainingMs;
     m_stats.timeRemainingMs = m_timeRemainingMs;
     m_stats.timeUp = false;
+    m_currentDelayMs = m_baseDelayMs;
+    m_stats.currentDelayMs = m_currentDelayMs;
     m_state = GameState::Ready;
 
     setupEntities();
@@ -148,6 +154,8 @@ void QixGame::nextLevel() noexcept
     m_stats.totalLevelTimeMs = m_timeRemainingMs;
     m_stats.timeRemainingMs = m_timeRemainingMs;
     m_stats.timeUp = false;
+    m_currentDelayMs = SpeedConfig::computeLevelDelay(m_baseDelayMs, m_stats.level);
+    m_stats.currentDelayMs = m_currentDelayMs;
     m_state = GameState::Ready;
 
     setupEntities();
@@ -177,6 +185,7 @@ void QixGame::setupEntities() noexcept
     m_sparxList.emplace_back(Point {m_playfield.getWidth() - 2, 0}, false, m_mode);
 
     m_fuse.reset();
+    m_fuse.setIdleLimit(computeFuseLimit(m_stats.level));
 }
 
 void QixGame::updateSnapshot() noexcept
@@ -237,6 +246,24 @@ void QixGame::clearActiveStix() noexcept
 GameMode QixGame::getGameMode() const noexcept
 {
     return m_mode;
+}
+
+std::uint32_t QixGame::getBaseDelayMs() const noexcept
+{
+    return m_baseDelayMs;
+}
+
+std::uint32_t QixGame::getCurrentDelayMs() const noexcept
+{
+    return m_currentDelayMs;
+}
+
+void QixGame::setBaseDelayMs(std::uint32_t delayMs) noexcept
+{
+    m_baseDelayMs = SpeedConfig::clampDelay(delayMs);
+    m_currentDelayMs = SpeedConfig::computeLevelDelay(m_baseDelayMs, m_stats.level);
+    m_stats.currentDelayMs = m_currentDelayMs;
+    updateSnapshot();
 }
 
 void QixGame::updateLevelTimer(std::uint32_t deltaMs) noexcept

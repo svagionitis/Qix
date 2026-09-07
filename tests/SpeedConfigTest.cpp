@@ -81,3 +81,18 @@ TEST(SpeedConfigTest, ParseMalformedOrEmptyArgs)
     // Unrelated args
     EXPECT_EQ(qix::SpeedConfig::parseSpeedArgs({"--verbose", "-v"}), qix::SpeedConfig::DefaultDelayMs);
 }
+
+TEST(SpeedConfigTest, ComputeLevelDelayEscalation)
+{
+    // Level scaling with 5ms step
+    EXPECT_EQ(qix::SpeedConfig::computeLevelDelay(75U, 1), 75U);
+    EXPECT_EQ(qix::SpeedConfig::computeLevelDelay(75U, 2), 70U);
+    EXPECT_EQ(qix::SpeedConfig::computeLevelDelay(75U, 3), 65U);
+    EXPECT_EQ(qix::SpeedConfig::computeLevelDelay(75U, 4), 60U);
+
+    // Clamps to MinDelayMs (20ms) on high levels
+    EXPECT_EQ(qix::SpeedConfig::computeLevelDelay(75U, 20), 20U);
+
+    // Custom step
+    EXPECT_EQ(qix::SpeedConfig::computeLevelDelay(100U, 3, 10U), 80U);
+}

@@ -48,6 +48,19 @@ public:
         return (currentDelay + StepDelayMs > MaxDelayMs) ? MaxDelayMs : (currentDelay + StepDelayMs);
     }
 
+    /// @brief Compute target tick delay for a given level based on base delay and escalation step.
+    /// @param[in] baseDelay Initial level 1 tick delay in milliseconds.
+    /// @param[in] level Current game level (1-indexed).
+    /// @param[in] stepMs Milliseconds to accelerate per level (default: 5ms).
+    /// @return Escalated tick delay in milliseconds, clamped to MinDelayMs.
+    [[nodiscard]] static constexpr std::uint32_t computeLevelDelay(
+        std::uint32_t baseDelay, std::uint8_t level, std::uint32_t stepMs = 5U) noexcept
+    {
+        const auto clampedBase = clampDelay(baseDelay);
+        const auto reduction = static_cast<std::uint32_t>(level > 0 ? (level - 1) : 0) * stepMs;
+        return (clampedBase > MinDelayMs + reduction) ? (clampedBase - reduction) : MinDelayMs;
+    }
+
     /// @brief Parse speed settings from command line arguments (--delay/-d or --fps/-f).
     /// @param[in] argc Argument count.
     /// @param[in] argv Argument array.

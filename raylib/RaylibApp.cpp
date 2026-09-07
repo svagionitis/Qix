@@ -26,12 +26,22 @@ void RaylibApp::setDelayMs(std::uint32_t delayMs) noexcept
 
 void RaylibApp::speedUp() noexcept
 {
-    setDelayMs(SpeedConfig::speedUp(m_delayMs));
+    if (m_game) {
+        m_game->setBaseDelayMs(SpeedConfig::speedUp(m_game->getBaseDelayMs()));
+        setDelayMs(m_game->getCurrentDelayMs());
+    } else {
+        setDelayMs(SpeedConfig::speedUp(m_delayMs));
+    }
 }
 
 void RaylibApp::speedDown() noexcept
 {
-    setDelayMs(SpeedConfig::speedDown(m_delayMs));
+    if (m_game) {
+        m_game->setBaseDelayMs(SpeedConfig::speedDown(m_game->getBaseDelayMs()));
+        setDelayMs(m_game->getCurrentDelayMs());
+    } else {
+        setDelayMs(SpeedConfig::speedDown(m_delayMs));
+    }
 }
 
 void RaylibApp::processInput() noexcept
@@ -43,6 +53,7 @@ void RaylibApp::processInput() noexcept
         if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
             if (m_game) {
                 m_game->nextLevel();
+                m_delayMs = m_game->getCurrentDelayMs();
             }
             return;
         }
@@ -50,6 +61,7 @@ void RaylibApp::processInput() noexcept
         if (IsKeyPressed(KEY_R)) {
             if (m_game) {
                 m_game->reset();
+                m_delayMs = m_game->getCurrentDelayMs();
             }
             return;
         }

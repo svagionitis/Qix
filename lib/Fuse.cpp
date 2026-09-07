@@ -61,11 +61,17 @@ std::optional<Point> Fuse::getPosition() const noexcept
 
 bool Fuse::checkCollision(Point markerPos) const noexcept
 {
-    if (!m_burning) {
-        return false;
-    }
+    return m_burning && (m_position == markerPos);
+}
 
-    return m_position == markerPos;
+void Fuse::setIdleLimit(std::uint32_t limit) noexcept
+{
+    m_idleLimit = limit;
+}
+
+std::uint32_t Fuse::getIdleLimit() const noexcept
+{
+    return m_idleLimit;
 }
 
 } // namespace qix

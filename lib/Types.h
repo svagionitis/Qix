@@ -67,6 +67,7 @@ struct GameStats {
     std::uint32_t timeRemainingMs {60000};
     std::uint32_t totalLevelTimeMs {60000};
     bool timeUp {false};
+    std::uint32_t currentDelayMs {75U};
 };
 
 /// @brief A line segment defined by two points.

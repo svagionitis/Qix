@@ -50,6 +50,18 @@ public:
     /// @brief Retrieve active game ruleset mode.
     /// @return Active GameMode (Classic or Modern).
     [[nodiscard]] virtual GameMode getGameMode() const noexcept = 0;
+
+    /// @brief Retrieve baseline simulation tick delay in milliseconds.
+    /// @return Baseline delay in milliseconds.
+    [[nodiscard]] virtual std::uint32_t getBaseDelayMs() const noexcept = 0;
+
+    /// @brief Retrieve active simulation tick delay for the current level in milliseconds.
+    /// @return Active delay in milliseconds.
+    [[nodiscard]] virtual std::uint32_t getCurrentDelayMs() const noexcept = 0;
+
+    /// @brief Update baseline tick delay and recalculate active level delay.
+    /// @param[in] delayMs New baseline tick delay in milliseconds.
+    virtual void setBaseDelayMs(std::uint32_t delayMs) noexcept = 0;
 };
 
 } // namespace qix

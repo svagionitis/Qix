@@ -10,7 +10,7 @@ int main(int argc, char* argv[])
     std::uint32_t delayMs = qix::SpeedConfig::parseSpeedArgs(argc, argv);
     const auto mode = qix::GameConfig::parseGameMode(argc, argv);
 
-    qix::QixGame game {60, 30, 75, mode};
+    qix::QixGame game {60, 30, 75, mode, delayMs};
     qix::tui::TuiRenderer renderer {};
 
     renderer.init();
@@ -27,12 +27,23 @@ int main(int argc, char* argv[])
             break;
         }
 
+        if (game.getView().state == qix::GameState::LevelComplete) {
+            if (cmd.drawMode == qix::DrawMode::Slow || cmd.direction != qix::Direction::None) {
+                game.nextLevel();
+                delayMs = game.getCurrentDelayMs();
+                continue;
+            }
+        }
+
         if (action == qix::tui::TuiAction::Restart) {
             game.reset();
+            delayMs = game.getCurrentDelayMs();
         } else if (action == qix::tui::TuiAction::SpeedDown) {
-            delayMs = qix::SpeedConfig::speedDown(delayMs);
+            game.setBaseDelayMs(qix::SpeedConfig::speedDown(game.getBaseDelayMs()));
+            delayMs = game.getCurrentDelayMs();
         } else if (action == qix::tui::TuiAction::SpeedUp) {
-            delayMs = qix::SpeedConfig::speedUp(delayMs);
+            game.setBaseDelayMs(qix::SpeedConfig::speedUp(game.getBaseDelayMs()));
+            delayMs = game.getCurrentDelayMs();
         }
 
         if (cmd.direction != qix::Direction::None) {

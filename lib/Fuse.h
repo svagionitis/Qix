@@ -40,6 +40,14 @@ public:
     /// @return True if collision occurred.
     [[nodiscard]] bool checkCollision(Point markerPos) const noexcept;
 
+    /// @brief Update stationary idle tick limit before ignition.
+    /// @param[in] limit New idle tick threshold.
+    void setIdleLimit(std::uint32_t limit) noexcept;
+
+    /// @brief Retrieve current stationary idle tick limit.
+    /// @return Current idle tick threshold.
+    [[nodiscard]] std::uint32_t getIdleLimit() const noexcept;
+
 private:
     std::uint32_t m_idleLimit {30};
     std::uint32_t m_idleCounter {0};

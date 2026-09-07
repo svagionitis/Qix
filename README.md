@@ -202,6 +202,7 @@ All client frontends support configurable startup speed and game mode via CLI fl
 - **Qix Split Mechanic**: Starting on Level 2 (where two Qix entities roam), you can complete the level immediately by drawing a Stix that walls off one Qix from the other into separate enclosures.
   - Successfully splitting the Qixes awards an immediate level victory and increments your **permanent score multiplier** (scaling from $1\times$ up to $9\times$).
   - The multiplier persists across subsequent levels for the remainder of your game session, boosting all future cell capture scores ($P = \text{cells} \times \text{ptsPerCell} \times \text{multiplier}$).
+- **Automatic Speed Escalation**: Advancing through levels automatically escalates simulation speed (reducing tick delay by 5ms per level down to 20ms / 50 FPS) and tightens Fuse hesitation tolerance (igniting faster when paused). Players can still adjust baseline speed at runtime using `-` / `+` keys.
 
 ### Enemies & Hazards
 - **The Qix**: A kinetic stick helix wandering inside the uncaptured territory. If it touches your active Stix trail while you are drawing, you lose a life.

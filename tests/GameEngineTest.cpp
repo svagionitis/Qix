@@ -150,3 +150,54 @@ TEST(GameEngineTest, CountdownTimerExpirySpawnsEscalationSparx)
     EXPECT_EQ(view.stats.timeRemainingMs, 15000U);
     EXPECT_GT(view.sparxPositions.size(), 2U);
 }
+
+TEST(GameEngineTest, AutomaticSpeedEscalationAcrossLevels)
+{
+    qix::QixGame game {40, 30, 75, qix::DefaultGameMode, 75U};
+
+    // Level 1 starts at base delay
+    EXPECT_EQ(game.getCurrentDelayMs(), 75U);
+    EXPECT_EQ(game.getView().stats.currentDelayMs, 75U);
+
+    // Level 2 escalates by 5ms
+    game.nextLevel();
+    EXPECT_EQ(game.getView().stats.level, 2U);
+    EXPECT_EQ(game.getCurrentDelayMs(), 70U);
+    EXPECT_EQ(game.getView().stats.currentDelayMs, 70U);
+
+    // Level 3 escalates by another 5ms
+    game.nextLevel();
+    EXPECT_EQ(game.getView().stats.level, 3U);
+    EXPECT_EQ(game.getCurrentDelayMs(), 65U);
+    EXPECT_EQ(game.getView().stats.currentDelayMs, 65U);
+
+    // Reset restores base delay
+    game.reset();
+    EXPECT_EQ(game.getView().stats.level, 1U);
+    EXPECT_EQ(game.getCurrentDelayMs(), 75U);
+    EXPECT_EQ(game.getView().stats.currentDelayMs, 75U);
+}
+
+TEST(GameEngineTest, ManualBaseSpeedAdjustmentAndLevelScaling)
+{
+    qix::QixGame game {40, 30, 75, qix::DefaultGameMode, 75U};
+
+    // User adjusts baseline to 50ms at runtime
+    game.setBaseDelayMs(50U);
+    EXPECT_EQ(game.getCurrentDelayMs(), 50U);
+    EXPECT_EQ(game.getView().stats.currentDelayMs, 50U);
+
+    // Next level escalates from new base (50ms - 5ms = 45ms)
+    game.nextLevel();
+    EXPECT_EQ(game.getView().stats.level, 2U);
+    EXPECT_EQ(game.getCurrentDelayMs(), 45U);
+    EXPECT_EQ(game.getView().stats.currentDelayMs, 45U);
+}
+
+TEST(GameEngineTest, FuseLimitEscalatesWithLevel)
+{
+    EXPECT_EQ(qix::QixGame::computeFuseLimit(1), 25U);
+    EXPECT_EQ(qix::QixGame::computeFuseLimit(2), 23U);
+    EXPECT_EQ(qix::QixGame::computeFuseLimit(3), 21U);
+    EXPECT_EQ(qix::QixGame::computeFuseLimit(10), 10U); // Clamped at 10 minimum
+}

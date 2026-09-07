@@ -38,12 +38,22 @@ void MainWindow::setDelayMs(std::uint32_t delayMs) noexcept
 
 void MainWindow::speedUp() noexcept
 {
-    setDelayMs(SpeedConfig::speedUp(m_delayMs));
+    if (m_game) {
+        m_game->setBaseDelayMs(SpeedConfig::speedUp(m_game->getBaseDelayMs()));
+        setDelayMs(m_game->getCurrentDelayMs());
+    } else {
+        setDelayMs(SpeedConfig::speedUp(m_delayMs));
+    }
 }
 
 void MainWindow::speedDown() noexcept
 {
-    setDelayMs(SpeedConfig::speedDown(m_delayMs));
+    if (m_game) {
+        m_game->setBaseDelayMs(SpeedConfig::speedDown(m_game->getBaseDelayMs()));
+        setDelayMs(m_game->getCurrentDelayMs());
+    } else {
+        setDelayMs(SpeedConfig::speedDown(m_delayMs));
+    }
 }
 
 void MainWindow::onTick()
@@ -69,11 +79,13 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
     if (view.state == GameState::LevelComplete) {
         if (event->key() == Qt::Key_Space || event->key() == Qt::Key_Return) {
             m_game->nextLevel();
+            setDelayMs(m_game->getCurrentDelayMs());
             return;
         }
     } else if (view.state == GameState::GameOver) {
         if (event->key() == Qt::Key_R) {
             m_game->reset();
+            setDelayMs(m_game->getCurrentDelayMs());
             return;
         }
     }
