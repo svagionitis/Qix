@@ -39,6 +39,32 @@ public:
     static void generateRgbaBuffer(
         ArtScene scene, int width, int height, std::vector<std::uint8_t>& outBuffer) noexcept;
 
+    /// @brief Apply cool-cyan fast-draw tint to an artwork color.
+    /// @param[in] color The raw artwork PaletteColor.
+    /// @return Muted, cool-cyan tinted PaletteColor.
+    [[nodiscard]] static constexpr PaletteColor tintForFastDraw(const PaletteColor& color) noexcept
+    {
+        const int g = (static_cast<int>(color.g) * 2 / 3) + 30;
+        const int b = (static_cast<int>(color.b) * 4 / 5) + 60;
+        return PaletteColor {
+            static_cast<std::uint8_t>(color.r / 3),
+            static_cast<std::uint8_t>(g > 255 ? 255 : g),
+            static_cast<std::uint8_t>(b > 255 ? 255 : b),
+            color.a
+        };
+    }
+
+    /// @brief Pre-generate both standard and muted fast-draw RGBA buffers for an artwork scene.
+    /// @param[in] scene The artwork scene to render.
+    /// @param[in] width Target buffer width in pixels.
+    /// @param[in] height Target buffer height in pixels.
+    /// @param[out] standardBuffer Output standard 100% saturation buffer.
+    /// @param[out] mutedBuffer Output muted/cyan-tinted buffer for Fast Draw.
+    static void generateDualRgbaBuffers(
+        ArtScene scene, int width, int height,
+        std::vector<std::uint8_t>& standardBuffer,
+        std::vector<std::uint8_t>& mutedBuffer) noexcept;
+
     /// @brief Retrieve the human-readable display name of an artwork scene.
     /// @param[in] scene The artwork scene enum.
     /// @return String title (e.g. "Cyberpunk Skyline").

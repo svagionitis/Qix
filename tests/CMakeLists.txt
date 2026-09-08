@@ -11,6 +11,7 @@ if(GTest_FOUND)
         CollisionTest.cpp
         GameEngineTest.cpp
         GameConfigTest.cpp
+        GamePresenterTest.cpp
         HighScoreTableTest.cpp
         SpeedConfigTest.cpp
         TuiInputTest.cpp

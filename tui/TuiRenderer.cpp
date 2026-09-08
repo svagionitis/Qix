@@ -1,4 +1,5 @@
 #include "TuiRenderer.h"
+#include "GamePresenter.h"
 #include "HighScoreTable.h"
 #include <algorithm>
 #include <array>
@@ -981,35 +982,16 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
         const auto totalSegs = ribbon.size();
         for (std::size_t segIdx {0}; segIdx < totalSegs; ++segIdx) {
             const auto& seg = ribbon[segIdx];
-            Rgb segRgb {};
+            const auto ribbonCol = ColorPalette::computeRibbonColor(theme, m_colorCycle, segIdx, totalSegs);
+            const Rgb segRgb {ribbonCol.r, ribbonCol.g, ribbonCol.b};
             const char* segAnsi = "\033[1;31m";
-
             if (theme.ribbonMode == RibbonColorMode::NeonGradient) {
-                const double hue = std::fmod((m_colorCycle * 4.0 + segIdx * 15.0), 120.0) + 280.0;
-                segRgb = hsvToRgb(hue, 0.90, 1.0);
                 segAnsi = (segIdx % 2 == 0) ? "\033[1;35m" : "\033[1;36m";
             } else if (theme.ribbonMode == RibbonColorMode::MonochromeAmber) {
-                const double val = std::max(0.25,
-                    1.0
-                        - 0.70
-                            * (static_cast<double>(segIdx) / static_cast<double>(std::max<std::size_t>(1, totalSegs))));
-                segRgb = hsvToRgb(38.0, 0.95, val);
-                segAnsi = (val > 0.6) ? "\033[1;33m" : "\033[0;33m";
+                segAnsi = (ribbonCol.r > 150) ? "\033[1;33m" : "\033[0;33m";
             } else if (theme.ribbonMode == RibbonColorMode::MonochromeGreen) {
-                const double val = std::max(0.25,
-                    1.0
-                        - 0.70
-                            * (static_cast<double>(segIdx) / static_cast<double>(std::max<std::size_t>(1, totalSegs))));
-                segRgb = hsvToRgb(142.0, 0.95, val);
-                segAnsi = (val > 0.6) ? "\033[1;32m" : "\033[0;32m";
+                segAnsi = (ribbonCol.g > 150) ? "\033[1;32m" : "\033[0;32m";
             } else {
-                const double hue
-                    = std::fmod(m_colorCycle * 6.0 + segIdx * (360.0 / std::max<std::size_t>(1, totalSegs)), 360.0);
-                const double sat = (segIdx == 0) ? 0.70 : 0.95;
-                const double val = (segIdx == 0)
-                    ? 1.0
-                    : std::max(0.35, 1.0 - 0.55 * (static_cast<double>(segIdx) / static_cast<double>(totalSegs)));
-                segRgb = hsvToRgb(hue, sat, val);
                 segAnsi = (segIdx == 0) ? "\033[1;31m" : ((segIdx < 3) ? "\033[1;35m" : "\033[0;35m");
             }
 
@@ -1299,36 +1281,15 @@ void TuiRenderer::renderAsciiPlayfield(std::string& frame, const GameView& view)
                     const auto minY = std::min(seg.start.y, seg.end.y);
                     const auto maxY = std::max(seg.start.y, seg.end.y);
                     if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
-                        isQix = true;
+                        const auto ribbonCol = ColorPalette::computeRibbonColor(theme, m_colorCycle, segIdx, totalSegs);
+                        qixRgb = Rgb {ribbonCol.r, ribbonCol.g, ribbonCol.b};
                         if (theme.ribbonMode == RibbonColorMode::NeonGradient) {
-                            const double hue = std::fmod((m_colorCycle * 4.0 + segIdx * 15.0), 120.0) + 280.0;
-                            qixRgb = hsvToRgb(hue, 0.90, 1.0);
                             qixAnsi = (segIdx % 2 == 0) ? "\033[1;35m" : "\033[1;36m";
                         } else if (theme.ribbonMode == RibbonColorMode::MonochromeAmber) {
-                            const double val = std::max(0.25,
-                                1.0
-                                    - 0.70
-                                        * (static_cast<double>(segIdx)
-                                            / static_cast<double>(std::max<std::size_t>(1, totalSegs))));
-                            qixRgb = hsvToRgb(38.0, 0.95, val);
-                            qixAnsi = (val > 0.6) ? "\033[1;33m" : "\033[0;33m";
+                            qixAnsi = (ribbonCol.r > 150) ? "\033[1;33m" : "\033[0;33m";
                         } else if (theme.ribbonMode == RibbonColorMode::MonochromeGreen) {
-                            const double val = std::max(0.25,
-                                1.0
-                                    - 0.70
-                                        * (static_cast<double>(segIdx)
-                                            / static_cast<double>(std::max<std::size_t>(1, totalSegs))));
-                            qixRgb = hsvToRgb(142.0, 0.95, val);
-                            qixAnsi = (val > 0.6) ? "\033[1;32m" : "\033[0;32m";
+                            qixAnsi = (ribbonCol.g > 150) ? "\033[1;32m" : "\033[0;32m";
                         } else {
-                            const double hue = std::fmod(
-                                m_colorCycle * 6.0 + segIdx * (360.0 / std::max<std::size_t>(1, totalSegs)), 360.0);
-                            const double sat = (segIdx == 0) ? 0.70 : 0.95;
-                            const double val = (segIdx == 0)
-                                ? 1.0
-                                : std::max(
-                                    0.35, 1.0 - 0.55 * (static_cast<double>(segIdx) / static_cast<double>(totalSegs)));
-                            qixRgb = hsvToRgb(hue, sat, val);
                             qixAnsi = (segIdx == 0) ? "\033[1;31m" : ((segIdx < 3) ? "\033[1;35m" : "\033[0;35m");
                         }
                         break;
@@ -1894,22 +1855,17 @@ void TuiRenderer::renderInstructions(std::string& frame) noexcept
     frame += "  " + bCol + "┌────────────────────────────────────────────────────────────┐" + reset + "\n";
     frame += "  " + bCol + "│" + yCol + "                       ★ HOW TO PLAY ★                      " + bCol + "│"
         + reset + "\n";
-    frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
-    frame += "  " + bCol + "│" + cCol + "  OBJECTIVE:                                                " + bCol + "│"
-        + reset + "\n";
-    frame += "  " + bCol + "│    Claim 75% or more of the open playfield to clear level. " + bCol + "│" + reset + "\n";
-    frame += "  " + bCol + "│                                                            " + bCol + "│" + reset + "\n";
-    frame += "  " + bCol + "│" + cCol + "  DRAWING STIX:                                             " + bCol + "│"
-        + reset + "\n";
-    frame += "  " + bCol + "│    [Space] + Move : SLOW DRAW (2X Points - 200 pts/cell)   " + bCol + "│" + reset + "\n";
-    frame += "  " + bCol + "│    [F]     + Move : FAST DRAW (1X Points - 100 pts/cell)   " + bCol + "│" + reset + "\n";
-    frame += "  " + bCol + "│    [X]            : Disengage drawing back to border       " + bCol + "│" + reset + "\n";
-    frame += "  " + bCol + "│                                                            " + bCol + "│" + reset + "\n";
-    frame += "  " + bCol + "│" + cCol + "  HAZARDS & ADVERSARIES:                                    " + bCol + "│"
-        + reset + "\n";
-    frame += "  " + bCol + "│    THE QIX  : Bouncing stick helix in empty space. Avoid it!" + bCol + "│" + reset + "\n";
-    frame += "  " + bCol + "│    SPARX    : Patrol borders. Super Sparx chase your trail! " + bCol + "│" + reset + "\n";
-    frame += "  " + bCol + "│    THE FUSE : Burns your trail if you hesitate. Keep moving!" + bCol + "│" + reset + "\n";
+    for (const auto& r : GamePresenter::getInstructionRules()) {
+        const std::string col = m_truecolor ? appendTruecolorStr(r.color) : cCol;
+        char hBuf[64];
+        std::snprintf(hBuf, sizeof(hBuf), "  %-58s", r.header);
+        frame += "  " + bCol + "│" + col + hBuf + bCol + "│" + reset + "\n";
+
+        char dBuf[64];
+        std::snprintf(dBuf, sizeof(dBuf), "    %-56s", r.detail);
+        frame += "  " + bCol + "│" + dBuf + bCol + "│" + reset + "\n";
+    }
+
     frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
     frame += "  " + bCol + "│" + gCol + "           INSERT COIN - PRESS [SPACE] TO PLAY            " + bCol + "│"
         + reset + "\n";

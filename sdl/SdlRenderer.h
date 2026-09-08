@@ -146,7 +146,6 @@ private:
     void applyCrtFilter(int width, int height) noexcept;
     void drawFilledDiamond(int cx, int cy, int radius, SDL_Color color) noexcept;
     void drawThickLine(int x1, int y1, int x2, int y2, int thickness, SDL_Color color) noexcept;
-    [[nodiscard]] static SDL_Color hsvToRgb(int hue, double sat, double val, std::uint8_t alpha) noexcept;
 };
 
 } // namespace qix::sdl

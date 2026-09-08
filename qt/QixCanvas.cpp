@@ -1,5 +1,7 @@
 #include "QixCanvas.h"
+#include "GamePresenter.h"
 #include "HighScoreTable.h"
+#include "PlayfieldViewport.h"
 #include <QColor>
 #include <QFont>
 #include <QPainter>
@@ -109,23 +111,12 @@ void QixCanvas::ensureArtImage()
 
     constexpr int ArtW = 640;
     constexpr int ArtH = 480;
-    std::vector<std::uint8_t> rgba;
-    BackgroundArt::generateRgbaBuffer(scene, ArtW, ArtH, rgba);
+    std::vector<std::uint8_t> stdRgba;
+    std::vector<std::uint8_t> mutedRgba;
+    BackgroundArt::generateDualRgbaBuffers(scene, ArtW, ArtH, stdRgba, mutedRgba);
 
-    QImage raw(rgba.data(), ArtW, ArtH, ArtW * 4, QImage::Format_RGBA8888);
-    m_artImage = raw.copy();
-
-    m_artMutedImage = m_artImage.copy();
-    for (int y = 0; y < ArtH; ++y) {
-        auto* scan = reinterpret_cast<QRgb*>(m_artMutedImage.scanLine(y));
-        for (int x = 0; x < ArtW; ++x) {
-            const QRgb p = scan[x];
-            const int r = qRed(p) / 3;
-            const int g = std::min(255, qGreen(p) * 2 / 3 + 30);
-            const int b = std::min(255, qBlue(p) * 4 / 5 + 60);
-            scan[x] = qRgba(r, g, b, 255);
-        }
-    }
+    m_artImage = QImage(stdRgba.data(), ArtW, ArtH, ArtW * 4, QImage::Format_RGBA8888).copy();
+    m_artMutedImage = QImage(mutedRgba.data(), ArtW, ArtH, ArtW * 4, QImage::Format_RGBA8888).copy();
 }
 
 void QixCanvas::paintEvent(QPaintEvent* event)
@@ -231,6 +222,7 @@ void QixCanvas::applyCrtFilter(QPainter& painter, const QImage& sceneImage)
 void QixCanvas::drawHud(QPainter& painter)
 {
     const auto& theme = ColorPalette::get(m_paletteId);
+
     painter.save();
 
     // Top status bar background
@@ -247,25 +239,24 @@ void QixCanvas::drawHud(QPainter& painter)
     const QColor targetColor = toQColor(theme.progressBarTarget);
     const QColor livesColor = toQColor(theme.markerDiamond);
 
-    // Score
+    const auto hud = GamePresenter::formatHud(m_view.stats, m_delayMs);
+
+    // Score & High Score
     painter.setPen(labelColor);
     painter.drawText(15, 28, "SCORE:");
     painter.setPen(valueColor);
-    painter.drawText(70, 28, QString::number(m_view.stats.score));
+    painter.drawText(70, 28, QString::fromStdString(hud.scoreStr));
 
-    // High Score
     painter.setPen(labelColor);
     painter.drawText(135, 28, "HIGH:");
     painter.setPen(valueColor);
-    painter.drawText(180, 28, QString::number(m_view.stats.highScore));
+    painter.drawText(180, 28, QString::fromStdString(hud.hiScoreStr));
 
     // Claimed Percentage
     painter.setPen(labelColor);
     painter.drawText(250, 28, "CLAIM:");
-    const auto percent = m_view.stats.claimedPercent;
-    const auto target = m_view.stats.targetPercent;
-    painter.setPen(percent >= target ? targetColor : accentColor);
-    painter.drawText(305, 28, QString("%1% / %2%").arg(percent).arg(target));
+    painter.setPen(hud.targetReached ? targetColor : accentColor);
+    painter.drawText(305, 28, QString::fromStdString(hud.claimStr));
 
     // Progress Bar
     const int barX = 395;
@@ -274,8 +265,8 @@ void QixCanvas::drawHud(QPainter& painter)
     const int barH = 14;
     painter.setPen(Qt::NoPen);
     painter.fillRect(barX, barY, barW, barH, toQColor(theme.progressBarBg));
-    const int fillW = std::min(barW, (barW * percent) / 100);
-    painter.fillRect(barX, barY, fillW, barH, percent >= target ? targetColor : toQColor(theme.progressBarFill));
+    const int fillW = std::min(barW, (barW * hud.fillPercent) / 100);
+    painter.fillRect(barX, barY, fillW, barH, hud.targetReached ? targetColor : toQColor(theme.progressBarFill));
 
     // Lives
     painter.setPen(labelColor);
@@ -287,41 +278,40 @@ void QixCanvas::drawHud(QPainter& painter)
     }
 
     // Time
-    const auto secondsRemaining = (m_view.stats.timeRemainingMs + 999U) / 1000U;
-    const QColor timerColor = (m_view.stats.timeUp || secondsRemaining <= 10U)
+    const QColor timerColor = (hud.timeUrgency == HudUrgency::Critical)
         ? livesColor
-        : ((secondsRemaining <= 20U) ? valueColor : targetColor);
+        : ((hud.timeUrgency == HudUrgency::Warning) ? valueColor : targetColor);
     painter.setPen(labelColor);
     painter.drawText(width() - 365, 28, "TIME:");
     painter.setPen(timerColor);
-    painter.drawText(width() - 320, 28, QString("%1s").arg(secondsRemaining));
+    painter.drawText(width() - 320, 28, QString::fromStdString(hud.timeStr));
 
     // Multiplier (if > 1) / Speed / Level
-    if (m_view.stats.multiplier > 1) {
+    if (!hud.multiplierStr.empty()) {
         painter.setPen(labelColor);
         painter.drawText(width() - 265, 28, "MULT:");
         painter.setPen(valueColor);
-        painter.drawText(width() - 220, 28, QString("%1X").arg(m_view.stats.multiplier));
+        painter.drawText(width() - 220, 28, QString::fromStdString(hud.multiplierStr));
 
         painter.setPen(labelColor);
         painter.drawText(width() - 165, 28, "SPD:");
         painter.setPen(accentColor);
-        painter.drawText(width() - 125, 28, QString("%1ms").arg(m_delayMs));
+        painter.drawText(width() - 125, 28, QString::fromStdString(hud.speedStr));
 
         painter.setPen(labelColor);
         painter.drawText(width() - 65, 28, "LVL:");
         painter.setPen(valueColor);
-        painter.drawText(width() - 25, 28, QString::number(m_view.stats.level));
+        painter.drawText(width() - 25, 28, QString::fromStdString(hud.levelStr));
     } else {
         painter.setPen(labelColor);
         painter.drawText(width() - 200, 28, "SPEED:");
         painter.setPen(accentColor);
-        painter.drawText(width() - 145, 28, QString("%1ms").arg(m_delayMs));
+        painter.drawText(width() - 145, 28, QString::fromStdString(hud.speedStr));
 
         painter.setPen(labelColor);
         painter.drawText(width() - 85, 28, "LEVEL:");
         painter.setPen(valueColor);
-        painter.drawText(width() - 30, 28, QString::number(m_view.stats.level));
+        painter.drawText(width() - 30, 28, QString::fromStdString(hud.levelStr));
     }
 
     painter.restore();
@@ -331,9 +321,10 @@ void QixCanvas::drawPlayfield(QPainter& painter, const QRect& fieldRect)
 {
     const auto gridW = m_view.playfield->getWidth();
     const auto gridH = m_view.playfield->getHeight();
-
-    const double cellW = static_cast<double>(fieldRect.width()) / gridW;
-    const double cellH = static_cast<double>(fieldRect.height()) / gridH;
+    const PlayfieldViewport vp {
+        static_cast<float>(fieldRect.x()), static_cast<float>(fieldRect.y()),
+        static_cast<float>(fieldRect.width()), static_cast<float>(fieldRect.height()),
+        gridW, gridH};
     const auto& theme = ColorPalette::get(m_paletteId);
 
     if (m_artEnabled) {
@@ -348,27 +339,26 @@ void QixCanvas::drawPlayfield(QPainter& painter, const QRect& fieldRect)
     for (std::int32_t y {0}; y < gridH; ++y) {
         for (std::int32_t x {0}; x < gridW; ++x) {
             const auto state = m_view.playfield->getCell(x, y);
-            const QRectF r(fieldRect.left() + x * cellW, fieldRect.top() + y * cellH, cellW + 0.5, cellH + 0.5);
+            if (state == CellState::Empty) {
+                continue;
+            }
+
+            const auto vr = vp.cellToScreen(x, y);
+            const QRectF r(vr.x, vr.y, vr.width, vr.height);
 
             if (state == CellState::Border) {
                 painter.fillRect(r, toQColor(theme.playfieldBorder));
             } else if (state == CellState::ClaimedSlow) {
                 if (hasArt) {
-                    const int srcX = static_cast<int>((static_cast<double>(x) / gridW) * artW);
-                    const int srcY = static_cast<int>((static_cast<double>(y) / gridH) * artH);
-                    const int srcX2 = static_cast<int>((static_cast<double>(x + 1) / gridW) * artW);
-                    const int srcY2 = static_cast<int>((static_cast<double>(y + 1) / gridH) * artH);
-                    painter.drawImage(r, m_artImage, QRect(srcX, srcY, std::max(1, srcX2 - srcX), std::max(1, srcY2 - srcY)));
+                    const auto sr = vp.cellToTextureSrc(x, y, artW, artH);
+                    painter.drawImage(r, m_artImage, QRect(sr.x, sr.y, sr.width, sr.height));
                 } else {
                     painter.fillRect(r, toQColor(theme.claimedSlow));
                 }
             } else if (state == CellState::ClaimedFast) {
                 if (hasArt) {
-                    const int srcX = static_cast<int>((static_cast<double>(x) / gridW) * artW);
-                    const int srcY = static_cast<int>((static_cast<double>(y) / gridH) * artH);
-                    const int srcX2 = static_cast<int>((static_cast<double>(x + 1) / gridW) * artW);
-                    const int srcY2 = static_cast<int>((static_cast<double>(y + 1) / gridH) * artH);
-                    painter.drawImage(r, m_artMutedImage, QRect(srcX, srcY, std::max(1, srcX2 - srcX), std::max(1, srcY2 - srcY)));
+                    const auto sr = vp.cellToTextureSrc(x, y, artW, artH);
+                    painter.drawImage(r, m_artMutedImage, QRect(sr.x, sr.y, sr.width, sr.height));
                 } else {
                     painter.fillRect(r, toQColor(theme.claimedFast));
                 }
@@ -383,8 +373,12 @@ void QixCanvas::drawQixRibbons(QPainter& painter, const QRect& fieldRect)
 {
     const auto gridW = m_view.playfield->getWidth();
     const auto gridH = m_view.playfield->getHeight();
-    const double cellW = static_cast<double>(fieldRect.width()) / gridW;
-    const double cellH = static_cast<double>(fieldRect.height()) / gridH;
+    const PlayfieldViewport vp {
+        static_cast<float>(fieldRect.x()), static_cast<float>(fieldRect.y()),
+        static_cast<float>(fieldRect.width()), static_cast<float>(fieldRect.height()),
+        gridW, gridH};
+    const double cellW = vp.cellWidth();
+    const double cellH = vp.cellHeight();
     const auto& theme = ColorPalette::get(m_paletteId);
 
     painter.save();
@@ -394,7 +388,7 @@ void QixCanvas::drawQixRibbons(QPainter& painter, const QRect& fieldRect)
             continue;
         }
 
-        int segIndex = 0;
+        std::size_t segIndex {0};
         const auto totalSegs = ribbon.size();
 
         for (const auto& seg : ribbon) {
@@ -403,25 +397,8 @@ void QixCanvas::drawQixRibbons(QPainter& painter, const QRect& fieldRect)
             const double x2 = fieldRect.left() + (seg.end.x + 0.5) * cellW;
             const double y2 = fieldRect.top() + (seg.end.y + 0.5) * cellH;
 
-            const int alpha = 255 - static_cast<int>((segIndex * 180) / std::max<std::size_t>(1, totalSegs));
-
-            QColor lineColor;
-            if (theme.ribbonMode == RibbonColorMode::NeonGradient) {
-                const int hue = static_cast<int>((m_colorCycle * 4 + segIndex * 15) % 120 + 280) % 360;
-                lineColor = QColor::fromHsv(hue, 230, 255, alpha);
-            } else if (theme.ribbonMode == RibbonColorMode::MonochromeAmber) {
-                const auto val = static_cast<int>(255 - (segIndex * 140) / std::max<std::size_t>(1, totalSegs));
-                lineColor = QColor::fromHsv(38, 240, val, alpha);
-            } else if (theme.ribbonMode == RibbonColorMode::MonochromeGreen) {
-                const auto val = static_cast<int>(255 - (segIndex * 140) / std::max<std::size_t>(1, totalSegs));
-                lineColor = QColor::fromHsv(142, 240, val, alpha);
-            } else {
-                const int hue = static_cast<int>(
-                    (m_colorCycle * 5 + segIndex * (360 / std::max<std::size_t>(1, totalSegs))) % 360);
-                lineColor = QColor::fromHsv(hue, 220, 255, alpha);
-            }
-
-            painter.setPen(QPen(lineColor, (segIndex == 0) ? 3.0 : 2.0));
+            const auto col = ColorPalette::computeRibbonColor(theme, m_colorCycle, segIndex, totalSegs);
+            painter.setPen(QPen(toQColor(col), (segIndex == 0) ? 3.0 : 2.0));
             painter.drawLine(QPointF(x1, y1), QPointF(x2, y2));
 
             ++segIndex;
@@ -565,36 +542,21 @@ void QixCanvas::drawOverlays(QPainter& painter)
                 QString("ART UNMASKED: %1").arg(BackgroundArt::getSceneName(m_currentArtScene)));
         }
 
+        const auto pres = GamePresenter::formatVictory(m_view.stats);
         QFont font("Monospace", 22, QFont::Bold);
         painter.setFont(font);
+        painter.setPen(toQColor(pres.titleColor));
 
-        if (m_view.stats.qixTrapped) {
-            painter.setPen(QColor(250, 204, 21));
-            const QString title = m_view.stats.spiralBonus ? "*** SPIRAL QIX TRAP! ***" : "*** QIX TRAPPED! ***";
-            painter.drawText(rect(), Qt::AlignCenter,
-                QString("%1\nQIX CONFINED TO %2% OF FIELD!\n+%3 PTS TRAP BONUS!%4\nPress [Space] for Next Level")
-                    .arg(title)
-                    .arg(m_view.stats.qixRemainingPercent)
-                    .arg(m_view.stats.trapBonus)
-                    .arg(m_view.stats.thresholdBonus > 0 ? QString(" (+%1 OVERSHOOT)").arg(m_view.stats.thresholdBonus) : QString("")));
-        } else if (m_view.stats.splitBonus) {
-            painter.setPen(QColor(250, 204, 21));
-            painter.drawText(rect(), Qt::AlignCenter,
-                QString("QIX SPLIT BONUS!\nMultiplier: %1X\nPress [Space] for Next Level")
-                    .arg(m_view.stats.multiplier));
-        } else if (m_view.stats.thresholdBonus > 0) {
-            painter.setPen(QColor(74, 222, 128));
-            const auto overshoot = (m_view.stats.claimedPercent > m_view.stats.targetPercent)
-                ? (m_view.stats.claimedPercent - m_view.stats.targetPercent)
-                : 0;
-            painter.drawText(rect(), Qt::AlignCenter,
-                QString("LEVEL COMPLETE!\nTHRESHOLD BONUS: +%1 PTS (+%2%)\nPress [Space] for Next Level")
-                    .arg(m_view.stats.thresholdBonus)
-                    .arg(overshoot));
-        } else {
-            painter.setPen(QColor(74, 222, 128));
-            painter.drawText(rect(), Qt::AlignCenter, "LEVEL COMPLETE!\nPress [Space] for Next Level");
+        QString msg = QString::fromStdString(pres.title);
+        if (pres.hasDetail) {
+            msg += "\n" + QString::fromStdString(pres.detail);
         }
+        if (pres.hasBonus) {
+            msg += "\n" + QString::fromStdString(pres.bonus);
+        }
+        msg += "\n" + QString::fromStdString(pres.prompt);
+
+        painter.drawText(rect(), Qt::AlignCenter, msg);
     } else if (m_view.state == GameState::NameEntry) {
         drawNameEntry(painter);
     } else if (m_view.state == GameState::HallOfFame) {
@@ -616,10 +578,10 @@ void QixCanvas::drawNameEntry(QPainter& painter)
     painter.setFont(QFont("Monospace", 22, QFont::Bold));
     painter.drawText(QRect(0, h / 2 - 140, w, 40), Qt::AlignCenter, "ARCADE HALL OF FAME");
 
+    const auto banner = GamePresenter::formatRecordBanner(m_view.nameEntry.rank, m_view.stats.score);
     painter.setPen(QColor(99, 179, 237));
     painter.setFont(QFont("Monospace", 14, QFont::Bold));
-    painter.drawText(QRect(0, h / 2 - 95, w, 30), Qt::AlignCenter,
-        QString("NEW HIGH SCORE! RANK #%1 - SCORE: %2").arg(m_view.nameEntry.rank).arg(m_view.stats.score));
+    painter.drawText(QRect(0, h / 2 - 95, w, 30), Qt::AlignCenter, QString::fromStdString(banner));
 
     painter.setPen(QColor(243, 244, 246));
     painter.setFont(QFont("Monospace", 12));
@@ -693,39 +655,20 @@ void QixCanvas::drawHallOfFame(QPainter& painter, bool isGameOver, bool isAttrac
     curY += 26;
 
     if (m_view.highScoreTable != nullptr) {
-        const auto& entries = m_view.highScoreTable->getEntries();
-        const std::size_t maxRows = std::min(entries.size(), static_cast<std::size_t>(8));
-
+        const auto rows = GamePresenter::formatHallOfFame(m_view.highScoreTable, 8);
         painter.setFont(QFont("Monospace", 12));
-        for (std::size_t i {0}; i < maxRows; ++i) {
-            const auto& e = entries[i];
-            QColor rowColor(148, 163, 184);
-            if (i == 0) {
-                rowColor = QColor(250, 204, 21);
-            } else if (i == 1) {
-                rowColor = QColor(226, 232, 240);
-            } else if (i == 2) {
-                rowColor = QColor(245, 158, 11);
-            }
-
-            painter.setPen(rowColor);
-            const char* modeStr = (e.mode == GameMode::Classic) ? "CLASSIC" : "MODERN";
-            const QString rowStr = QString("%1.      %-4s    %2      %3     %-7s")
-                                       .arg(i + 1, 2)
-                                       .arg(QString::fromStdString(e.initials))
-                                       .arg(e.score, 8)
-                                       .arg(e.level, 2, 10, QChar('0'))
-                                       .arg(modeStr);
-            painter.drawText(QRect(0, curY, w, 20), Qt::AlignCenter, rowStr);
+        for (const auto& r : rows) {
+            painter.setPen(toQColor(r.medalColor));
+            painter.drawText(QRect(0, curY, w, 20), Qt::AlignCenter, QString::fromStdString(r.formattedRow));
             curY += 22;
         }
     }
 
     curY += 15;
+    const auto prompt = GamePresenter::formatHofPrompt(isAttract, true);
     painter.setPen(isAttract ? QColor(74, 222, 128) : QColor(243, 244, 246));
     painter.setFont(QFont("Monospace", 12, QFont::Bold));
-    painter.drawText(QRect(0, curY, w, 25), Qt::AlignCenter,
-        isAttract ? "INSERT COIN  -  PRESS [SPACE] TO PLAY" : "Press [R] or [SPACE] to Play Again");
+    painter.drawText(QRect(0, curY, w, 25), Qt::AlignCenter, QString::fromStdString(prompt));
     painter.restore();
 }
 
@@ -763,22 +706,9 @@ void QixCanvas::drawInstructionsCard(QPainter& painter)
     painter.setFont(QFont("Monospace", 22, QFont::Bold));
     painter.drawText(QRect(0, h / 2 - 150, w, 35), Qt::AlignCenter, "HOW TO PLAY");
 
-    struct Rule {
-        const char* header;
-        const char* detail;
-        QColor color;
-    };
-    const std::array<Rule, 5> rules {{
-        {"OBJECTIVE", "CLAIM 75% OR MORE OF THE PLAYFIELD TO WIN", QColor(59, 130, 246)},
-        {"SLOW DRAW", "HOLD [SPACE] WHILE MOVING (2X POINTS - 200 PTS/CELL)", QColor(34, 197, 94)},
-        {"FAST DRAW", "HOLD [SHIFT/F] WHILE MOVING (1X POINTS - 100 PTS/CELL)", QColor(245, 158, 11)},
-        {"HAZARDS", "AVOID THE BOUNCING QIX & PATROLLING SPARX ENEMIES", QColor(239, 68, 68)},
-        {"THE FUSE", "BURNS DOWN YOUR TRAIL IF YOU HESITATE - KEEP MOVING!", QColor(217, 70, 239)}
-    }};
-
     int y = h / 2 - 95;
-    for (const auto& r : rules) {
-        painter.setPen(r.color);
+    for (const auto& r : GamePresenter::getInstructionRules()) {
+        painter.setPen(toQColor(r.color));
         painter.setFont(QFont("Monospace", 11, QFont::Bold));
         painter.drawText(QRect(w / 2 - 250, y, 500, 20), Qt::AlignLeft, r.header);
 

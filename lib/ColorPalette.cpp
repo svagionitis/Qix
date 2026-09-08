@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cmath>
 #include <string>
 
 namespace qix {
@@ -180,6 +181,61 @@ const char* ColorPalette::toString(PaletteId id) noexcept
     default:
         return "Classic 1981";
     }
+}
+
+PaletteColor ColorPalette::computeRibbonColor(
+    const PaletteTheme& theme, std::uint32_t cycle, std::size_t segIdx, std::size_t totalSegs) noexcept
+{
+    auto hsvToRgb = [](double h, double s, double v) noexcept -> PaletteColor {
+        h = std::fmod(h, 360.0);
+        if (h < 0.0) {
+            h += 360.0;
+        }
+        const double c = v * s;
+        const double x = c * (1.0 - std::abs(std::fmod(h / 60.0, 2.0) - 1.0));
+        const double m = v - c;
+        double r1 {0.0}, g1 {0.0}, b1 {0.0};
+        if (h < 60.0) {
+            r1 = c; g1 = x;
+        } else if (h < 120.0) {
+            r1 = x; g1 = c;
+        } else if (h < 180.0) {
+            g1 = c; b1 = x;
+        } else if (h < 240.0) {
+            g1 = x; b1 = c;
+        } else if (h < 300.0) {
+            r1 = x; b1 = c;
+        } else {
+            r1 = c; b1 = x;
+        }
+        return PaletteColor {
+            static_cast<std::uint8_t>(std::clamp((r1 + m) * 255.0, 0.0, 255.0)),
+            static_cast<std::uint8_t>(std::clamp((g1 + m) * 255.0, 0.0, 255.0)),
+            static_cast<std::uint8_t>(std::clamp((b1 + m) * 255.0, 0.0, 255.0)),
+            255
+        };
+    };
+
+    const auto safeTotal = std::max<std::size_t>(1, totalSegs);
+
+    if (theme.ribbonMode == RibbonColorMode::NeonGradient) {
+        const double hue = std::fmod(cycle * 4.0 + segIdx * 15.0, 120.0) + 280.0;
+        return hsvToRgb(hue, 0.90, 1.0);
+    }
+    if (theme.ribbonMode == RibbonColorMode::MonochromeAmber) {
+        const double val = std::max(0.25, 1.0 - 0.70 * (static_cast<double>(segIdx) / static_cast<double>(safeTotal)));
+        return hsvToRgb(38.0, 0.95, val);
+    }
+    if (theme.ribbonMode == RibbonColorMode::MonochromeGreen) {
+        const double val = std::max(0.25, 1.0 - 0.70 * (static_cast<double>(segIdx) / static_cast<double>(safeTotal)));
+        return hsvToRgb(142.0, 0.95, val);
+    }
+
+    // Classic / Rainbow HSV
+    const double hue = std::fmod(cycle * 6.0 + segIdx * (360.0 / safeTotal), 360.0);
+    const double sat = (segIdx == 0) ? 0.70 : 0.95;
+    const double val = (segIdx == 0) ? 1.0 : std::max(0.35, 1.0 - 0.55 * (static_cast<double>(segIdx) / safeTotal));
+    return hsvToRgb(hue, sat, val);
 }
 
 } // namespace qix

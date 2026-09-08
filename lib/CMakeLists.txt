@@ -13,6 +13,8 @@ add_library(qix_core STATIC
     Fuse.h
     GameConfig.cpp
     GameConfig.h
+    GamePresenter.cpp
+    GamePresenter.h
     HighScoreTable.cpp
     HighScoreTable.h
     IQixGame.h
@@ -20,6 +22,7 @@ add_library(qix_core STATIC
     Marker.h
     Playfield.cpp
     Playfield.h
+    PlayfieldViewport.h
     Qix.cpp
     Qix.h
     QixGame.cpp

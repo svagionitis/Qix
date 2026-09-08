@@ -98,6 +98,15 @@ public:
     /// @param[in] id Palette identifier.
     /// @return Constant character pointer to palette name.
     [[nodiscard]] static const char* toString(PaletteId id) noexcept;
+
+    /// @brief Compute dynamic ribbon segment color based on palette theme, animation cycle, and segment index.
+    /// @param[in] theme The active palette theme.
+    /// @param[in] cycle Monotonically advancing animation cycle counter.
+    /// @param[in] segIdx Index of the ribbon segment (0 is leading segment).
+    /// @param[in] totalSegs Total number of segments in the ribbon.
+    /// @return 32-bit RGBA PaletteColor.
+    [[nodiscard]] static PaletteColor computeRibbonColor(
+        const PaletteTheme& theme, std::uint32_t cycle, std::size_t segIdx, std::size_t totalSegs) noexcept;
 };
 
 } // namespace qix

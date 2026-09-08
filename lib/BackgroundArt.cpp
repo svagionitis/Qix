@@ -113,6 +113,47 @@ void BackgroundArt::generateRgbaBuffer(
     }
 }
 
+void BackgroundArt::generateDualRgbaBuffers(
+    ArtScene scene, int width, int height,
+    std::vector<std::uint8_t>& standardBuffer,
+    std::vector<std::uint8_t>& mutedBuffer) noexcept
+{
+    if (width <= 0 || height <= 0) {
+        standardBuffer.clear();
+        mutedBuffer.clear();
+        return;
+    }
+
+    const auto totalBytes = static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4U;
+    standardBuffer.resize(totalBytes);
+    mutedBuffer.resize(totalBytes);
+
+    const float invW = 1.0f / static_cast<float>(width > 1 ? (width - 1) : 1);
+    const float invH = 1.0f / static_cast<float>(height > 1 ? (height - 1) : 1);
+
+    std::size_t offset {0};
+    for (int y {0}; y < height; ++y) {
+        const float v = static_cast<float>(y) * invH;
+        for (int x {0}; x < width; ++x) {
+            const float u = static_cast<float>(x) * invW;
+            const auto color = samplePixel(scene, u, v);
+            const auto muted = tintForFastDraw(color);
+
+            standardBuffer[offset] = color.r;
+            standardBuffer[offset + 1] = color.g;
+            standardBuffer[offset + 2] = color.b;
+            standardBuffer[offset + 3] = 255;
+
+            mutedBuffer[offset] = muted.r;
+            mutedBuffer[offset + 1] = muted.g;
+            mutedBuffer[offset + 2] = muted.b;
+            mutedBuffer[offset + 3] = 255;
+
+            offset += 4U;
+        }
+    }
+}
+
 const char* BackgroundArt::getSceneName(ArtScene scene) noexcept
 {
     switch (scene) {
