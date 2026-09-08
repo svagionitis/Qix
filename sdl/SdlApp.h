@@ -1,6 +1,4 @@
-#ifndef QIX_SDL_APP_H
-#define QIX_SDL_APP_H
-
+#pragma once
 #include "IQixGame.h"
 #include "SdlRenderer.h"
 #include "SpeedConfig.h"
@@ -64,5 +62,3 @@ private:
 };
 
 } // namespace qix::sdl
-
-#endif // QIX_SDL_APP_H

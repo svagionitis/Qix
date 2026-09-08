@@ -1,6 +1,4 @@
-#ifndef QIX_QT_CANVAS_H
-#define QIX_QT_CANVAS_H
-
+#pragma once
 #include "IQixGame.h"
 #include <QWidget>
 
@@ -41,5 +39,3 @@ private:
 };
 
 } // namespace qix::qt
-
-#endif // QIX_QT_CANVAS_H

@@ -1,6 +1,4 @@
-#ifndef QIX_LIB_SPEED_CONFIG_H
-#define QIX_LIB_SPEED_CONFIG_H
-
+#pragma once
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -78,5 +76,3 @@ public:
 };
 
 } // namespace qix
-
-#endif // QIX_LIB_SPEED_CONFIG_H

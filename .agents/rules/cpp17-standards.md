@@ -20,3 +20,6 @@
   - `[[fallthrough]]` in switch cases where falling through is intended.
   - `[[maybe_unused]]` for variables that might not be used depending on build configurations.
 - **Safe Alternatives:** Use `std::string_view` for non-owning read-only string parameters. Use `std::optional` instead of magic values (like `-1` or `nullptr`) to indicate missing data.
+
+## Header Files & Inclusion Guards
+- **`#pragma once`:** Always use `#pragma once` at the top of all C++ header files. Do not use legacy `#ifndef` / `#define` / `#endif` include guards.

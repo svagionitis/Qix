@@ -1,6 +1,4 @@
-#ifndef QIX_LIB_I_QIX_GAME_H
-#define QIX_LIB_I_QIX_GAME_H
-
+#pragma once
 #include "Playfield.h"
 #include "Types.h"
 #include <deque>
@@ -81,5 +79,3 @@ public:
 };
 
 } // namespace qix
-
-#endif // QIX_LIB_I_QIX_GAME_H

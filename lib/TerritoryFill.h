@@ -1,6 +1,4 @@
-#ifndef QIX_LIB_TERRITORY_FILL_H
-#define QIX_LIB_TERRITORY_FILL_H
-
+#pragma once
 #include "Playfield.h"
 #include "Types.h"
 #include <cstdint>
@@ -51,5 +49,3 @@ private:
 };
 
 } // namespace qix
-
-#endif // QIX_LIB_TERRITORY_FILL_H

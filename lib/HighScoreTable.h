@@ -1,6 +1,4 @@
-#ifndef QIX_LIB_HIGH_SCORE_TABLE_H
-#define QIX_LIB_HIGH_SCORE_TABLE_H
-
+#pragma once
 #include "Types.h"
 #include <array>
 #include <cstddef>
@@ -103,5 +101,3 @@ private:
 };
 
 } // namespace qix
-
-#endif // QIX_LIB_HIGH_SCORE_TABLE_H

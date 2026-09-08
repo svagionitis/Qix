@@ -1,6 +1,4 @@
-#ifndef QIX_SDL_RENDERER_H
-#define QIX_SDL_RENDERER_H
-
+#pragma once
 #include "BitmapFont.h"
 #include "IQixGame.h"
 #include <SDL.h>
@@ -87,5 +85,3 @@ private:
 };
 
 } // namespace qix::sdl
-
-#endif // QIX_SDL_RENDERER_H

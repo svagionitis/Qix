@@ -1,6 +1,4 @@
-#ifndef QIX_LIB_TYPES_H
-#define QIX_LIB_TYPES_H
-
+#pragma once
 #include <array>
 #include <cstdint>
 #include <vector>
@@ -94,5 +92,3 @@ struct SparxInfo {
 };
 
 } // namespace qix
-
-#endif // QIX_LIB_TYPES_H

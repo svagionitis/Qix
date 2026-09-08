@@ -1,6 +1,4 @@
-#ifndef QIX_RAYLIB_RENDERER_H
-#define QIX_RAYLIB_RENDERER_H
-
+#pragma once
 #include "IQixGame.h"
 #include <cstdint>
 #include <deque>
@@ -55,5 +53,3 @@ private:
 };
 
 } // namespace qix::raylib
-
-#endif // QIX_RAYLIB_RENDERER_H

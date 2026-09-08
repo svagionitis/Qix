@@ -1,5 +1,4 @@
-#ifndef QIX_LIB_QIX_GAME_H
-#define QIX_LIB_QIX_GAME_H
+#pragma once
 
 #include "CollisionDetector.h"
 #include "Fuse.h"
@@ -97,5 +96,3 @@ private:
 };
 
 } // namespace qix
-
-#endif // QIX_LIB_QIX_GAME_H

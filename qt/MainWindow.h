@@ -1,6 +1,4 @@
-#ifndef QIX_QT_MAIN_WINDOW_H
-#define QIX_QT_MAIN_WINDOW_H
-
+#pragma once
 #include "IQixGame.h"
 #include "QixCanvas.h"
 #include "SpeedConfig.h"
@@ -50,5 +48,3 @@ private:
 };
 
 } // namespace qix::qt
-
-#endif // QIX_QT_MAIN_WINDOW_H

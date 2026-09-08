@@ -1,6 +1,4 @@
-#ifndef QIX_RAYLIB_APP_H
-#define QIX_RAYLIB_APP_H
-
+#pragma once
 #include "IQixGame.h"
 #include "RaylibRenderer.h"
 #include "SpeedConfig.h"
@@ -63,5 +61,3 @@ private:
 };
 
 } // namespace qix::raylib
-
-#endif // QIX_RAYLIB_APP_H

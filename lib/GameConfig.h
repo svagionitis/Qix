@@ -1,6 +1,4 @@
-#ifndef QIX_LIB_GAME_CONFIG_H
-#define QIX_LIB_GAME_CONFIG_H
-
+#pragma once
 #include "Types.h"
 #include <string>
 #include <vector>
@@ -34,5 +32,3 @@ public:
 };
 
 } // namespace qix
-
-#endif // QIX_LIB_GAME_CONFIG_H

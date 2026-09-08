@@ -14,3 +14,4 @@ Before presenting any C++17 code snippet, internally verify it against this chec
 4. **Documentation:** Are all public APIs documented with full Doxygen templates?
 5. **Standards Compliance:** Does this code violate any MISRA/AUTOSAR rules (e.g., dynamic casting, implicit conversions)?
 6. **TDD:** Did I write a failing test first if fixing a bug?
+7. **Header Guards:** Did I use `#pragma once` at the top of headers instead of legacy `#ifndef` / `#define` guards?

@@ -1,6 +1,4 @@
-#ifndef QIX_TUI_RENDERER_H
-#define QIX_TUI_RENDERER_H
-
+#pragma once
 #include "IQixGame.h"
 #include <cstdint>
 #include <string>
@@ -41,5 +39,3 @@ private:
 };
 
 } // namespace qix::tui
-
-#endif // QIX_TUI_RENDERER_H

@@ -1,6 +1,4 @@
-#ifndef QIX_LIB_COLLISION_DETECTOR_H
-#define QIX_LIB_COLLISION_DETECTOR_H
-
+#pragma once
 #include "Fuse.h"
 #include "Marker.h"
 #include "Qix.h"
@@ -27,5 +25,3 @@ public:
 };
 
 } // namespace qix
-
-#endif // QIX_LIB_COLLISION_DETECTOR_H

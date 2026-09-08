@@ -1,6 +1,4 @@
-#ifndef QIX_LIB_PLAYFIELD_H
-#define QIX_LIB_PLAYFIELD_H
-
+#pragma once
 #include "Types.h"
 #include <cstddef>
 #include <cstdint>
@@ -69,5 +67,3 @@ private:
 };
 
 } // namespace qix
-
-#endif // QIX_LIB_PLAYFIELD_H

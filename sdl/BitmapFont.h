@@ -1,6 +1,4 @@
-#ifndef QIX_SDL_BITMAP_FONT_H
-#define QIX_SDL_BITMAP_FONT_H
-
+#pragma once
 #include <SDL.h>
 #include <array>
 #include <cstdint>
@@ -187,5 +185,3 @@ private:
 };
 
 } // namespace qix::sdl
-
-#endif // QIX_SDL_BITMAP_FONT_H
