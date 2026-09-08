@@ -1,8 +1,10 @@
 #include "TuiRenderer.h"
 #include "HighScoreTable.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -127,8 +129,31 @@ namespace {
         std::uint8_t priority {0};
     };
 
-    void appendProgressBar(
-        std::string& frame, double claimed, std::uint16_t target, int termCols, bool truecolor) noexcept
+    [[nodiscard]] int visibleWidth(const std::string& str) noexcept
+    {
+        int width = 0;
+        bool inEscape = false;
+        for (std::size_t i {0}; i < str.size(); ++i) {
+            const char c = str[i];
+            if (c == '\033') {
+                inEscape = true;
+                continue;
+            }
+            if (inEscape) {
+                if (c == 'm') {
+                    inEscape = false;
+                }
+                continue;
+            }
+            if ((static_cast<unsigned char>(c) & 0xC0) != 0x80) {
+                ++width;
+            }
+        }
+        return width;
+    }
+
+    void renderHudCards(
+        std::string& frame, const GameView& view, std::uint32_t delayMs, int cols, bool truecolor) noexcept
     {
         static constexpr const char* kFracs[8] = {
             "",
@@ -141,7 +166,196 @@ namespace {
             "\xe2\x96\x89" // 7/8 ▉
         };
 
-        const int barWidth = std::clamp(termCols - 45, 16, 40);
+        const std::string borderCol = truecolor ? "\033[38;2;60;120;240m" : "\033[1;34m";
+        const std::string resetCol = "\033[0m";
+
+        const std::array<std::string, 6> labels = {"SCORE", "HIGH", "LIVES", "LEVEL", "TIME", "STATUS"};
+        const std::array<std::string, 6> labelCols = {
+            truecolor ? "\033[1;38;2;255;200;40m" : "\033[1;33m", // SCORE: gold
+            truecolor ? "\033[1;38;2;255;220;100m" : "\033[1;33m", // HIGH: amber
+            truecolor ? "\033[1;38;2;255;80;100m" : "\033[1;31m", // LIVES: coral heart
+            truecolor ? "\033[1;38;2;220;100;255m" : "\033[1;35m", // LEVEL: purple
+            truecolor ? "\033[1;38;2;80;230;120m" : "\033[1;32m", // TIME: green
+            truecolor ? "\033[1;38;2;0;220;255m" : "\033[1;36m" // STATUS: cyan
+        };
+
+        // Prepare Values
+        const std::string scoreVal = std::to_string(view.stats.score);
+        const std::string scoreCol = truecolor ? "\033[1;38;2;255;255;255m" : "\033[1;37m";
+
+        const std::string highVal = std::to_string(view.stats.highScore);
+        const std::string highCol = truecolor ? "\033[1;38;2;255;220;120m" : "\033[1;33m";
+
+        std::string livesVal;
+        if (view.stats.lives <= 4) {
+            for (std::uint16_t l {0}; l < view.stats.lives; ++l) {
+                livesVal += "\xe2\x99\xa5"; // ♥
+            }
+            livesVal += " (" + std::to_string(view.stats.lives) + ")";
+        } else {
+            livesVal = "\xe2\x99\xa5 x" + std::to_string(view.stats.lives);
+        }
+        const std::string livesCol = truecolor ? "\033[1;38;2;255;80;100m" : "\033[1;31m";
+
+        std::string lvlVal = std::to_string(view.stats.level);
+        if (view.stats.multiplier > 1) {
+            lvlVal += " [x" + std::to_string(view.stats.multiplier) + "]";
+        }
+        const std::string lvlCol = truecolor ? "\033[1;38;2;230;130;255m" : "\033[1;35m";
+
+        const auto secondsRemaining = (view.stats.timeRemainingMs + 999U) / 1000U;
+        const std::string timeVal = std::to_string(secondsRemaining) + "s";
+        std::string timeCol = truecolor ? "\033[1;38;2;50;240;120m" : "\033[1;32m";
+        if (view.stats.timeUp || secondsRemaining <= 10U) {
+            timeCol = truecolor ? "\033[1;38;2;255;50;50m" : "\033[1;31m";
+        } else if (secondsRemaining <= 20U) {
+            timeCol = truecolor ? "\033[1;38;2;255;200;50m" : "\033[1;33m";
+        }
+
+        std::string statusVal = "READY";
+        std::string statusCol = truecolor ? "\033[1;38;2;255;200;50m" : "\033[1;33m";
+        if (view.state == GameState::Playing) {
+            statusVal = "PLAYING";
+            statusCol = truecolor ? "\033[1;38;2;50;240;120m" : "\033[1;32m";
+        } else if (view.state == GameState::LevelComplete) {
+            statusVal = view.stats.splitBonus ? "SPLIT!" : "CLEARED";
+            statusCol = truecolor ? "\033[1;38;2;255;215;0m" : "\033[1;33m";
+        } else if (view.state == GameState::NameEntry) {
+            statusVal = "INITIALS";
+            statusCol = truecolor ? "\033[1;38;2;0;220;255m" : "\033[1;36m";
+        } else if (view.state == GameState::HallOfFame) {
+            statusVal = "HOF";
+            statusCol = truecolor ? "\033[1;38;2;0;220;255m" : "\033[1;36m";
+        } else if (view.state == GameState::GameOver) {
+            statusVal = "GAMEOVER";
+            statusCol = truecolor ? "\033[1;38;2;255;50;50m" : "\033[1;31m";
+        }
+
+        const std::array<std::string, 6> vals = {scoreVal, highVal, livesVal, lvlVal, timeVal, statusVal};
+        const std::array<std::string, 6> valCols = {scoreCol, highCol, livesCol, lvlCol, timeCol, statusCol};
+
+        // Compute 6 card column widths inside interior 'cols'
+        constexpr int numCards = 6;
+        constexpr int totalDividers = numCards - 1; // 5 internal dividers
+        const int availCols = std::max(numCards * 6, cols - totalDividers);
+        std::array<int, numCards> cardWidths {};
+        const int baseW = availCols / numCards;
+        const int extraW = availCols % numCards;
+        for (int i {0}; i < numCards; ++i) {
+            cardWidths[static_cast<std::size_t>(i)] = baseW + (i < extraW ? 1 : 0);
+        }
+
+        // --- Row 1: Top Border with Card Headers ---
+        frame += borderCol + "┌";
+        for (int i {0}; i < numCards; ++i) {
+            if (i > 0) {
+                frame += borderCol + "┬";
+            }
+            const int w = cardWidths[static_cast<std::size_t>(i)];
+            const auto& label = labels[static_cast<std::size_t>(i)];
+            const auto& lCol = labelCols[static_cast<std::size_t>(i)];
+
+            std::string badge;
+            int badgeLen = 0;
+            if (w >= static_cast<int>(label.size()) + 4) {
+                badge = "[" + label + "]";
+                badgeLen = static_cast<int>(label.size()) + 2;
+            } else {
+                badge = label;
+                badgeLen = static_cast<int>(label.size());
+            }
+
+            const int padTotal = std::max(0, w - badgeLen);
+            const int padL = padTotal / 2;
+            const int padR = padTotal - padL;
+
+            for (int p {0}; p < padL; ++p) {
+                frame += "─";
+            }
+            frame += lCol + badge + borderCol;
+            for (int p {0}; p < padR; ++p) {
+                frame += "─";
+            }
+        }
+        frame += borderCol + "┐" + resetCol + "\n";
+
+        // --- Row 2: Card Values Row ---
+        frame += borderCol + "│";
+        for (int i {0}; i < numCards; ++i) {
+            if (i > 0) {
+                frame += borderCol + "│";
+            }
+            const int w = cardWidths[static_cast<std::size_t>(i)];
+            const auto& val = vals[static_cast<std::size_t>(i)];
+            const auto& vCol = valCols[static_cast<std::size_t>(i)];
+            const int vLen = visibleWidth(val);
+
+            const int padTotal = std::max(0, w - vLen);
+            const int padL = padTotal / 2;
+            const int padR = padTotal - padL;
+
+            for (int p {0}; p < padL; ++p) {
+                frame += ' ';
+            }
+            frame += vCol + val + borderCol;
+            for (int p {0}; p < padR; ++p) {
+                frame += ' ';
+            }
+        }
+        frame += borderCol + "│" + resetCol + "\n";
+
+        // --- Row 3: Card Divider Row with ┴ junctions ---
+        frame += borderCol + "├";
+        for (int i {0}; i < numCards; ++i) {
+            if (i > 0) {
+                frame += borderCol + "┴";
+            }
+            const int w = cardWidths[static_cast<std::size_t>(i)];
+            for (int p {0}; p < w; ++p) {
+                frame += "─";
+            }
+        }
+        frame += borderCol + "┤" + resetCol + "\n";
+
+        // --- Row 4: Territory Progress Bar Card ---
+        const double claimed = (view.playfield && view.playfield->getInteriorCount() > 0)
+            ? (static_cast<double>(view.playfield->getClaimedCount()) * 100.0
+                / static_cast<double>(view.playfield->getInteriorCount()))
+            : static_cast<double>(view.stats.claimedPercent);
+        const std::uint16_t target = view.stats.targetPercent;
+
+        const std::string barLabel = (cols >= 60) ? " Territory: [" : ((cols >= 45) ? " Claim: [" : " [");
+        const int barLabelLen = static_cast<int>(barLabel.size());
+
+        char pctBuf[80];
+        if (claimed < static_cast<double>(target)) {
+            if (cols >= 50) {
+                std::snprintf(pctBuf, sizeof(pctBuf), "%4.1f%% / %u%% Target", claimed, target);
+            } else {
+                std::snprintf(pctBuf, sizeof(pctBuf), "%4.1f%% / %u%%", claimed, target);
+            }
+        } else {
+            const int bonus = static_cast<int>(claimed) - static_cast<int>(target);
+            if (cols >= 60) {
+                std::snprintf(pctBuf, sizeof(pctBuf), "%4.1f%% / %u%% (MET! +%d%% Bonus)", claimed, target, bonus);
+            } else {
+                std::snprintf(pctBuf, sizeof(pctBuf), "%4.1f%% (+%d%%)", claimed, bonus);
+            }
+        }
+        const std::string pctStr(pctBuf);
+        const int pctLen = static_cast<int>(pctStr.size());
+
+        const std::string delayStr = "Delay: " + std::to_string(delayMs) + "ms";
+        const int delayLen = static_cast<int>(delayStr.size());
+
+        const int fixedNonBar = barLabelLen + 2 + pctLen + 1;
+        bool includeDelay = false;
+        if (cols >= fixedNonBar + delayLen + 16) {
+            includeDelay = true;
+        }
+        const int barBudget = cols - fixedNonBar - (includeDelay ? (delayLen + 2) : 0);
+        const int barWidth = std::clamp(barBudget, 8, 50);
+
         const int totalEighths = static_cast<int>(std::round((claimed / 100.0) * barWidth * 8.0));
         const int fullChars = totalEighths / 8;
         const int fracIdx = totalEighths % 8;
@@ -153,8 +367,8 @@ namespace {
         const std::string emptyCol = truecolor ? "\033[38;2;60;70;90m" : "\033[2;37m";
         const std::string targetCol = truecolor ? "\033[38;2;255;90;90m" : "\033[1;31m";
 
-        frame += "Territory: [";
-        for (int i = 0; i < barWidth; ++i) {
+        frame += borderCol + "│" + resetCol + barLabel;
+        for (int i {0}; i < barWidth; ++i) {
             if (i < fullChars) {
                 frame += fillCol;
                 frame += "\xe2\x96\x88"; // █
@@ -169,18 +383,33 @@ namespace {
                 frame += "\xe2\x96\x91"; // ░
             }
         }
-        frame += "\033[0m] ";
+        frame += resetCol + "] ";
 
-        char pctBuf[80];
         if (claimed < static_cast<double>(target)) {
-            std::snprintf(pctBuf, sizeof(pctBuf), "\033[1;36m%4.1f%%\033[0m / %u%% Target", claimed, target);
+            frame += (truecolor ? "\033[1;38;2;0;220;240m" : "\033[1;36m") + pctStr + resetCol;
         } else {
-            const int bonus = static_cast<int>(claimed) - static_cast<int>(target);
-            std::snprintf(pctBuf, sizeof(pctBuf), "\033[1;33m%4.1f%%\033[0m / %u%% \033[1;32m(MET! +%d%% Bonus)\033[0m",
-                claimed, target, bonus);
+            frame += (truecolor ? "\033[1;38;2;255;215;0m" : "\033[1;33m") + pctStr + resetCol;
         }
-        frame += pctBuf;
-        frame += "\n";
+
+        const int currentVisible = barLabelLen + barWidth + 2 + pctLen;
+        const int targetWidth = cols - (includeDelay ? (delayLen + 1) : 0);
+        const int padSpaces = std::max(0, targetWidth - currentVisible);
+        for (int p {0}; p < padSpaces; ++p) {
+            frame += ' ';
+        }
+
+        if (includeDelay) {
+            frame += (truecolor ? "\033[2;38;2;120;140;180m" : "\033[2;37m") + delayStr + resetCol + " ";
+        }
+
+        frame += borderCol + "│" + resetCol + "\n";
+
+        // --- Row 5: Bottom Border of HUD Cards Box ---
+        frame += borderCol + "└";
+        for (int i {0}; i < cols; ++i) {
+            frame += "─";
+        }
+        frame += borderCol + "┘" + resetCol + "\n";
     }
 
 } // namespace
@@ -290,8 +519,8 @@ TerminalSize TuiRenderer::queryTerminalSize() noexcept
 std::pair<std::int32_t, std::int32_t> TuiRenderer::computePlayfieldDimensions(bool /*brailleMode*/) noexcept
 {
     const auto term = queryTerminalSize();
-    // Vertical overhead: HUD (3) + top border (1) + bottom border (1) + controls (1) + margin (1) = 7 lines
-    const int charRows = std::max(10, term.rows - 7);
+    // Vertical overhead: HUD Cards (5) + top border (1) + bottom border (1) + controls (1) + margin (1) = 9 lines
+    const int charRows = std::max(10, term.rows - 9);
     // Horizontal overhead: left border (1) + right border (1) + side margin (2) = 4 chars
     const int charCols = std::max(20, term.cols - 4);
 
@@ -358,53 +587,14 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     // Move cursor to top-left
     std::string frame = "\033[H";
 
-    std::string stateStr = "READY";
-    if (view.state == GameState::Playing) {
-        stateStr = "PLAYING";
-    } else if (view.state == GameState::LevelComplete) {
-        if (view.stats.splitBonus) {
-            stateStr = "\033[1;32mQIX SPLIT BONUS!\033[0m";
-        } else {
-            stateStr = "\033[1;32mLEVEL COMPLETE\033[0m";
-        }
-    } else if (view.state == GameState::NameEntry) {
-        stateStr = "\033[1;33mENTER INITIALS\033[0m";
-    } else if (view.state == GameState::HallOfFame) {
-        stateStr = "\033[1;36mHALL OF FAME\033[0m";
-    } else if (view.state == GameState::GameOver) {
-        stateStr = "\033[1;31mGAME OVER\033[0m";
-    }
+    const auto playfieldWidth = view.playfield->getWidth();
+    const auto term = queryTerminalSize();
+    const int maxCols = std::max(20, term.cols - 4);
+    const std::int32_t stepX = std::max(1, (playfieldWidth + maxCols - 1) / maxCols);
+    const std::int32_t cols = m_brailleMode ? ((playfieldWidth + 1) / 2) : ((playfieldWidth + stepX - 1) / stepX);
 
-    std::string modeStr = m_brailleMode ? "Braille (Hi-Res)" : "ASCII";
-    if (m_truecolor) {
-        modeStr += " [RGB]";
-    }
-
-    // 1. HUD Header - Line 1: Title, Mode, and State
-    frame
-        += "\033[1;36m=== QIX C++17 ARCADE ===\033[0m | Mode: \033[1;36m" + modeStr + "\033[0m | [" + stateStr + "]\n";
-
-    // HUD Header - Line 2: Gameplay Stats
-    frame += "Score: \033[1;33m" + std::to_string(view.stats.score) + "\033[0m | ";
-    frame += "High: \033[1;33m" + std::to_string(view.stats.highScore) + "\033[0m | ";
-    frame += "Lives: \033[1;31m" + std::to_string(view.stats.lives) + "\033[0m | ";
-    frame += "Level: \033[1;35m" + std::to_string(view.stats.level) + "\033[0m | ";
-    if (view.stats.multiplier > 1) {
-        frame += "Mult: \033[1;33m" + std::to_string(view.stats.multiplier) + "x\033[0m | ";
-    }
-    const auto secondsRemaining = (view.stats.timeRemainingMs + 999U) / 1000U;
-    const std::string timeColor = (view.stats.timeUp || secondsRemaining <= 10U)
-        ? "\033[1;31m"
-        : ((secondsRemaining <= 20U) ? "\033[1;33m" : "\033[1;32m");
-    frame += "Time: " + timeColor + std::to_string(secondsRemaining) + "s\033[0m | ";
-    frame += "Delay: \033[1;36m" + std::to_string(delayMs) + "ms\033[0m\n";
-
-    // HUD Header - Line 3: Real-Time Unicode Territory Progress Bar
-    const double claimedPercent = (view.playfield && view.playfield->getInteriorCount() > 0)
-        ? (static_cast<double>(view.playfield->getClaimedCount()) * 100.0
-            / static_cast<double>(view.playfield->getInteriorCount()))
-        : static_cast<double>(view.stats.claimedPercent);
-    appendProgressBar(frame, claimedPercent, view.stats.targetPercent, m_lastTermSize.cols, m_truecolor);
+    // 1. Modern Arcade HUD Cards Deck
+    renderHudCards(frame, view, delayMs, cols, m_truecolor);
 
     if (view.state == GameState::NameEntry) {
         renderNameEntry(frame, view.nameEntry, view.stats);
@@ -425,8 +615,13 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     }
 
     // 3. Controls Legend
-    frame += "\033[2mControls: [WASD/Arrows] Move | [Space] Slow | [F] Fast | [X] Border | [B] Braille/ASCII | [T] RGB "
-             "| [-/+] Speed | [R] Reset | [Q] Quit\033[0m\n";
+    if (m_lastTermSize.cols >= 105) {
+        frame += "\033[2mControls: [WASD/Arrows] Move | [Space] Slow | [F] Fast | [X] Border | [B] Braille/ASCII | "
+                 "[T] RGB | [-/+] Speed | [R] Reset | [Q] Quit\033[0m\n";
+    } else {
+        frame += "\033[2mControls: [WASD] Move | [Space/F] Draw | [X] Border | [B] Mode | [T] RGB | [R] Reset | [Q] "
+                 "Quit\033[0m\n";
+    }
 
     std::cout << frame << std::flush;
 }
@@ -657,12 +852,29 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
     }
 
     // 7. Output Rendered Braille Frame with Border Framing
-    const std::string borderCol = m_truecolor ? "\033[38;2;40;90;230m" : "\033[1;34m";
-    frame += borderCol + "┌";
-    for (int cx {0}; cx < cols; ++cx) {
-        frame += "─";
+    const std::string borderCol = m_truecolor ? "\033[38;2;60;120;240m" : "\033[1;34m";
+    const std::string titleCol = m_truecolor ? "\033[1;38;2;0;220;255m" : "\033[1;36m";
+    std::string modeBadge = m_brailleMode ? "BRAILLE (HI-RES)" : "ASCII";
+    if (m_truecolor) {
+        modeBadge += " RGB";
     }
-    frame += "┐\033[0m\n";
+    const std::string titleBadge = " QIX C++17 ARCADE · " + modeBadge + " ";
+    const int badgeLen = static_cast<int>(titleBadge.size());
+
+    if (cols >= badgeLen + 6) {
+        frame += borderCol + "┌─[" + titleCol + titleBadge + borderCol + "]";
+        const int remain = cols - (badgeLen + 4);
+        for (int cx {0}; cx < remain; ++cx) {
+            frame += "─";
+        }
+        frame += "┐\033[0m\n";
+    } else {
+        frame += borderCol + "┌";
+        for (int cx {0}; cx < cols; ++cx) {
+            frame += "─";
+        }
+        frame += "┐\033[0m\n";
+    }
 
     for (std::int32_t cy {0}; cy < rows; ++cy) {
         frame += borderCol + "│\033[0m";
@@ -705,20 +917,32 @@ void TuiRenderer::renderAsciiPlayfield(std::string& frame, const GameView& view)
 
     const auto term = queryTerminalSize();
     const int maxCols = std::max(20, term.cols - 4);
-    const int maxRows = std::max(10, term.rows - 7);
+    const int maxRows = std::max(10, term.rows - 9);
 
     const std::int32_t stepX = std::max(1, (width + maxCols - 1) / maxCols);
     const std::int32_t stepY = std::max(1, (height + maxRows - 1) / maxRows);
     const std::int32_t cols = (width + stepX - 1) / stepX;
 
-    const std::string borderCol = m_truecolor ? "\033[38;2;40;90;230m" : "\033[1;34m";
+    const std::string borderCol = m_truecolor ? "\033[38;2;60;120;240m" : "\033[1;34m";
+    const std::string titleCol = m_truecolor ? "\033[1;38;2;0;220;255m" : "\033[1;36m";
+    const std::string titleBadge = " QIX C++17 ARCADE · ASCII ";
+    const int badgeLen = static_cast<int>(titleBadge.size());
 
     // Top border
-    frame += borderCol + "┌";
-    for (std::int32_t cx {0}; cx < cols; ++cx) {
-        frame += "─";
+    if (cols >= badgeLen + 6) {
+        frame += borderCol + "┌─[" + titleCol + titleBadge + borderCol + "]";
+        const int remain = cols - (badgeLen + 4);
+        for (std::int32_t cx {0}; cx < remain; ++cx) {
+            frame += "─";
+        }
+        frame += "┐\033[0m\n";
+    } else {
+        frame += borderCol + "┌";
+        for (std::int32_t cx {0}; cx < cols; ++cx) {
+            frame += "─";
+        }
+        frame += "┐\033[0m\n";
     }
-    frame += "┐\033[0m\n";
 
     for (std::int32_t y {0}; y < height; y += stepY) {
         frame += borderCol + "│\033[0m";
@@ -963,40 +1187,72 @@ PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
 
 void TuiRenderer::renderNameEntry(std::string& frame, const NameEntryState& entry, const GameStats& stats) noexcept
 {
+    const std::string bCol = m_truecolor ? "\033[38;2;60;120;240m" : "\033[1;34m";
+    const std::string cCol = m_truecolor ? "\033[1;38;2;0;220;255m" : "\033[1;36m";
+    const std::string reset = "\033[0m";
+
     frame += "\n";
-    frame += "  \033[1;33m+------------------------------------------------------------+\033[0m\n";
-    frame += "  \033[1;33m|                 * ARCADE HALL OF FAME *                    |\033[0m\n";
-    char rankBuf[128];
-    std::snprintf(rankBuf, sizeof(rankBuf), "  |   NEW HIGH SCORE RECORD! RANK #%zu - SCORE: %-15u  |\n", entry.rank,
-        stats.score);
-    frame += rankBuf;
-    frame += "  |                                                            |\n";
-    frame += "  |                 ENTER YOUR 3-LETTER INITIALS               |\n";
-    frame += "  |                                                            |\n";
+    frame += "  " + bCol + "┌────────────────────────────────────────────────────────────┐" + reset + "\n";
+    frame += "  " + bCol + "│" + cCol + "                 ★ ARCADE HALL OF FAME ★                    " + bCol + "│"
+        + reset + "\n";
+    frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
 
-    std::string slot0 = (entry.cursorIndex == 0) ? ("\033[1;33m[" + std::string(1, entry.initials[0]) + "]\033[0m")
-                                                 : (" " + std::string(1, entry.initials[0]) + " ");
-    std::string slot1 = (entry.cursorIndex == 1) ? ("\033[1;33m[" + std::string(1, entry.initials[1]) + "]\033[0m")
-                                                 : (" " + std::string(1, entry.initials[1]) + " ");
-    std::string slot2 = (entry.cursorIndex == 2) ? ("\033[1;33m[" + std::string(1, entry.initials[2]) + "]\033[0m")
-                                                 : (" " + std::string(1, entry.initials[2]) + " ");
+    char contentBuf[80];
+    std::snprintf(
+        contentBuf, sizeof(contentBuf), "NEW HIGH SCORE RECORD! RANK #%zu - SCORE: %u", entry.rank, stats.score);
+    const int cLen = static_cast<int>(std::strlen(contentBuf));
+    const int padL = std::max(0, (60 - cLen) / 2);
+    const int padR = std::max(0, 60 - cLen - padL);
 
-    frame += "  |                           " + slot0 + "  " + slot1 + "  " + slot2 + "                        |\n";
-    frame += "  |                                                            |\n";
-    frame += "  \033[1;36m|   [W/S] Change Letter   [A/D] Move Slot   [Space/Enter] OK |\033[0m\n";
-    frame += "  \033[1;33m+------------------------------------------------------------+\033[0m\n";
+    frame += "  " + bCol + "│" + reset + std::string(padL, ' ')
+        + (m_truecolor ? "\033[1;38;2;255;220;40m" : "\033[1;33m") + contentBuf + reset + std::string(padR, ' ') + bCol
+        + "│" + reset + "\n";
+    frame += "  " + bCol + "│                                                            │" + reset + "\n";
+    frame += "  " + bCol + "│                ENTER YOUR 3-LETTER INITIALS                │" + reset + "\n";
+    frame += "  " + bCol + "│                                                            │" + reset + "\n";
+
+    const std::string slot0 = (entry.cursorIndex == 0)
+        ? ("\033[1;33m[" + std::string(1, entry.initials[0]) + "]\033[0m")
+        : (" " + std::string(1, entry.initials[0]) + " ");
+    const std::string slot1 = (entry.cursorIndex == 1)
+        ? ("\033[1;33m[" + std::string(1, entry.initials[1]) + "]\033[0m")
+        : (" " + std::string(1, entry.initials[1]) + " ");
+    const std::string slot2 = (entry.cursorIndex == 2)
+        ? ("\033[1;33m[" + std::string(1, entry.initials[2]) + "]\033[0m")
+        : (" " + std::string(1, entry.initials[2]) + " ");
+
+    frame += "  " + bCol + "│                           " + slot0 + "  " + slot1 + "  " + slot2
+        + "                        " + bCol + "│" + reset + "\n";
+    frame += "  " + bCol + "│                                                            │" + reset + "\n";
+    frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
+
+    const std::string legend = "[W/S] Change Letter   [A/D] Move Slot   [Space/Enter] OK";
+    const int legLen = static_cast<int>(legend.size());
+    const int legPadL = std::max(0, (60 - legLen) / 2);
+    const int legPadR = std::max(0, 60 - legLen - legPadL);
+    frame += "  " + bCol + "│" + cCol + std::string(legPadL, ' ') + legend + std::string(legPadR, ' ') + bCol + "│"
+        + reset + "\n";
+    frame += "  " + bCol + "└────────────────────────────────────────────────────────────┘" + reset + "\n";
 }
 
 void TuiRenderer::renderHallOfFame(std::string& frame, const HighScoreTable* table, bool isGameOver) noexcept
 {
+    const std::string bCol = m_truecolor ? "\033[38;2;60;120;240m" : "\033[1;34m";
+    const std::string cCol = m_truecolor ? "\033[1;38;2;0;220;255m" : "\033[1;36m";
+    const std::string rCol = m_truecolor ? "\033[1;38;2;255;60;60m" : "\033[1;31m";
+    const std::string reset = "\033[0m";
+
     frame += "\n";
     if (isGameOver) {
-        frame += "  \033[1;31m========================= GAME OVER =========================\033[0m\n";
+        frame += "  " + rCol + "╔═════════════════════════ GAME OVER ═════════════════════════╗" + reset + "\n";
     }
-    frame += "  \033[1;33m+------------------------------------------------------------+\033[0m\n";
-    frame += "  \033[1;33m|                 * ARCADE HALL OF FAME *                    |\033[0m\n";
-    frame += "  \033[1;36m|  RANK   NAME         SCORE          LEVEL      MODE        |\033[0m\n";
-    frame += "  \033[1;36m|  --------------------------------------------------------  |\033[0m\n";
+    frame += "  " + bCol + "┌────────────────────────────────────────────────────────────┐" + reset + "\n";
+    frame += "  " + bCol + "│" + cCol + "                 ★ ARCADE HALL OF FAME ★                    " + bCol + "│"
+        + reset + "\n";
+    frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
+    frame += "  " + bCol + "│" + cCol + "  RANK   NAME         SCORE          LEVEL      MODE        " + bCol + "│"
+        + reset + "\n";
+    frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
 
     if (table != nullptr) {
         const auto& entries = table->getEntries();
@@ -1005,16 +1261,20 @@ void TuiRenderer::renderHallOfFame(std::string& frame, const HighScoreTable* tab
         for (std::size_t i {0}; i < maxRows; ++i) {
             const auto& e = entries[i];
             const char* modeStr = (e.mode == GameMode::Classic) ? "CLASSIC" : "MODERN";
-            char rowBuf[128];
-            std::snprintf(rowBuf, sizeof(rowBuf), "  |  %2zu.    %-4s        %8u            %2u      %-7s |\n", i + 1,
+            char rowContent[80];
+            std::snprintf(rowContent, sizeof(rowContent), "  %2zu.    %-4s        %8u            %2u      %-7s", i + 1,
                 e.initials.c_str(), e.score, static_cast<unsigned>(e.level), modeStr);
-            frame += rowBuf;
+            const int rLen = static_cast<int>(std::strlen(rowContent));
+            const int rPad = std::max(0, 60 - rLen);
+            frame += "  " + bCol + "│" + reset + rowContent + std::string(rPad, ' ') + bCol + "│" + reset + "\n";
         }
     }
 
-    frame += "  |                                                            |\n";
-    frame += "  \033[1;32m|              Press [R] or [Space] to Play Again            |\033[0m\n";
-    frame += "  \033[1;33m+------------------------------------------------------------+\033[0m\n";
+    frame += "  " + bCol + "│                                                            │" + reset + "\n";
+    frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
+    frame += "  " + bCol + "│" + (m_truecolor ? "\033[1;38;2;50;240;120m" : "\033[1;32m")
+        + "              Press [R] or [Space] to Play Again            " + bCol + "│" + reset + "\n";
+    frame += "  " + bCol + "└────────────────────────────────────────────────────────────┘" + reset + "\n";
 }
 
 } // namespace qix::tui
