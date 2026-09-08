@@ -10,7 +10,7 @@
     "raylib"
   ],
   "features": {
-    "gui": {
+    "qt": {
       "description": "Desktop Qt graphical client",
       "dependencies": [
         {

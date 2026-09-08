@@ -1,7 +1,7 @@
 #include "MainWindow.h"
 #include <QKeyEvent>
 
-namespace qix::gui {
+namespace qix::qt {
 
 MainWindow::MainWindow(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, QWidget* parent)
     : QMainWindow {parent}
@@ -190,4 +190,4 @@ void MainWindow::keyReleaseEvent(QKeyEvent* event)
     QMainWindow::keyReleaseEvent(event);
 }
 
-} // namespace qix::gui
+} // namespace qix::qt

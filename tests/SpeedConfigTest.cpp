@@ -57,7 +57,7 @@ TEST(SpeedConfigTest, ParseFpsFlags)
 
 TEST(SpeedConfigTest, ParseArgcArgvArray)
 {
-    char arg0[] = "qix_gui";
+    char arg0[] = "qix_qt";
     char arg1[] = "-d";
     char arg2[] = "90";
     char* argv[] = {arg0, arg1, arg2};

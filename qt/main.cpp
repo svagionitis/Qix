@@ -13,7 +13,7 @@ int main(int argc, char* argv[])
     QApplication app(argc, argv);
 
     auto game = std::make_unique<qix::QixGame>(80, 60, 75, mode, delayMs);
-    qix::gui::MainWindow window(std::move(game), delayMs);
+    qix::qt::MainWindow window(std::move(game), delayMs);
     window.show();
 
     return app.exec();

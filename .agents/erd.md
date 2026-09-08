@@ -16,7 +16,7 @@ The **Qix Game Ecosystem** is a high-performance, deterministic C++17 implementa
 The project delivers:
 1. **`libqix_core`**: Headless static library encapsulating game loop ticks, 2D playfield partitioning, kinematic enemy simulation, and score calculation.
 2. **`qix_tui`**: Terminal User Interface client leveraging `ncurses` (or ANSI escape sequences) for console gameplay.
-3. **`qix_gui`**: Desktop graphical client using Qt6 / modern 2D canvas rendering with high-refresh rate frame pacing.
+3. **`qix_qt`**: Desktop graphical client using Qt6 / modern 2D canvas rendering with high-refresh rate frame pacing.
 4. **`qix_tests`**: Comprehensive GoogleTest suite verifying physics, territory partition algorithms, and edge-case boundary regressions.
 5. **`qix_benchmarks`**: Benchmarking suite profiling flood-fill and collision detection latency under sub-microsecond constraints.
 
@@ -31,7 +31,7 @@ The system follows the **C4 Model** for software architecture (documented in det
 | Qix Game System Boundary                                                      |
 |                                                                               |
 |  +-------------------------+                     +-------------------------+  |
-|  |         qix_tui         |                     |         qix_gui         |  |
+|  |         qix_tui         |                     |         qix_qt          |  |
 |  |  (Terminal / ncurses)   |                     |     (Desktop / Qt6)     |  |
 |  +------------+------------+                     +------------+------------+  |
 |               |                                               |               |
@@ -131,7 +131,7 @@ The system follows the **C4 Model** for software architecture (documented in det
 - **FR-6.1 Terminal Client (`qix_tui`)**:
   - Renders playfield matrix via ANSI color blocks or `ncurses`.
   - Captures non-blocking keyboard input (arrow keys, fast/slow draw keys).
-- **FR-6.2 Graphical Client (`qix_gui`)**:
+- **FR-6.2 Graphical Client (`qix_qt`)**:
   - Renders 2D canvas at 60 FPS using Qt6 (`QPainter` / `QOpenGLWidget`).
   - Smooth vector rendering of multi-segment Qix trails with color cycling.
 
@@ -185,7 +185,7 @@ The system follows the **C4 Model** for software architecture (documented in det
 | :--- | :--- | :--- | :--- |
 | **`libqix_core`** | ISO C++17 Standard Library | Core | Zero external dependencies; native STL only |
 | **`qix_tui`** | `ncurses` / POSIX `termios` | Client (TUI) | Console drawing & raw terminal input |
-| **`qix_gui`** | `Qt6` (Gui / Widgets) | Client (GUI) | Cross-platform windowing, input & 2D rendering |
+| **`qix_qt`** | `Qt6` (Gui / Widgets) | Client (GUI) | Cross-platform windowing, input & 2D rendering |
 | **`qix_tests`** | `GoogleTest` (GTest) | Test | Unit, integration & boundary testing |
 | **Build Tooling** | `CMake >= 3.20`, `Ninja` | Build | Build orchestrator & fast compilation |
 
@@ -206,4 +206,4 @@ The system follows the **C4 Model** for software architecture (documented in det
    - Any bug fix requires a failing test committed and observed before applying the implementation fix.
 4. **Client Playability**:
    - `qix_tui` runs in standard VT100 / Linux terminal with fluid response.
-   - `qix_gui` renders at a locked 60 FPS without frame jitter or memory leaks.
+   - `qix_qt` renders at a locked 60 FPS without frame jitter or memory leaks.

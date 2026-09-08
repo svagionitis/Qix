@@ -6,7 +6,7 @@
 #include <QPainterPath>
 #include <cmath>
 
-namespace qix::gui {
+namespace qix::qt {
 
 QixCanvas::QixCanvas(QWidget* parent)
     : QWidget {parent}
@@ -459,4 +459,4 @@ void QixCanvas::drawHallOfFame(QPainter& painter, bool isGameOver)
     painter.restore();
 }
 
-} // namespace qix::gui
+} // namespace qix::qt

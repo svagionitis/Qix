@@ -2,7 +2,7 @@
 
 A high-performance, deterministic C++17 remake of the classic 1981 Taito arcade game **Qix**.
 
-The project separates core game mechanics, 2D playfield spatial partitioning, kinematic enemy simulation, and territory flood-fill evaluation into a headless static library (`libqix_core`). It provides four distinct client frontends: a **Terminal User Interface (`qix_tui`)** using ANSI/console drivers, a **Desktop Graphical Client (`qix_gui`)** powered by Qt, a **Hardware-Accelerated 2D Client (`qix_sdl`)** powered by SDL2, and a **Lightweight Vector Client (`qix_raylib`)** powered by Raylib.
+The project separates core game mechanics, 2D playfield spatial partitioning, kinematic enemy simulation, and territory flood-fill evaluation into a headless static library (`libqix_core`). It provides four distinct client frontends: a **Terminal User Interface (`qix_tui`)** using ANSI/console drivers, a **Desktop Qt Client (`qix_qt`)** powered by Qt, a **Hardware-Accelerated 2D Client (`qix_sdl`)** powered by SDL2, and a **Lightweight Vector Client (`qix_raylib`)** powered by Raylib.
 
 ---
 
@@ -23,7 +23,7 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
   - **Victory Condition**: Capturing $\ge 75\%$ of the total playable area.
 - **Quad Frontends**:
   - **Terminal Client (`qix_tui`)**: Lightweight console client with ANSI color rendering and non-blocking key polling across Linux (`termios`) and Windows console (`conio.h`).
-  - **Desktop Qt Client (`qix_gui`)**: Modern hardware-accelerated Qt client rendering neon color-cycling stick helix ribbons, glowing sparks, and real-time territory fills.
+  - **Desktop Qt Client (`qix_qt`)**: Modern hardware-accelerated Qt client rendering neon color-cycling stick helix ribbons, glowing sparks, and real-time territory fills.
   - **Desktop SDL2 Client (`qix_sdl`)**: Direct 2D hardware-accelerated SDL2 client with embedded retro arcade font, alpha blending, and zero external font asset requirements.
   - **Desktop Raylib Client (`qix_raylib`)**: Pure hardware-accelerated 2D vector client featuring additive blending (`BLEND_ADDITIVE`) for intense arcade monitor phosphor glow.
 - **Mission-Critical Code Quality**:
@@ -64,8 +64,8 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
 │   ├── CMakeLists.txt          # qix_tui executable target
 │   ├── TuiRenderer.h / .cpp    # Cross-platform ANSI/terminal rendering engine
 │   └── main.cpp                # Terminal client game loop
-├── gui/
-│   ├── CMakeLists.txt          # qix_gui executable target
+├── qt/
+│   ├── CMakeLists.txt          # qix_qt executable target
 │   ├── QixCanvas.h / .cpp      # Vector QPainter canvas with neon ribbon cycling
 │   ├── MainWindow.h / .cpp     # Desktop window and keyboard dispatcher
 │   └── main.cpp                # Qt application entry point
@@ -103,7 +103,7 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
 | **vcpkg** | Any recent version | Windows package manager (`sdl2`, `raylib`) |
 | **SDL2** | 2.0+ | Desktop SDL2 client (`BUILD_SDL=ON`) |
 | **Raylib** | 4.5+ | Desktop Raylib client (`BUILD_RAYLIB=ON`) |
-| **Qt5 / Qt6** (`Widgets`, `Gui`, `Core`) | Qt 5.15+ or Qt 6.x | Desktop GUI client (`BUILD_GUI=ON`) |
+| **Qt5 / Qt6** (`Widgets`, `Gui`, `Core`) | Qt 5.15+ or Qt 6.x | Desktop Qt client (`BUILD_QT=ON`) |
 | **GoogleTest** (`gtest`) | 1.10+ | Unit test suite (`BUILD_TESTS=ON`) |
 | **clang-format** | 12+ (optional) | Code style check & auto-formatting |
 
@@ -124,7 +124,7 @@ sudo apt-get install -y build-essential cmake ninja-build libgtest-dev qtbase5-d
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_TESTS=ON \
     -DBUILD_TUI=ON \
-    -DBUILD_GUI=ON \
+    -DBUILD_QT=ON \
     -DBUILD_SDL=ON \
     -DBUILD_RAYLIB=ON \
     -DBUILD_BENCHMARKS=ON
@@ -148,7 +148,7 @@ cmake --build build --config Release
 cmake --build build --config Release --target qix_tui     # Terminal Client
 cmake --build build --config Release --target qix_sdl     # SDL2 Arcade Client
 cmake --build build --config Release --target qix_raylib  # Raylib Neon Client
-cmake --build build --config Release --target qix_gui     # Qt Desktop Client
+cmake --build build --config Release --target qix_qt      # Qt Desktop Client
 ```
 
 ### CMake Build Options
@@ -157,7 +157,7 @@ cmake --build build --config Release --target qix_gui     # Qt Desktop Client
 | :--- | :--- | :--- |
 | `BUILD_TESTS` | `ON` | Build GoogleTest unit test suite (`bin/qix_tests`) |
 | `BUILD_TUI` | `ON` | Build Terminal ANSI client (`bin/qix_tui`) |
-| `BUILD_GUI` | `ON` | Build Desktop Qt graphical client (`bin/qix_gui`) |
+| `BUILD_QT` | `ON` | Build Desktop Qt graphical client (`bin/qix_qt`) |
 | `BUILD_SDL` | `ON` | Build Desktop SDL2 graphical client (`bin/qix_sdl`) |
 | `BUILD_RAYLIB` | `ON` | Build Desktop Raylib graphical client (`bin/qix_raylib`) |
 | `BUILD_BENCHMARKS` | `ON` | Build performance benchmark suite (`bin/qix_benchmarks`) |
@@ -186,7 +186,7 @@ You can select the ruleset mode at launch via CLI:
 
 ### Controls
 
-| Action | Terminal (`qix_tui`) | Desktop Qt (`qix_gui`) | Desktop SDL2 (`qix_sdl`) | Desktop Raylib (`qix_raylib`) |
+| Action | Terminal (`qix_tui`) | Desktop Qt (`qix_qt`) | Desktop SDL2 (`qix_sdl`) | Desktop Raylib (`qix_raylib`) |
 | :--- | :--- | :--- | :--- | :--- |
 | **Move Cursor** | `W`, `A`, `S`, `D` / Arrows | `W`, `A`, `S`, `D` / Arrows | `W`, `A`, `S`, `D` / Arrows | `W`, `A`, `S`, `D` / Arrows |
 | **Slow Draw (2x Points)** | Hold `Space` + Direction | Hold `Space` or `Ctrl` + Dir | Hold `Space` or `Ctrl` + Dir | Hold `Space` or `Ctrl` + Dir |
@@ -208,7 +208,7 @@ All client frontends support configurable startup speed and game mode via CLI fl
 ```bash
 ./build/bin/qix_raylib --delay 100 --classic # Raylib client in Classic mode
 ./build/bin/qix_sdl --delay 100 --modern     # SDL2 client in Modern mode
-./build/bin/qix_gui --mode classic           # Qt client in Classic mode
+./build/bin/qix_qt --mode classic            # Qt client in Classic mode
 ./build/bin/qix_tui --mode modern            # Terminal client in Modern mode
 ```
 
@@ -241,7 +241,7 @@ All client frontends support configurable startup speed and game mode via CLI fl
 
 ### 2. Launch Desktop Qt GUI Client
 ```bash
-./build/bin/qix_gui
+./build/bin/qix_qt
 ```
 
 ### 3. Launch Desktop SDL2 GUI Client

@@ -1,10 +1,10 @@
-#ifndef QIX_GUI_CANVAS_H
-#define QIX_GUI_CANVAS_H
+#ifndef QIX_QT_CANVAS_H
+#define QIX_QT_CANVAS_H
 
 #include "IQixGame.h"
 #include <QWidget>
 
-namespace qix::gui {
+namespace qix::qt {
 
 /// @class QixCanvas
 /// @brief Modern vector canvas rendering the Qix playfield, neon ribbons, and HUD.
@@ -40,6 +40,6 @@ private:
     void drawHallOfFame(QPainter& painter, bool isGameOver);
 };
 
-} // namespace qix::gui
+} // namespace qix::qt
 
-#endif // QIX_GUI_CANVAS_H
+#endif // QIX_QT_CANVAS_H

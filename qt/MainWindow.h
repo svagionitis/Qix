@@ -1,5 +1,5 @@
-#ifndef QIX_GUI_MAIN_WINDOW_H
-#define QIX_GUI_MAIN_WINDOW_H
+#ifndef QIX_QT_MAIN_WINDOW_H
+#define QIX_QT_MAIN_WINDOW_H
 
 #include "IQixGame.h"
 #include "QixCanvas.h"
@@ -8,7 +8,7 @@
 #include <QTimer>
 #include <memory>
 
-namespace qix::gui {
+namespace qix::qt {
 
 /// @class MainWindow
 /// @brief Main desktop window managing game loop pacing and keyboard input routing.
@@ -49,6 +49,6 @@ private:
     std::uint32_t m_delayMs {SpeedConfig::DefaultDelayMs};
 };
 
-} // namespace qix::gui
+} // namespace qix::qt
 
-#endif // QIX_GUI_MAIN_WINDOW_H
+#endif // QIX_QT_MAIN_WINDOW_H

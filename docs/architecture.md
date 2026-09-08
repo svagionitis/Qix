@@ -22,7 +22,7 @@ The System Context diagram describes the boundary of the Qix Game suite, externa
 |                    Qix Game Solution Suite                      |
 |                                                                 |
 |   +---------------------+             +---------------------+   |
-|   |   qix_tui (Client)  |             |   qix_gui (Client)  |   |
+|   |   qix_tui (Client)  |             |   qix_qt (Client)   |   |
 |   +----------+----------+             +----------+----------+   |
 |              |                                   |              |
 |              +-----------------+-----------------+              |
@@ -45,7 +45,7 @@ The System Context diagram describes the boundary of the Qix Game suite, externa
 ```mermaid
 graph TD
     UserTUI([Terminal Player]) -->|Controls & Views| TUI[qix_tui Executable]
-    UserGUI([Desktop Player]) -->|Controls & Views| GUI[qix_gui Executable]
+    UserGUI([Desktop Player]) -->|Controls & Views| GUI[qix_qt Executable]
 
     TUI -->|Links & Invokes| Core[libqix_core<br/>C++17 Headless Engine]
     GUI -->|Links & Invokes| Core
@@ -66,8 +66,8 @@ The Container diagram decomposes the system into CMake targets: the headless cor
 | Qix Repository Boundary                                                       |
 |                                                                               |
 |  +-------------------------+                     +-------------------------+  |
-|  |       qix_tui           |                     |        qix_gui          |  |
-|  | (NCurses / Terminal UI) |                     |  (Qt6 / SDL2 Desktop)   |  |
+|  |       qix_tui           |                     |        qix_qt           |  |
+|  | (NCurses / Terminal UI) |                     |   (Qt Desktop Client)   |  |
 |  +------------+------------+                     +------------+------------+  |
 |               |                                               |               |
 |               | Calls Game API & Implements IRenderer         |               |
@@ -97,7 +97,7 @@ The Container diagram decomposes the system into CMake targets: the headless cor
 graph TD
     subgraph Clients [Client Runtimes]
         TUI[qix_tui<br/>Terminal NCurses Client]
-        GUI[qix_gui<br/>Qt6 / Modern 2D GUI Client]
+        GUI[qix_qt<br/>Qt6 / Modern 2D Desktop Client]
     end
 
     subgraph Core [Core Domain]

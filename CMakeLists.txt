@@ -42,7 +42,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 # Options
 option(BUILD_TESTS "Build GoogleTest unit test suites" ON)
 option(BUILD_TUI "Build the terminal (ncurses/console) client" ON)
-option(BUILD_GUI "Build the desktop graphical client" ON)
+option(BUILD_QT "Build the Qt desktop graphical client" ON)
 option(BUILD_SDL "Build the SDL graphical client" ON)
 option(BUILD_RAYLIB "Build the Raylib graphical client" ON)
 option(BUILD_BENCHMARKS "Build the performance benchmark suite" ON)
@@ -77,9 +77,9 @@ if(BUILD_TUI)
     add_subdirectory(tui)
 endif()
 
-# GUI Client
-if(BUILD_GUI)
-    add_subdirectory(gui)
+# Qt Client
+if(BUILD_QT)
+    add_subdirectory(qt)
 endif()
 
 # SDL Client
@@ -102,8 +102,8 @@ if(CLANG_FORMAT_BIN)
         ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/tui/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/tui/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/gui/*.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/gui/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/qt/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/qt/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/sdl/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/sdl/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/raylib/*.h
