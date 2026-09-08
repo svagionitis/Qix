@@ -11,6 +11,7 @@ int main(int argc, char* argv[])
 {
     std::uint32_t delayMs = qix::SpeedConfig::parseSpeedArgs(argc, argv, 40U);
     const auto mode = qix::GameConfig::parseGameMode(argc, argv);
+    const auto palette = qix::GameConfig::parsePaletteFlag(argc, argv);
 
     bool brailleMode = true;
     bool truecolor = true;
@@ -55,6 +56,7 @@ int main(int argc, char* argv[])
     renderer.setBrailleMode(brailleMode);
     renderer.setTruecolor(truecolor);
     renderer.setDifferentialUpdates(diffUpdates);
+    renderer.setPalette(palette);
 
     renderer.init();
 
@@ -87,8 +89,8 @@ int main(int argc, char* argv[])
                 }
             } else if (action == qix::tui::TuiAction::CharInput || action == qix::tui::TuiAction::Quit
                 || action == qix::tui::TuiAction::Restart || action == qix::tui::TuiAction::ToggleBraille
-                || action == qix::tui::TuiAction::ToggleTruecolor || action == qix::tui::TuiAction::DisengageDraw
-                || cmd.drawMode == qix::DrawMode::Fast) {
+                || action == qix::tui::TuiAction::ToggleTruecolor || action == qix::tui::TuiAction::CyclePalette
+                || action == qix::tui::TuiAction::DisengageDraw || cmd.drawMode == qix::DrawMode::Fast) {
                 const char typed = renderer.getTypedChar();
                 if (typed != 0) {
                     game->inputInitialsChar(typed);
@@ -120,6 +122,12 @@ int main(int argc, char* argv[])
 
         if (action == qix::tui::TuiAction::ToggleTruecolor) {
             renderer.toggleTruecolor();
+            renderer.render(game->getView(), delayMs);
+            continue;
+        }
+
+        if (action == qix::tui::TuiAction::CyclePalette) {
+            renderer.cyclePalette();
             renderer.render(game->getView(), delayMs);
             continue;
         }

@@ -95,3 +95,25 @@ TEST(GameConfigTest, ParseAudioFlags)
     EXPECT_TRUE(qix::GameConfig::parseAudioFlag(2, argv));
     EXPECT_FALSE(qix::GameConfig::parseAudioFlag(0, nullptr));
 }
+
+TEST(GameConfigTest, ParsePaletteFlags)
+{
+    EXPECT_EQ(qix::GameConfig::parsePaletteFlag({}), qix::PaletteId::Classic);
+    EXPECT_EQ(qix::GameConfig::parsePaletteFlag({}, qix::PaletteId::Amber), qix::PaletteId::Amber);
+
+    EXPECT_EQ(qix::GameConfig::parsePaletteFlag({"--palette=synthwave"}), qix::PaletteId::Synthwave);
+    EXPECT_EQ(qix::GameConfig::parsePaletteFlag({"--palette", "green"}), qix::PaletteId::Green);
+    EXPECT_EQ(qix::GameConfig::parsePaletteFlag({"-p", "amber"}), qix::PaletteId::Amber);
+    EXPECT_EQ(qix::GameConfig::parsePaletteFlag({"-p=synthwave"}), qix::PaletteId::Synthwave);
+
+    EXPECT_EQ(qix::GameConfig::parsePaletteFlag({"--neon"}), qix::PaletteId::Synthwave);
+    EXPECT_EQ(qix::GameConfig::parsePaletteFlag({"--amber"}), qix::PaletteId::Amber);
+    EXPECT_EQ(qix::GameConfig::parsePaletteFlag({"--green"}), qix::PaletteId::Green);
+
+    char arg0[] = "qix_app";
+    char arg1[] = "-p";
+    char arg2[] = "amber";
+    char* argv[] = {arg0, arg1, arg2, nullptr};
+    EXPECT_EQ(qix::GameConfig::parsePaletteFlag(3, argv), qix::PaletteId::Amber);
+    EXPECT_EQ(qix::GameConfig::parsePaletteFlag(0, nullptr), qix::PaletteId::Classic);
+}

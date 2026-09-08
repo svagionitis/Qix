@@ -3,6 +3,8 @@ add_library(qix_core STATIC
     ArcadeAudio.h
     CollisionDetector.cpp
     CollisionDetector.h
+    ColorPalette.cpp
+    ColorPalette.h
     Fuse.cpp
     Fuse.h
     GameConfig.cpp

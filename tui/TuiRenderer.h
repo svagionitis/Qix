@@ -1,4 +1,5 @@
 #pragma once
+#include "ColorPalette.h"
 #include "IQixGame.h"
 #include <cstdint>
 #include <string>
@@ -24,6 +25,7 @@ enum class TuiAction : std::uint8_t {
     Confirm,
     ToggleBraille,
     ToggleTruecolor,
+    CyclePalette,
     Resize,
     CharInput,
     Backspace
@@ -86,6 +88,17 @@ public:
     /// @brief Toggle 24-bit Truecolor mode on/off.
     void toggleTruecolor() noexcept;
 
+    /// @brief Set active visual color palette theme.
+    /// @param[in] id Palette identifier.
+    void setPalette(PaletteId id) noexcept;
+
+    /// @brief Get active visual color palette theme identifier.
+    /// @return Active PaletteId.
+    [[nodiscard]] PaletteId getPalette() const noexcept;
+
+    /// @brief Cycle to next color palette theme.
+    void cyclePalette() noexcept;
+
     /// @brief Enable or disable flicker-free differential screen updates.
     /// @param[in] enabled True to emit only modified lines, false for full redraws.
     void setDifferentialUpdates(bool enabled) noexcept;
@@ -116,6 +129,7 @@ private:
     bool m_brailleMode {true};
     bool m_truecolor {true};
     bool m_differentialUpdates {true};
+    PaletteId m_paletteId {PaletteId::Classic};
     char m_typedChar {0};
     std::uint32_t m_colorCycle {0};
     TerminalSize m_lastTermSize {0, 0};

@@ -4,6 +4,13 @@
 #include <cmath>
 #include <cstdio>
 
+namespace {
+[[nodiscard]] constexpr SDL_Color toSdl(qix::PaletteColor c) noexcept
+{
+    return SDL_Color {c.r, c.g, c.b, c.a};
+}
+} // namespace
+
 namespace qix::sdl {
 
 bool SdlRenderer::init(const std::string& title, int width, int height) noexcept
@@ -66,6 +73,21 @@ void SdlRenderer::toggleCrt() noexcept
     m_crtEnabled = !m_crtEnabled;
 }
 
+void SdlRenderer::setPalette(PaletteId id) noexcept
+{
+    m_paletteId = id;
+}
+
+PaletteId SdlRenderer::getPalette() const noexcept
+{
+    return m_paletteId;
+}
+
+void SdlRenderer::cyclePalette() noexcept
+{
+    m_paletteId = ColorPalette::next(m_paletteId);
+}
+
 void SdlRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
 {
     if (!m_renderer) {
@@ -74,6 +96,7 @@ void SdlRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
 
     const int screenW = getWidth();
     const int screenH = getHeight();
+    const auto& theme = ColorPalette::get(m_paletteId);
 
     if (m_crtEnabled) {
         if (!m_sceneTexture || m_textureWidth != screenW || m_textureHeight != screenH) {
@@ -91,8 +114,9 @@ void SdlRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
         }
     }
 
-    // 1. Clear background (#0b0f19)
-    SDL_SetRenderDrawColor(m_renderer.get(), 11, 15, 25, 255);
+    // 1. Clear background
+    SDL_SetRenderDrawColor(
+        m_renderer.get(), theme.background.r, theme.background.g, theme.background.b, theme.background.a);
     SDL_RenderClear(m_renderer.get());
 
     // 2. Top HUD Bar
@@ -124,8 +148,10 @@ void SdlRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
 
 void SdlRenderer::applyCrtFilter(int width, int height) noexcept
 {
+    const auto& theme = ColorPalette::get(m_paletteId);
     // Clear backbuffer
-    SDL_SetRenderDrawColor(m_renderer.get(), 5, 8, 15, 255);
+    SDL_SetRenderDrawColor(
+        m_renderer.get(), theme.crtBackdrop.r, theme.crtBackdrop.g, theme.crtBackdrop.b, theme.crtBackdrop.a);
     SDL_RenderClear(m_renderer.get());
 
     // 1. Draw base game scene
@@ -189,38 +215,39 @@ void SdlRenderer::present() noexcept
 void SdlRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noexcept
 {
     const int screenW = getWidth();
+    const auto& theme = ColorPalette::get(m_paletteId);
 
-    // HUD background bar (#121826)
+    // HUD background bar
     SDL_Rect hudRect {0, 0, screenW, 45};
-    SDL_SetRenderDrawColor(m_renderer.get(), 18, 24, 38, 255);
+    SDL_SetRenderDrawColor(m_renderer.get(), theme.hudBg.r, theme.hudBg.g, theme.hudBg.b, 255);
     SDL_RenderFillRect(m_renderer.get(), &hudRect);
 
-    // Bottom border line (#232d44)
-    SDL_SetRenderDrawColor(m_renderer.get(), 35, 45, 68, 255);
+    // Bottom border line
+    SDL_SetRenderDrawColor(m_renderer.get(), theme.hudBorder.r, theme.hudBorder.g, theme.hudBorder.b, 255);
     SDL_RenderDrawLine(m_renderer.get(), 0, 45, screenW, 45);
 
-    const SDL_Color labelColor {160, 174, 192, 255};
-    const SDL_Color yellowColor {246, 224, 94, 255};
-    const SDL_Color cyanColor {99, 179, 237, 255};
-    const SDL_Color greenColor {72, 187, 120, 255};
-    const SDL_Color purpleColor {183, 148, 244, 255};
-    const SDL_Color speedColor {56, 178, 172, 255};
-    const SDL_Color redColor {245, 101, 101, 255};
+    const SDL_Color labelColor = toSdl(theme.textLabel);
+    const SDL_Color valueColor = toSdl(theme.textValue);
+    const SDL_Color accentColor = toSdl(theme.textAccent);
+    const SDL_Color greenColor = toSdl(theme.progressBarTarget);
+    const SDL_Color redColor = toSdl(theme.markerDiamond);
+    const SDL_Color speedColor = accentColor;
+    const SDL_Color purpleColor = valueColor;
 
     // 1. SCORE
     BitmapFont::drawText(m_renderer.get(), "SCORE:", 15, 18, 1, labelColor);
-    BitmapFont::drawText(m_renderer.get(), std::to_string(stats.score), 70, 18, 1, yellowColor);
+    BitmapFont::drawText(m_renderer.get(), std::to_string(stats.score), 70, 18, 1, valueColor);
 
     // HIGH SCORE
     BitmapFont::drawText(m_renderer.get(), "HI:", 135, 18, 1, labelColor);
-    BitmapFont::drawText(m_renderer.get(), std::to_string(stats.highScore), 165, 18, 1, SDL_Color {250, 204, 21, 255});
+    BitmapFont::drawText(m_renderer.get(), std::to_string(stats.highScore), 165, 18, 1, valueColor);
 
     // 2. CLAIMED %
     BitmapFont::drawText(m_renderer.get(), "CLAIM:", 240, 18, 1, labelColor);
     const std::string claimStr
         = std::to_string(stats.claimedPercent) + "% / " + std::to_string(stats.targetPercent) + "%";
     BitmapFont::drawText(
-        m_renderer.get(), claimStr, 295, 18, 1, stats.claimedPercent >= stats.targetPercent ? greenColor : cyanColor);
+        m_renderer.get(), claimStr, 295, 18, 1, stats.claimedPercent >= stats.targetPercent ? greenColor : accentColor);
 
     // 3. Progress Bar
     const int barX = 390;
@@ -228,7 +255,7 @@ void SdlRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noexcep
     const int barW = 80;
     const int barH = 14;
     SDL_Rect bgBar {barX, barY, barW, barH};
-    SDL_SetRenderDrawColor(m_renderer.get(), 30, 41, 59, 255);
+    SDL_SetRenderDrawColor(m_renderer.get(), theme.progressBarBg.r, theme.progressBarBg.g, theme.progressBarBg.b, 255);
     SDL_RenderFillRect(m_renderer.get(), &bgBar);
 
     const int fillW = std::min(barW, (barW * static_cast<int>(stats.claimedPercent)) / 100);
@@ -236,7 +263,8 @@ void SdlRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noexcep
     if (stats.claimedPercent >= stats.targetPercent) {
         SDL_SetRenderDrawColor(m_renderer.get(), greenColor.r, greenColor.g, greenColor.b, 255);
     } else {
-        SDL_SetRenderDrawColor(m_renderer.get(), 59, 130, 246, 255);
+        SDL_SetRenderDrawColor(
+            m_renderer.get(), theme.progressBarFill.r, theme.progressBarFill.g, theme.progressBarFill.b, 255);
     }
     SDL_RenderFillRect(m_renderer.get(), &fillBar);
 
@@ -249,7 +277,7 @@ void SdlRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noexcep
     // 5. TIME
     const auto secondsRemaining = (stats.timeRemainingMs + 999U) / 1000U;
     const SDL_Color timerColor
-        = (stats.timeUp || secondsRemaining <= 10U) ? redColor : ((secondsRemaining <= 20U) ? yellowColor : greenColor);
+        = (stats.timeUp || secondsRemaining <= 10U) ? redColor : ((secondsRemaining <= 20U) ? valueColor : greenColor);
     BitmapFont::drawText(m_renderer.get(), "TIME:", screenW - 365, 18, 1, labelColor);
     BitmapFont::drawText(m_renderer.get(), std::to_string(secondsRemaining) + "s", screenW - 320, 18, 1, timerColor);
 
@@ -257,7 +285,7 @@ void SdlRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noexcep
     if (stats.multiplier > 1) {
         BitmapFont::drawText(m_renderer.get(), "MULT:", screenW - 265, 18, 1, labelColor);
         BitmapFont::drawText(
-            m_renderer.get(), std::to_string(stats.multiplier) + "X", screenW - 220, 18, 1, yellowColor);
+            m_renderer.get(), std::to_string(stats.multiplier) + "X", screenW - 220, 18, 1, valueColor);
 
         BitmapFont::drawText(m_renderer.get(), "SPD:", screenW - 165, 18, 1, labelColor);
         BitmapFont::drawText(m_renderer.get(), std::to_string(delayMs) + "ms", screenW - 125, 18, 1, speedColor);
@@ -281,6 +309,7 @@ void SdlRenderer::drawPlayfield(const Playfield& playfield, const SDL_Rect& fiel
         return;
     }
 
+    const auto& theme = ColorPalette::get(m_paletteId);
     const double cellW = static_cast<double>(fieldRect.w) / gridW;
     const double cellH = static_cast<double>(fieldRect.h) / gridH;
 
@@ -295,16 +324,20 @@ void SdlRenderer::drawPlayfield(const Playfield& playfield, const SDL_Rect& fiel
                 static_cast<int>(cellW + 0.99), static_cast<int>(cellH + 0.99)};
 
             if (state == CellState::Border) {
-                SDL_SetRenderDrawColor(m_renderer.get(), 59, 130, 246, 255);
+                SDL_SetRenderDrawColor(m_renderer.get(), theme.playfieldBorder.r, theme.playfieldBorder.g,
+                    theme.playfieldBorder.b, theme.playfieldBorder.a);
                 SDL_RenderFillRect(m_renderer.get(), &cellRect);
             } else if (state == CellState::ClaimedSlow) {
-                SDL_SetRenderDrawColor(m_renderer.get(), 14, 116, 144, 200);
+                SDL_SetRenderDrawColor(m_renderer.get(), theme.claimedSlow.r, theme.claimedSlow.g, theme.claimedSlow.b,
+                    theme.claimedSlow.a);
                 SDL_RenderFillRect(m_renderer.get(), &cellRect);
             } else if (state == CellState::ClaimedFast) {
-                SDL_SetRenderDrawColor(m_renderer.get(), 180, 83, 9, 200);
+                SDL_SetRenderDrawColor(m_renderer.get(), theme.claimedFast.r, theme.claimedFast.g, theme.claimedFast.b,
+                    theme.claimedFast.a);
                 SDL_RenderFillRect(m_renderer.get(), &cellRect);
             } else if (state == CellState::ActiveStix) {
-                SDL_SetRenderDrawColor(m_renderer.get(), 255, 255, 255, 255);
+                SDL_SetRenderDrawColor(
+                    m_renderer.get(), theme.activeStix.r, theme.activeStix.g, theme.activeStix.b, theme.activeStix.a);
                 SDL_RenderFillRect(m_renderer.get(), &cellRect);
             }
         }
@@ -316,6 +349,7 @@ void SdlRenderer::drawQixRibbons(
 {
     const double cellW = static_cast<double>(fieldRect.w) / 80.0;
     const double cellH = static_cast<double>(fieldRect.h) / 60.0;
+    const auto& theme = ColorPalette::get(m_paletteId);
 
     for (const auto& ribbon : ribbons) {
         if (ribbon.empty()) {
@@ -331,12 +365,26 @@ void SdlRenderer::drawQixRibbons(
             const int x2 = static_cast<int>(fieldRect.x + (seg.end.x + 0.5) * cellW);
             const int y2 = static_cast<int>(fieldRect.y + (seg.end.y + 0.5) * cellH);
 
-            const int hue
-                = static_cast<int>((m_colorCycle * 5 + segIndex * (360 / std::max<std::size_t>(1, totalSegs))) % 360);
             const auto alpha = static_cast<std::uint8_t>(
                 255 - static_cast<int>((segIndex * 180) / std::max<std::size_t>(1, totalSegs)));
 
-            const SDL_Color lineColor = hsvToRgb(hue, 0.85, 1.0, alpha);
+            SDL_Color lineColor;
+            if (theme.ribbonMode == RibbonColorMode::NeonGradient) {
+                const int hue = static_cast<int>((m_colorCycle * 4 + segIndex * 15) % 120 + 280) % 360;
+                lineColor = hsvToRgb(hue, 0.9, 1.0, alpha);
+            } else if (theme.ribbonMode == RibbonColorMode::MonochromeAmber) {
+                const auto val
+                    = static_cast<double>(255 - (segIndex * 140) / std::max<std::size_t>(1, totalSegs)) / 255.0;
+                lineColor = hsvToRgb(38, 0.95, val, alpha);
+            } else if (theme.ribbonMode == RibbonColorMode::MonochromeGreen) {
+                const auto val
+                    = static_cast<double>(255 - (segIndex * 140) / std::max<std::size_t>(1, totalSegs)) / 255.0;
+                lineColor = hsvToRgb(142, 0.95, val, alpha);
+            } else {
+                const int hue = static_cast<int>(
+                    (m_colorCycle * 5 + segIndex * (360 / std::max<std::size_t>(1, totalSegs))) % 360);
+                lineColor = hsvToRgb(hue, 0.85, 1.0, alpha);
+            }
             drawThickLine(x1, y1, x2, y2, (segIndex == 0) ? 3 : 2, lineColor);
 
             ++segIndex;
@@ -348,16 +396,18 @@ void SdlRenderer::drawEntities(const GameView& view, const SDL_Rect& fieldRect) 
 {
     const double cellW = static_cast<double>(fieldRect.w) / 80.0;
     const double cellH = static_cast<double>(fieldRect.h) / 60.0;
+    const auto& theme = ColorPalette::get(m_paletteId);
 
     // 1. Active Stix Trail
     if (view.stixTrail.size() >= 2) {
-        SDL_SetRenderDrawColor(m_renderer.get(), 255, 255, 255, 255);
+        SDL_SetRenderDrawColor(
+            m_renderer.get(), theme.activeStix.r, theme.activeStix.g, theme.activeStix.b, theme.activeStix.a);
         for (std::size_t i = 1; i < view.stixTrail.size(); ++i) {
             const int x1 = static_cast<int>(fieldRect.x + (view.stixTrail[i - 1].x + 0.5) * cellW);
             const int y1 = static_cast<int>(fieldRect.y + (view.stixTrail[i - 1].y + 0.5) * cellH);
             const int x2 = static_cast<int>(fieldRect.x + (view.stixTrail[i].x + 0.5) * cellW);
             const int y2 = static_cast<int>(fieldRect.y + (view.stixTrail[i].y + 0.5) * cellH);
-            drawThickLine(x1, y1, x2, y2, 2, SDL_Color {255, 255, 255, 255});
+            drawThickLine(x1, y1, x2, y2, 2, toSdl(theme.activeStix));
         }
     }
 
@@ -367,18 +417,17 @@ void SdlRenderer::drawEntities(const GameView& view, const SDL_Rect& fieldRect) 
             const int cx = static_cast<int>(fieldRect.x + (sp.position.x + 0.5) * cellW);
             const int cy = static_cast<int>(fieldRect.y + (sp.position.y + 0.5) * cellH);
             if (sp.isSuper) {
-                // Super Sparx: outer cyan diamond with bright white center
-                drawFilledDiamond(cx, cy, 7, SDL_Color {56, 189, 248, 255});
+                drawFilledDiamond(cx, cy, 7, toSdl(theme.superSparx));
                 drawFilledDiamond(cx, cy, 4, SDL_Color {255, 255, 255, 255});
             } else {
-                drawFilledDiamond(cx, cy, 6, SDL_Color {236, 72, 153, 255});
+                drawFilledDiamond(cx, cy, 6, toSdl(theme.sparx));
             }
         }
     } else {
         for (const auto& sp : view.sparxPositions) {
             const int cx = static_cast<int>(fieldRect.x + (sp.x + 0.5) * cellW);
             const int cy = static_cast<int>(fieldRect.y + (sp.y + 0.5) * cellH);
-            drawFilledDiamond(cx, cy, 6, SDL_Color {236, 72, 153, 255});
+            drawFilledDiamond(cx, cy, 6, toSdl(theme.sparx));
         }
     }
 
@@ -388,17 +437,15 @@ void SdlRenderer::drawEntities(const GameView& view, const SDL_Rect& fieldRect) 
         const int cx = static_cast<int>(fieldRect.x + (fp.x + 0.5) * cellW);
         const int cy = static_cast<int>(fieldRect.y + (fp.y + 0.5) * cellH);
 
-        // Burning spark: outer yellow, inner red
-        drawFilledDiamond(cx, cy, 6, SDL_Color {254, 240, 138, 255});
-        drawFilledDiamond(cx, cy, 3, SDL_Color {239, 68, 68, 255});
+        drawFilledDiamond(cx, cy, 6, toSdl(theme.textValue));
+        drawFilledDiamond(cx, cy, 3, toSdl(theme.fuse));
     }
 
     // 4. Player Marker
     const int mx = static_cast<int>(fieldRect.x + (view.markerPos.x + 0.5) * cellW);
     const int my = static_cast<int>(fieldRect.y + (view.markerPos.y + 0.5) * cellH);
 
-    const SDL_Color markerColor
-        = (view.drawMode != DrawMode::None) ? SDL_Color {250, 204, 21, 255} : SDL_Color {243, 244, 246, 255};
+    const SDL_Color markerColor = (view.drawMode != DrawMode::None) ? toSdl(theme.textValue) : toSdl(theme.marker);
     drawFilledDiamond(mx, my, 7, markerColor);
 }
 

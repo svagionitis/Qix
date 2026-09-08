@@ -94,22 +94,56 @@ TEST(TuiInputTest, SpeedControlsDoNotUseBrackets)
     TuiRenderer renderer {};
     TuiAction action {TuiAction::None};
 
-    renderer.processInput("-", action);
+    (void)renderer.processInput("-", action);
     EXPECT_EQ(action, TuiAction::SpeedDown);
 
-    renderer.processInput("+", action);
+    (void)renderer.processInput("+", action);
     EXPECT_EQ(action, TuiAction::SpeedUp);
 
-    renderer.processInput("_", action);
+    (void)renderer.processInput("_", action);
     EXPECT_EQ(action, TuiAction::SpeedDown);
 
-    renderer.processInput("=", action);
+    (void)renderer.processInput("=", action);
     EXPECT_EQ(action, TuiAction::SpeedUp);
 
     // Standalone brackets should NOT adjust speed
-    renderer.processInput("[", action);
+    (void)renderer.processInput("[", action);
     EXPECT_NE(action, TuiAction::SpeedDown);
 
-    renderer.processInput("]", action);
+    (void)renderer.processInput("]", action);
     EXPECT_NE(action, TuiAction::SpeedUp);
+}
+
+TEST(TuiInputTest, PaletteThemeInputAndCycling)
+{
+    TuiRenderer renderer {};
+    EXPECT_EQ(renderer.getPalette(), PaletteId::Classic);
+
+    renderer.setPalette(PaletteId::Synthwave);
+    EXPECT_EQ(renderer.getPalette(), PaletteId::Synthwave);
+
+    renderer.cyclePalette();
+    EXPECT_EQ(renderer.getPalette(), PaletteId::Amber);
+
+    renderer.cyclePalette();
+    EXPECT_EQ(renderer.getPalette(), PaletteId::Green);
+
+    renderer.cyclePalette();
+    EXPECT_EQ(renderer.getPalette(), PaletteId::Classic);
+
+    TuiAction action {TuiAction::None};
+
+    (void)renderer.processInput("p", action);
+    EXPECT_EQ(action, TuiAction::CyclePalette);
+
+    (void)renderer.processInput("P", action);
+    EXPECT_EQ(action, TuiAction::CyclePalette);
+
+    // F4 SS3 escape sequence: \033OS
+    (void)renderer.processInput("\033OS", action);
+    EXPECT_EQ(action, TuiAction::CyclePalette);
+
+    // F4 VT220 escape sequence: \033[14~
+    (void)renderer.processInput("\033[14~", action);
+    EXPECT_EQ(action, TuiAction::CyclePalette);
 }

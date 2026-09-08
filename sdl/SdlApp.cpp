@@ -3,11 +3,13 @@
 
 namespace qix::sdl {
 
-SdlApp::SdlApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bool crtEnabled, bool audioEnabled) noexcept
+SdlApp::SdlApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bool crtEnabled, bool audioEnabled,
+    PaletteId palette) noexcept
     : m_game {std::move(game)}
     , m_delayMs {SpeedConfig::clampDelay(delayMs)}
 {
     m_renderer.setCrtEnabled(crtEnabled);
+    m_renderer.setPalette(palette);
     m_audio.setMuted(!audioEnabled);
 }
 
@@ -105,6 +107,21 @@ bool SdlApp::isAudioEnabled() const noexcept
 void SdlApp::toggleAudio() noexcept
 {
     m_audio.toggleMute();
+}
+
+void SdlApp::setPalette(PaletteId id) noexcept
+{
+    m_renderer.setPalette(id);
+}
+
+PaletteId SdlApp::getPalette() const noexcept
+{
+    return m_renderer.getPalette();
+}
+
+void SdlApp::cyclePalette() noexcept
+{
+    m_renderer.cyclePalette();
 }
 
 void SdlApp::sdlAudioCallback(void* userdata, Uint8* stream, int len) noexcept
@@ -242,6 +259,9 @@ void SdlApp::processEvents(bool& running) noexcept
             case SDLK_m:
             case SDLK_F3:
                 toggleAudio();
+                break;
+            case SDLK_F4:
+                cyclePalette();
                 break;
             case SDLK_ESCAPE:
                 running = false;

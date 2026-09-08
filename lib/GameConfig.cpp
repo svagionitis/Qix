@@ -124,4 +124,46 @@ bool GameConfig::parseAudioFlag(int argc, char* const argv[], bool defaultAudio)
     return parseAudioFlag(args, defaultAudio);
 }
 
+PaletteId GameConfig::parsePaletteFlag(const std::vector<std::string>& args, PaletteId defaultPalette) noexcept
+{
+    PaletteId palette {defaultPalette};
+
+    for (std::size_t i {0}; i < args.size(); ++i) {
+        const auto arg = toLower(args[i]);
+
+        if (arg.rfind("--palette=", 0) == 0) {
+            palette = ColorPalette::fromName(arg.substr(10), palette);
+        } else if (arg.rfind("-p=", 0) == 0) {
+            palette = ColorPalette::fromName(arg.substr(3), palette);
+        } else if ((arg == "--palette" || arg == "-p") && i + 1 < args.size()) {
+            palette = ColorPalette::fromName(args[++i], palette);
+        } else if (arg == "--classic") {
+            // Note: --classic could be game mode or palette, but if specified standalone it fits both
+            palette = PaletteId::Classic;
+        } else if (arg == "--synthwave" || arg == "--cyberpunk" || arg == "--neon") {
+            palette = PaletteId::Synthwave;
+        } else if (arg == "--amber" || arg == "--p3") {
+            palette = PaletteId::Amber;
+        } else if (arg == "--green" || arg == "--p1") {
+            palette = PaletteId::Green;
+        }
+    }
+
+    return palette;
+}
+
+PaletteId GameConfig::parsePaletteFlag(int argc, char* const argv[], PaletteId defaultPalette) noexcept
+{
+    std::vector<std::string> args {};
+    if (argc > 1 && argv != nullptr) {
+        args.reserve(static_cast<std::size_t>(argc - 1));
+        for (int i {1}; i < argc; ++i) {
+            if (argv[i] != nullptr) {
+                args.emplace_back(argv[i]);
+            }
+        }
+    }
+    return parsePaletteFlag(args, defaultPalette);
+}
+
 } // namespace qix

@@ -1,4 +1,5 @@
 #pragma once
+#include "ColorPalette.h"
 #include "Types.h"
 #include <string>
 #include <vector>
@@ -57,6 +58,21 @@ public:
     /// @param[in] defaultAudio Fallback value if flag is absent (default: false).
     /// @return True if audio output is enabled, false otherwise.
     [[nodiscard]] static bool parseAudioFlag(const std::vector<std::string>& args, bool defaultAudio = false) noexcept;
+
+    /// @brief Parse color palette from command line arguments (--palette=<name>, -p <name>).
+    /// @param[in] argc Argument count.
+    /// @param[in] argv Argument array.
+    /// @param[in] defaultPalette Fallback palette if flag is absent (default: PaletteId::Classic).
+    /// @return Configured PaletteId.
+    [[nodiscard]] static PaletteId parsePaletteFlag(
+        int argc, char* const argv[], PaletteId defaultPalette = PaletteId::Classic) noexcept;
+
+    /// @brief Parse color palette from a vector of argument strings.
+    /// @param[in] args Vector of command line argument strings.
+    /// @param[in] defaultPalette Fallback palette if flag is absent (default: PaletteId::Classic).
+    /// @return Configured PaletteId.
+    [[nodiscard]] static PaletteId parsePaletteFlag(
+        const std::vector<std::string>& args, PaletteId defaultPalette = PaletteId::Classic) noexcept;
 };
 
 } // namespace qix

@@ -3,6 +3,13 @@
 #include <algorithm>
 #include <cstdio>
 
+namespace {
+[[nodiscard]] constexpr Color toRaylib(qix::PaletteColor c) noexcept
+{
+    return Color {c.r, c.g, c.b, c.a};
+}
+} // namespace
+
 namespace qix::raylib {
 
 RaylibRenderer::~RaylibRenderer()
@@ -13,7 +20,23 @@ RaylibRenderer::~RaylibRenderer()
     }
     if (m_initialized) {
         CloseWindow();
+        m_initialized = false;
     }
+}
+
+void RaylibRenderer::setPalette(PaletteId id) noexcept
+{
+    m_paletteId = id;
+}
+
+PaletteId RaylibRenderer::getPalette() const noexcept
+{
+    return m_paletteId;
+}
+
+void RaylibRenderer::cyclePalette() noexcept
+{
+    m_paletteId = ColorPalette::next(m_paletteId);
 }
 
 bool RaylibRenderer::init(const std::string& title, int width, int height) noexcept
@@ -67,8 +90,10 @@ void RaylibRenderer::render(const GameView& view, std::uint32_t delayMs) noexcep
         BeginDrawing();
     }
 
-    // 1. Clear background (#0b0f19)
-    ClearBackground(Color {11, 15, 25, 255});
+    const auto& theme = ColorPalette::get(m_paletteId);
+
+    // 1. Clear background
+    ClearBackground(toRaylib(theme.background));
 
     // 2. Render Top HUD Bar
     drawHud(view.stats, delayMs);
@@ -93,7 +118,7 @@ void RaylibRenderer::render(const GameView& view, std::uint32_t delayMs) noexcep
         EndTextureMode();
 
         BeginDrawing();
-        ClearBackground(Color {5, 8, 15, 255});
+        ClearBackground(toRaylib(theme.crtBackdrop));
         applyCrtFilter(screenW, screenH);
         EndDrawing();
     } else {
@@ -155,46 +180,47 @@ void RaylibRenderer::applyCrtFilter(int width, int height) noexcept
 void RaylibRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noexcept
 {
     const int screenW = GetScreenWidth();
+    const auto& theme = ColorPalette::get(m_paletteId);
 
-    // Top status bar background (#121826)
-    DrawRectangle(0, 0, screenW, 45, Color {18, 24, 38, 255});
-    DrawLine(0, 45, screenW, 45, Color {35, 45, 68, 255});
+    // Top status bar background
+    DrawRectangle(0, 0, screenW, 45, toRaylib(theme.hudBg));
+    DrawLine(0, 45, screenW, 45, toRaylib(theme.hudBorder));
 
-    const Color labelColor {160, 174, 192, 255};
-    const Color yellowColor {246, 224, 94, 255};
-    const Color cyanColor {99, 179, 237, 255};
-    const Color greenColor {72, 187, 120, 255};
-    const Color purpleColor {183, 148, 244, 255};
-    const Color speedColor {56, 178, 172, 255};
-    const Color redColor {245, 101, 101, 255};
+    const Color labelColor = toRaylib(theme.textLabel);
+    const Color valueColor = toRaylib(theme.textValue);
+    const Color accentColor = toRaylib(theme.textAccent);
+    const Color greenColor = toRaylib(theme.progressBarTarget);
+    const Color redColor = toRaylib(theme.markerDiamond);
+    const Color purpleColor = valueColor;
+    const Color speedColor = accentColor;
 
     const int fontSize = 16;
     const int textY = 15;
 
     // 1. SCORE
     DrawText("SCORE:", 15, textY, fontSize, labelColor);
-    DrawText(std::to_string(stats.score).c_str(), 72, textY, fontSize, yellowColor);
+    DrawText(std::to_string(stats.score).c_str(), 72, textY, fontSize, valueColor);
 
     // HIGH
     DrawText("HIGH:", 135, textY, fontSize, labelColor);
-    DrawText(std::to_string(stats.highScore).c_str(), 180, textY, fontSize, Color {250, 204, 21, 255});
+    DrawText(std::to_string(stats.highScore).c_str(), 180, textY, fontSize, valueColor);
 
     // 2. CLAIMED %
     DrawText("CLAIM:", 255, textY, fontSize, labelColor);
     const std::string claimStr
         = std::to_string(stats.claimedPercent) + "% / " + std::to_string(stats.targetPercent) + "%";
     DrawText(
-        claimStr.c_str(), 310, textY, fontSize, stats.claimedPercent >= stats.targetPercent ? greenColor : cyanColor);
+        claimStr.c_str(), 310, textY, fontSize, stats.claimedPercent >= stats.targetPercent ? greenColor : accentColor);
 
     // 3. Progress Bar
     const int barX = 405;
     const int barY = 16;
     const int barW = 75;
     const int barH = 14;
-    DrawRectangle(barX, barY, barW, barH, Color {30, 41, 59, 255});
+    DrawRectangle(barX, barY, barW, barH, toRaylib(theme.progressBarBg));
     const int fillW = std::min(barW, (barW * static_cast<int>(stats.claimedPercent)) / 100);
-    DrawRectangle(
-        barX, barY, fillW, barH, stats.claimedPercent >= stats.targetPercent ? greenColor : Color {59, 130, 246, 255});
+    DrawRectangle(barX, barY, fillW, barH,
+        stats.claimedPercent >= stats.targetPercent ? greenColor : toRaylib(theme.progressBarFill));
 
     // 4. LIVES
     DrawText("LIVES:", 495, textY, fontSize, labelColor);
@@ -205,7 +231,7 @@ void RaylibRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noex
     // 5. TIME
     const auto secondsRemaining = (stats.timeRemainingMs + 999U) / 1000U;
     const Color timerColor
-        = (stats.timeUp || secondsRemaining <= 10U) ? redColor : ((secondsRemaining <= 20U) ? yellowColor : greenColor);
+        = (stats.timeUp || secondsRemaining <= 10U) ? redColor : ((secondsRemaining <= 20U) ? valueColor : greenColor);
     DrawText("TIME:", screenW - 365, textY, fontSize, labelColor);
     const std::string timeStr = std::to_string(secondsRemaining) + "s";
     DrawText(timeStr.c_str(), screenW - 320, textY, fontSize, timerColor);
@@ -214,7 +240,7 @@ void RaylibRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noex
     if (stats.multiplier > 1) {
         DrawText("MULT:", screenW - 265, textY, fontSize, labelColor);
         const std::string multStr = std::to_string(stats.multiplier) + "X";
-        DrawText(multStr.c_str(), screenW - 220, textY, fontSize, yellowColor);
+        DrawText(multStr.c_str(), screenW - 220, textY, fontSize, valueColor);
 
         DrawText("SPD:", screenW - 165, textY, fontSize, labelColor);
         const std::string speedStr = std::to_string(delayMs) + "ms";
@@ -240,6 +266,7 @@ void RaylibRenderer::drawPlayfield(const Playfield& playfield, const Rectangle& 
         return;
     }
 
+    const auto& theme = ColorPalette::get(m_paletteId);
     const float cellW = fieldRect.width / static_cast<float>(gridW);
     const float cellH = fieldRect.height / static_cast<float>(gridH);
 
@@ -254,13 +281,13 @@ void RaylibRenderer::drawPlayfield(const Playfield& playfield, const Rectangle& 
                 fieldRect.y + static_cast<float>(y) * cellH, cellW + 0.5f, cellH + 0.5f};
 
             if (state == CellState::Border) {
-                DrawRectangleRec(cellRect, Color {59, 130, 246, 255});
+                DrawRectangleRec(cellRect, toRaylib(theme.playfieldBorder));
             } else if (state == CellState::ClaimedSlow) {
-                DrawRectangleRec(cellRect, Color {14, 116, 144, 200});
+                DrawRectangleRec(cellRect, toRaylib(theme.claimedSlow));
             } else if (state == CellState::ClaimedFast) {
-                DrawRectangleRec(cellRect, Color {180, 83, 9, 200});
+                DrawRectangleRec(cellRect, toRaylib(theme.claimedFast));
             } else if (state == CellState::ActiveStix) {
-                DrawRectangleRec(cellRect, Color {255, 255, 255, 255});
+                DrawRectangleRec(cellRect, toRaylib(theme.activeStix));
             }
         }
     }
@@ -271,6 +298,7 @@ void RaylibRenderer::drawQixRibbons(
 {
     const float cellW = fieldRect.width / 80.0f;
     const float cellH = fieldRect.height / 60.0f;
+    const auto& theme = ColorPalette::get(m_paletteId);
 
     // Enable additive blending for glowing vector monitor aesthetics
     BeginBlendMode(BLEND_ADDITIVE);
@@ -289,12 +317,27 @@ void RaylibRenderer::drawQixRibbons(
             const Vector2 end {fieldRect.x + (static_cast<float>(seg.end.x) + 0.5f) * cellW,
                 fieldRect.y + (static_cast<float>(seg.end.y) + 0.5f) * cellH};
 
-            const float hue
-                = static_cast<float>((m_colorCycle * 5 + segIndex * (360 / std::max<std::size_t>(1, totalSegs))) % 360);
             const auto alpha = static_cast<unsigned char>(
                 255 - static_cast<int>((segIndex * 180) / std::max<std::size_t>(1, totalSegs)));
 
-            Color lineColor = ColorFromHSV(hue, 0.85f, 1.0f);
+            Color lineColor;
+            if (theme.ribbonMode == RibbonColorMode::NeonGradient) {
+                const float hue
+                    = static_cast<float>(static_cast<int>((m_colorCycle * 4 + segIndex * 15) % 120 + 280) % 360);
+                lineColor = ColorFromHSV(hue, 0.9f, 1.0f);
+            } else if (theme.ribbonMode == RibbonColorMode::MonochromeAmber) {
+                const auto val
+                    = static_cast<float>(255 - (segIndex * 140) / std::max<std::size_t>(1, totalSegs)) / 255.0f;
+                lineColor = ColorFromHSV(38.0f, 0.95f, val);
+            } else if (theme.ribbonMode == RibbonColorMode::MonochromeGreen) {
+                const auto val
+                    = static_cast<float>(255 - (segIndex * 140) / std::max<std::size_t>(1, totalSegs)) / 255.0f;
+                lineColor = ColorFromHSV(142.0f, 0.95f, val);
+            } else {
+                const float hue = static_cast<float>(
+                    (m_colorCycle * 5 + segIndex * (360 / std::max<std::size_t>(1, totalSegs))) % 360);
+                lineColor = ColorFromHSV(hue, 0.85f, 1.0f);
+            }
             lineColor.a = alpha;
 
             DrawLineEx(start, end, (segIndex == 0) ? 3.0f : 2.0f, lineColor);
@@ -310,6 +353,7 @@ void RaylibRenderer::drawEntities(const GameView& view, const Rectangle& fieldRe
 {
     const float cellW = fieldRect.width / 80.0f;
     const float cellH = fieldRect.height / 60.0f;
+    const auto& theme = ColorPalette::get(m_paletteId);
 
     // 1. Active Stix Trail
     if (view.stixTrail.size() >= 2) {
@@ -318,7 +362,7 @@ void RaylibRenderer::drawEntities(const GameView& view, const Rectangle& fieldRe
                 fieldRect.y + (static_cast<float>(view.stixTrail[i - 1].y) + 0.5f) * cellH};
             const Vector2 p2 {fieldRect.x + (static_cast<float>(view.stixTrail[i].x) + 0.5f) * cellW,
                 fieldRect.y + (static_cast<float>(view.stixTrail[i].y) + 0.5f) * cellH};
-            DrawLineEx(p1, p2, 2.5f, WHITE);
+            DrawLineEx(p1, p2, 2.5f, toRaylib(theme.activeStix));
         }
     }
 
@@ -328,17 +372,17 @@ void RaylibRenderer::drawEntities(const GameView& view, const Rectangle& fieldRe
             const Vector2 center {fieldRect.x + (static_cast<float>(sp.position.x) + 0.5f) * cellW,
                 fieldRect.y + (static_cast<float>(sp.position.y) + 0.5f) * cellH};
             if (sp.isSuper) {
-                DrawPoly(center, 4, 8.0f, 45.0f, Color {56, 189, 248, 255});
+                DrawPoly(center, 4, 8.0f, 45.0f, toRaylib(theme.superSparx));
                 DrawPoly(center, 4, 4.0f, 45.0f, WHITE);
             } else {
-                DrawPoly(center, 4, 6.0f, 45.0f, Color {236, 72, 153, 255});
+                DrawPoly(center, 4, 6.0f, 45.0f, toRaylib(theme.sparx));
             }
         }
     } else {
         for (const auto& sp : view.sparxPositions) {
             const Vector2 center {fieldRect.x + (static_cast<float>(sp.x) + 0.5f) * cellW,
                 fieldRect.y + (static_cast<float>(sp.y) + 0.5f) * cellH};
-            DrawPoly(center, 4, 6.0f, 45.0f, Color {236, 72, 153, 255});
+            DrawPoly(center, 4, 6.0f, 45.0f, toRaylib(theme.sparx));
         }
     }
 
@@ -347,15 +391,14 @@ void RaylibRenderer::drawEntities(const GameView& view, const Rectangle& fieldRe
         const auto fp = view.fusePos.value();
         const Vector2 center {fieldRect.x + (static_cast<float>(fp.x) + 0.5f) * cellW,
             fieldRect.y + (static_cast<float>(fp.y) + 0.5f) * cellH};
-        DrawCircleV(center, 5.0f, Color {254, 240, 138, 255});
-        DrawCircleV(center, 3.0f, Color {239, 68, 68, 255});
+        DrawCircleV(center, 5.0f, toRaylib(theme.textValue));
+        DrawCircleV(center, 3.0f, toRaylib(theme.fuse));
     }
 
     // 4. Player Marker
     const Vector2 markerPos {fieldRect.x + (static_cast<float>(view.markerPos.x) + 0.5f) * cellW,
         fieldRect.y + (static_cast<float>(view.markerPos.y) + 0.5f) * cellH};
-    const Color markerColor
-        = (view.drawMode != DrawMode::None) ? Color {250, 204, 21, 255} : Color {243, 244, 246, 255};
+    const Color markerColor = (view.drawMode != DrawMode::None) ? toRaylib(theme.textValue) : toRaylib(theme.marker);
     DrawPoly(markerPos, 4, 7.0f, 45.0f, markerColor);
 }
 

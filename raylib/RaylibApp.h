@@ -13,13 +13,15 @@ namespace qix::raylib {
 /// @brief Raylib application controller coordinating input dispatch, pacing timer, and rendering.
 class RaylibApp {
 public:
-    /// @brief Construct RaylibApp with a game instance, initial simulation delay, CRT filter state, and audio state.
+    /// @brief Construct RaylibApp with a game instance, initial simulation delay, CRT filter state, audio state, and
+    /// palette.
     /// @param[in] game Unique pointer to IQixGame engine instance.
     /// @param[in] delayMs Initial tick delay in milliseconds.
     /// @param[in] crtEnabled Whether CRT scanlines & phosphor glow filter is initially active.
     /// @param[in] audioEnabled Whether procedural chiptune audio is initially active (default: false).
+    /// @param[in] palette Initial visual color palette theme (default: PaletteId::Classic).
     explicit RaylibApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs = SpeedConfig::DefaultDelayMs,
-        bool crtEnabled = false, bool audioEnabled = false) noexcept;
+        bool crtEnabled = false, bool audioEnabled = false, PaletteId palette = PaletteId::Classic) noexcept;
     ~RaylibApp();
 
     // Non-copyable
@@ -76,6 +78,17 @@ public:
 
     /// @brief Toggle procedural sound on/off at runtime.
     void toggleAudio() noexcept;
+
+    /// @brief Set active visual color palette theme.
+    /// @param[in] id Palette identifier.
+    void setPalette(PaletteId id) noexcept;
+
+    /// @brief Get active visual color palette theme identifier.
+    /// @return Active PaletteId.
+    [[nodiscard]] PaletteId getPalette() const noexcept;
+
+    /// @brief Cycle to next color palette theme.
+    void cyclePalette() noexcept;
 
     /// @brief Access internal audio synthesizer.
     /// @return Reference to ArcadeAudio.

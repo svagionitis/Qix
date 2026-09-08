@@ -1,4 +1,5 @@
 #pragma once
+#include "ColorPalette.h"
 #include "IQixGame.h"
 #include <QWidget>
 
@@ -32,6 +33,17 @@ public:
     /// @brief Toggle CRT filter on/off at runtime.
     void toggleCrt() noexcept;
 
+    /// @brief Set active visual color palette theme.
+    /// @param[in] id Palette identifier.
+    void setPalette(PaletteId id) noexcept;
+
+    /// @brief Get active visual color palette theme identifier.
+    /// @return Active PaletteId.
+    [[nodiscard]] PaletteId getPalette() const noexcept;
+
+    /// @brief Cycle to next color palette theme.
+    void cyclePalette() noexcept;
+
 protected:
     void paintEvent(QPaintEvent* event) override;
 
@@ -40,6 +52,7 @@ private:
     std::uint32_t m_colorCycle {0};
     std::uint32_t m_delayMs {75U};
     bool m_crtEnabled {false};
+    PaletteId m_paletteId {PaletteId::Classic};
 
     void applyCrtFilter(QPainter& painter, const QImage& sceneImage);
 

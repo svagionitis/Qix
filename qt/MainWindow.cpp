@@ -1,4 +1,5 @@
 #include "MainWindow.h"
+#include <QActionGroup>
 #include <QKeyEvent>
 #include <QMenuBar>
 
@@ -57,8 +58,8 @@ private:
 
 namespace qix::qt {
 
-MainWindow::MainWindow(
-    std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bool crtEnabled, bool audioEnabled, QWidget* parent)
+MainWindow::MainWindow(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bool crtEnabled, bool audioEnabled,
+    PaletteId palette, QWidget* parent)
     : QMainWindow {parent}
     , m_game {std::move(game)}
     , m_delayMs {SpeedConfig::clampDelay(delayMs)}
@@ -69,9 +70,10 @@ MainWindow::MainWindow(
     m_canvas = new QixCanvas(this);
     m_canvas->setDelayMs(m_delayMs);
     m_canvas->setCrtEnabled(crtEnabled);
+    m_canvas->setPalette(palette);
     setCentralWidget(m_canvas);
 
-    // Menu Bar with View -> CRT Filter and Sound
+    // Menu Bar with View -> CRT Filter, Sound, and Theme
     auto* viewMenu = menuBar()->addMenu(tr("&View"));
     m_crtAction = viewMenu->addAction(tr("&CRT Filter (Scanlines && Glow)"), this, &MainWindow::toggleCrt);
     m_crtAction->setCheckable(true);
@@ -82,6 +84,27 @@ MainWindow::MainWindow(
     m_audioAction->setCheckable(true);
     m_audioAction->setChecked(audioEnabled);
     m_audioAction->setShortcut(QKeySequence(Qt::Key_F3));
+
+    auto* themeMenu = viewMenu->addMenu(tr("&Theme"));
+    auto* themeGroup = new QActionGroup(this);
+
+    auto addThemeAction = [this, themeMenu, themeGroup](const QString& name, PaletteId id, bool checked) {
+        auto* action = themeMenu->addAction(name, [this, id]() { setPalette(id); });
+        action->setCheckable(true);
+        action->setChecked(checked);
+        themeGroup->addAction(action);
+        return action;
+    };
+
+    m_classicThemeAction = addThemeAction(tr("&Classic 1981"), PaletteId::Classic, palette == PaletteId::Classic);
+    m_synthwaveThemeAction
+        = addThemeAction(tr("&Synthwave Neon"), PaletteId::Synthwave, palette == PaletteId::Synthwave);
+    m_amberThemeAction = addThemeAction(tr("&P3 Amber CRT"), PaletteId::Amber, palette == PaletteId::Amber);
+    m_greenThemeAction = addThemeAction(tr("&P1 Green CRT"), PaletteId::Green, palette == PaletteId::Green);
+
+    themeMenu->addSeparator();
+    auto* cycleThemeAction = themeMenu->addAction(tr("Cycle &Theme (F4)"), this, &MainWindow::cyclePalette);
+    cycleThemeAction->setShortcut(QKeySequence(Qt::Key_F4));
 
     m_audio.setMuted(!audioEnabled);
     initAudio(audioEnabled);
@@ -220,6 +243,36 @@ void MainWindow::toggleAudio() noexcept
     }
 }
 
+void MainWindow::setPalette(PaletteId id) noexcept
+{
+    if (m_canvas != nullptr) {
+        m_canvas->setPalette(id);
+    }
+    if (m_classicThemeAction != nullptr) {
+        m_classicThemeAction->setChecked(id == PaletteId::Classic);
+    }
+    if (m_synthwaveThemeAction != nullptr) {
+        m_synthwaveThemeAction->setChecked(id == PaletteId::Synthwave);
+    }
+    if (m_amberThemeAction != nullptr) {
+        m_amberThemeAction->setChecked(id == PaletteId::Amber);
+    }
+    if (m_greenThemeAction != nullptr) {
+        m_greenThemeAction->setChecked(id == PaletteId::Green);
+    }
+}
+
+PaletteId MainWindow::getPalette() const noexcept
+{
+    return (m_canvas != nullptr) ? m_canvas->getPalette() : PaletteId::Classic;
+}
+
+void MainWindow::cyclePalette() noexcept
+{
+    const auto nextId = ColorPalette::next(getPalette());
+    setPalette(nextId);
+}
+
 void MainWindow::onTick()
 {
     if (!m_game) {
@@ -344,6 +397,10 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
     case Qt::Key_M:
     case Qt::Key_F3:
         toggleAudio();
+        break;
+    case Qt::Key_P:
+    case Qt::Key_F4:
+        cyclePalette();
         break;
     case Qt::Key_Escape:
         close();

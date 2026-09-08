@@ -25,7 +25,8 @@ class MainWindow : public QMainWindow {
 
 public:
     explicit MainWindow(std::unique_ptr<IQixGame> game, std::uint32_t delayMs = SpeedConfig::DefaultDelayMs,
-        bool crtEnabled = false, bool audioEnabled = false, QWidget* parent = nullptr);
+        bool crtEnabled = false, bool audioEnabled = false, PaletteId palette = PaletteId::Classic,
+        QWidget* parent = nullptr);
     ~MainWindow() override;
 
     /// @brief Get the current tick delay in milliseconds.
@@ -64,6 +65,17 @@ public:
     /// @brief Toggle procedural sound on/off at runtime.
     void toggleAudio() noexcept;
 
+    /// @brief Set active visual color palette theme.
+    /// @param[in] id Palette identifier.
+    void setPalette(PaletteId id) noexcept;
+
+    /// @brief Get active visual color palette theme identifier.
+    /// @return Active PaletteId.
+    [[nodiscard]] PaletteId getPalette() const noexcept;
+
+    /// @brief Cycle to next color palette theme.
+    void cyclePalette() noexcept;
+
 protected:
     void keyPressEvent(QKeyEvent* event) override;
     void keyReleaseEvent(QKeyEvent* event) override;
@@ -76,6 +88,10 @@ private:
     QixCanvas* m_canvas {nullptr};
     QAction* m_crtAction {nullptr};
     QAction* m_audioAction {nullptr};
+    QAction* m_classicThemeAction {nullptr};
+    QAction* m_synthwaveThemeAction {nullptr};
+    QAction* m_amberThemeAction {nullptr};
+    QAction* m_greenThemeAction {nullptr};
     QTimer m_timer;
     PlayerCommand m_currentCmd {};
     std::uint32_t m_delayMs {SpeedConfig::DefaultDelayMs};

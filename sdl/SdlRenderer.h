@@ -1,5 +1,6 @@
 #pragma once
 #include "BitmapFont.h"
+#include "ColorPalette.h"
 #include "IQixGame.h"
 #include <SDL.h>
 #include <cstdint>
@@ -87,6 +88,17 @@ public:
     /// @brief Toggle CRT scanlines & phosphor glow filter on/off.
     void toggleCrt() noexcept;
 
+    /// @brief Set active visual color palette theme.
+    /// @param[in] id Palette identifier.
+    void setPalette(PaletteId id) noexcept;
+
+    /// @brief Get active visual color palette theme identifier.
+    /// @return Active PaletteId.
+    [[nodiscard]] PaletteId getPalette() const noexcept;
+
+    /// @brief Cycle to next color palette theme.
+    void cyclePalette() noexcept;
+
 private:
     std::unique_ptr<SDL_Window, SdlWindowDeleter> m_window {nullptr};
     std::unique_ptr<SDL_Renderer, SdlRendererDeleter> m_renderer {nullptr};
@@ -94,6 +106,7 @@ private:
     int m_textureWidth {0};
     int m_textureHeight {0};
     bool m_crtEnabled {false};
+    PaletteId m_paletteId {PaletteId::Classic};
     std::uint32_t m_colorCycle {0};
 
     void drawHud(const GameStats& stats, std::uint32_t delayMs) noexcept;

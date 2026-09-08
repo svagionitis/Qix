@@ -15,11 +15,13 @@ static void raylibAudioCallback(void* bufferData, unsigned int frames) noexcept
     }
 }
 
-RaylibApp::RaylibApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bool crtEnabled, bool audioEnabled) noexcept
+RaylibApp::RaylibApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bool crtEnabled, bool audioEnabled,
+    PaletteId palette) noexcept
     : m_game {std::move(game)}
     , m_delayMs {SpeedConfig::clampDelay(delayMs)}
 {
     m_renderer.setCrtEnabled(crtEnabled);
+    m_renderer.setPalette(palette);
     m_audio.setMuted(!audioEnabled);
 }
 
@@ -117,6 +119,21 @@ void RaylibApp::toggleAudio() noexcept
 ArcadeAudio& RaylibApp::getAudio() noexcept
 {
     return m_audio;
+}
+
+void RaylibApp::setPalette(PaletteId id) noexcept
+{
+    m_renderer.setPalette(id);
+}
+
+PaletteId RaylibApp::getPalette() const noexcept
+{
+    return m_renderer.getPalette();
+}
+
+void RaylibApp::cyclePalette() noexcept
+{
+    m_renderer.cyclePalette();
 }
 
 void RaylibApp::processInput() noexcept
@@ -230,6 +247,11 @@ void RaylibApp::processInput() noexcept
     // Toggle procedural arcade audio
     if (IsKeyPressed(KEY_M) || IsKeyPressed(KEY_F3)) {
         toggleAudio();
+    }
+
+    // Cycle arcade color palette theme
+    if (IsKeyPressed(KEY_F4)) {
+        cyclePalette();
     }
 }
 

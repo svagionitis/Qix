@@ -1,4 +1,5 @@
 #pragma once
+#include "ColorPalette.h"
 #include "IQixGame.h"
 #include <cstdint>
 #include <deque>
@@ -50,9 +51,21 @@ public:
     /// @brief Toggle CRT filter on/off at runtime.
     void toggleCrt() noexcept;
 
+    /// @brief Set active visual color palette theme.
+    /// @param[in] id Palette identifier.
+    void setPalette(PaletteId id) noexcept;
+
+    /// @brief Get active visual color palette theme identifier.
+    /// @return Active PaletteId.
+    [[nodiscard]] PaletteId getPalette() const noexcept;
+
+    /// @brief Cycle to next color palette theme.
+    void cyclePalette() noexcept;
+
 private:
     bool m_initialized {false};
     bool m_crtEnabled {false};
+    PaletteId m_paletteId {PaletteId::Classic};
     RenderTexture2D m_targetTexture {};
     bool m_targetInitialized {false};
     std::uint32_t m_colorCycle {0};

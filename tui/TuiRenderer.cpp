@@ -118,6 +118,44 @@ namespace {
         }
     }
 
+    std::string appendTruecolorStr(const PaletteColor& c) noexcept
+    {
+        char buf[32];
+        const int len = std::snprintf(buf, sizeof(buf), "\033[38;2;%u;%u;%um", c.r, c.g, c.b);
+        return (len > 0) ? std::string(buf, static_cast<std::size_t>(len)) : std::string {};
+    }
+
+    struct ThemeAnsi {
+        const char* border;
+        const char* claimedSlow;
+        const char* claimedFast;
+        const char* activeStix;
+        const char* marker;
+        const char* sparx;
+        const char* superSparx;
+        const char* fuse;
+    };
+
+    constexpr ThemeAnsi getThemeAnsi(PaletteId id) noexcept
+    {
+        switch (id) {
+        case PaletteId::Classic:
+            return {"\033[1;34m", "\033[0;36m", "\033[0;32m", "\033[1;37m", "\033[1;33m", "\033[1;35m", "\033[1;36m",
+                "\033[1;31m"};
+        case PaletteId::Synthwave:
+            return {"\033[1;36m", "\033[1;35m", "\033[0;34m", "\033[1;37m", "\033[1;33m", "\033[1;35m", "\033[1;36m",
+                "\033[1;31m"};
+        case PaletteId::Amber:
+            return {"\033[1;33m", "\033[0;33m", "\033[2;33m", "\033[1;37m", "\033[1;33m", "\033[1;33m", "\033[1;37m",
+                "\033[1;31m"};
+        case PaletteId::Green:
+            return {"\033[1;32m", "\033[0;32m", "\033[2;32m", "\033[1;37m", "\033[1;32m", "\033[1;32m", "\033[1;37m",
+                "\033[1;31m"};
+        }
+        return {"\033[1;34m", "\033[0;36m", "\033[0;32m", "\033[1;37m", "\033[1;33m", "\033[1;35m", "\033[1;36m",
+            "\033[1;31m"};
+    }
+
     struct BrailleCell {
         std::uint8_t dots {0};
         char specialChar {0};
@@ -152,8 +190,8 @@ namespace {
         return width;
     }
 
-    void renderHudCards(
-        std::string& frame, const GameView& view, std::uint32_t delayMs, int cols, bool truecolor) noexcept
+    void renderHudCards(std::string& frame, const GameView& view, std::uint32_t delayMs, int cols, bool truecolor,
+        PaletteId paletteId) noexcept
     {
         static constexpr const char* kFracs[8] = {
             "",
@@ -166,25 +204,25 @@ namespace {
             "\xe2\x96\x89" // 7/8 ▉
         };
 
-        const std::string borderCol = truecolor ? "\033[38;2;60;120;240m" : "\033[1;34m";
+        const auto& theme = ColorPalette::get(paletteId);
+        const auto ansi = getThemeAnsi(paletteId);
+        const std::string borderCol = truecolor ? appendTruecolorStr(theme.hudBorder) : ansi.border;
         const std::string resetCol = "\033[0m";
 
         const std::array<std::string, 6> labels = {"SCORE", "HIGH", "LIVES", "LEVEL", "TIME", "STATUS"};
-        const std::array<std::string, 6> labelCols = {
-            truecolor ? "\033[1;38;2;255;200;40m" : "\033[1;33m", // SCORE: gold
-            truecolor ? "\033[1;38;2;255;220;100m" : "\033[1;33m", // HIGH: amber
-            truecolor ? "\033[1;38;2;255;80;100m" : "\033[1;31m", // LIVES: coral heart
-            truecolor ? "\033[1;38;2;220;100;255m" : "\033[1;35m", // LEVEL: purple
-            truecolor ? "\033[1;38;2;80;230;120m" : "\033[1;32m", // TIME: green
-            truecolor ? "\033[1;38;2;0;220;255m" : "\033[1;36m" // STATUS: cyan
-        };
+        const std::array<std::string, 6> labelCols = {truecolor ? appendTruecolorStr(theme.textLabel) : "\033[1;33m",
+            truecolor ? appendTruecolorStr(theme.textLabel) : "\033[1;33m",
+            truecolor ? appendTruecolorStr(theme.markerDiamond) : "\033[1;31m",
+            truecolor ? appendTruecolorStr(theme.textValue) : "\033[1;35m",
+            truecolor ? appendTruecolorStr(theme.progressBarTarget) : "\033[1;32m",
+            truecolor ? appendTruecolorStr(theme.textAccent) : "\033[1;36m"};
 
         // Prepare Values
         const std::string scoreVal = std::to_string(view.stats.score);
-        const std::string scoreCol = truecolor ? "\033[1;38;2;255;255;255m" : "\033[1;37m";
+        const std::string scoreCol = truecolor ? appendTruecolorStr(theme.textValue) : "\033[1;37m";
 
         const std::string highVal = std::to_string(view.stats.highScore);
-        const std::string highCol = truecolor ? "\033[1;38;2;255;220;120m" : "\033[1;33m";
+        const std::string highCol = truecolor ? appendTruecolorStr(theme.textValue) : "\033[1;33m";
 
         std::string livesVal;
         if (view.stats.lives <= 4) {
@@ -195,40 +233,40 @@ namespace {
         } else {
             livesVal = "\xe2\x99\xa5 x" + std::to_string(view.stats.lives);
         }
-        const std::string livesCol = truecolor ? "\033[1;38;2;255;80;100m" : "\033[1;31m";
+        const std::string livesCol = truecolor ? appendTruecolorStr(theme.markerDiamond) : "\033[1;31m";
 
         std::string lvlVal = std::to_string(view.stats.level);
         if (view.stats.multiplier > 1) {
             lvlVal += " [x" + std::to_string(view.stats.multiplier) + "]";
         }
-        const std::string lvlCol = truecolor ? "\033[1;38;2;230;130;255m" : "\033[1;35m";
+        const std::string lvlCol = truecolor ? appendTruecolorStr(theme.textValue) : "\033[1;35m";
 
         const auto secondsRemaining = (view.stats.timeRemainingMs + 999U) / 1000U;
         const std::string timeVal = std::to_string(secondsRemaining) + "s";
-        std::string timeCol = truecolor ? "\033[1;38;2;50;240;120m" : "\033[1;32m";
+        std::string timeCol = truecolor ? appendTruecolorStr(theme.progressBarTarget) : "\033[1;32m";
         if (view.stats.timeUp || secondsRemaining <= 10U) {
-            timeCol = truecolor ? "\033[1;38;2;255;50;50m" : "\033[1;31m";
+            timeCol = truecolor ? appendTruecolorStr(theme.markerDiamond) : "\033[1;31m";
         } else if (secondsRemaining <= 20U) {
-            timeCol = truecolor ? "\033[1;38;2;255;200;50m" : "\033[1;33m";
+            timeCol = truecolor ? appendTruecolorStr(theme.textValue) : "\033[1;33m";
         }
 
         std::string statusVal = "READY";
-        std::string statusCol = truecolor ? "\033[1;38;2;255;200;50m" : "\033[1;33m";
+        std::string statusCol = truecolor ? appendTruecolorStr(theme.textValue) : "\033[1;33m";
         if (view.state == GameState::Playing) {
             statusVal = "PLAYING";
-            statusCol = truecolor ? "\033[1;38;2;50;240;120m" : "\033[1;32m";
+            statusCol = truecolor ? appendTruecolorStr(theme.progressBarTarget) : "\033[1;32m";
         } else if (view.state == GameState::LevelComplete) {
             statusVal = view.stats.splitBonus ? "SPLIT!" : "CLEARED";
-            statusCol = truecolor ? "\033[1;38;2;255;215;0m" : "\033[1;33m";
+            statusCol = truecolor ? appendTruecolorStr(theme.textValue) : "\033[1;33m";
         } else if (view.state == GameState::NameEntry) {
             statusVal = "INITIALS";
-            statusCol = truecolor ? "\033[1;38;2;0;220;255m" : "\033[1;36m";
+            statusCol = truecolor ? appendTruecolorStr(theme.textAccent) : "\033[1;36m";
         } else if (view.state == GameState::HallOfFame) {
             statusVal = "HOF";
-            statusCol = truecolor ? "\033[1;38;2;0;220;255m" : "\033[1;36m";
+            statusCol = truecolor ? appendTruecolorStr(theme.textAccent) : "\033[1;36m";
         } else if (view.state == GameState::GameOver) {
             statusVal = "GAMEOVER";
-            statusCol = truecolor ? "\033[1;38;2;255;50;50m" : "\033[1;31m";
+            statusCol = truecolor ? appendTruecolorStr(theme.markerDiamond) : "\033[1;31m";
         }
 
         const std::array<std::string, 6> vals = {scoreVal, highVal, livesVal, lvlVal, timeVal, statusVal};
@@ -362,10 +400,11 @@ namespace {
         const int targetChar = static_cast<int>(std::round((static_cast<double>(target) / 100.0) * barWidth));
 
         const std::string fillCol = truecolor
-            ? ((claimed < static_cast<double>(target)) ? "\033[38;2;0;220;240m" : "\033[38;2;255;215;0m")
+            ? ((claimed < static_cast<double>(target)) ? appendTruecolorStr(theme.progressBarFill)
+                                                       : appendTruecolorStr(theme.progressBarTarget))
             : ((claimed < static_cast<double>(target)) ? "\033[1;36m" : "\033[1;33m");
-        const std::string emptyCol = truecolor ? "\033[38;2;60;70;90m" : "\033[2;37m";
-        const std::string targetCol = truecolor ? "\033[38;2;255;90;90m" : "\033[1;31m";
+        const std::string emptyCol = truecolor ? appendTruecolorStr(theme.progressBarBg) : "\033[2;37m";
+        const std::string targetCol = truecolor ? appendTruecolorStr(theme.markerDiamond) : "\033[1;31m";
 
         frame += borderCol + "│" + resetCol + barLabel;
         for (int i {0}; i < barWidth; ++i) {
@@ -386,9 +425,9 @@ namespace {
         frame += resetCol + "] ";
 
         if (claimed < static_cast<double>(target)) {
-            frame += (truecolor ? "\033[1;38;2;0;220;240m" : "\033[1;36m") + pctStr + resetCol;
+            frame += (truecolor ? appendTruecolorStr(theme.progressBarFill) : "\033[1;36m") + pctStr + resetCol;
         } else {
-            frame += (truecolor ? "\033[1;38;2;255;215;0m" : "\033[1;33m") + pctStr + resetCol;
+            frame += (truecolor ? appendTruecolorStr(theme.progressBarTarget) : "\033[1;33m") + pctStr + resetCol;
         }
 
         const int currentVisible = barLabelLen + barWidth + 2 + pctLen;
@@ -583,6 +622,24 @@ void TuiRenderer::toggleTruecolor() noexcept
     invalidateScreen();
 }
 
+void TuiRenderer::setPalette(PaletteId id) noexcept
+{
+    if (m_paletteId != id) {
+        m_paletteId = id;
+        invalidateScreen();
+    }
+}
+
+PaletteId TuiRenderer::getPalette() const noexcept
+{
+    return m_paletteId;
+}
+
+void TuiRenderer::cyclePalette() noexcept
+{
+    setPalette(ColorPalette::next(m_paletteId));
+}
+
 void TuiRenderer::setDifferentialUpdates(bool enabled) noexcept
 {
     m_differentialUpdates = enabled;
@@ -682,7 +739,7 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     const std::int32_t cols = m_brailleMode ? ((playfieldWidth + 1) / 2) : ((playfieldWidth + stepX - 1) / stepX);
 
     // 1. Modern Arcade HUD Cards Deck
-    renderHudCards(frame, view, delayMs, cols, m_truecolor);
+    renderHudCards(frame, view, delayMs, cols, m_truecolor, m_paletteId);
 
     if (view.state == GameState::NameEntry) {
         renderNameEntry(frame, view.nameEntry, view.stats);
@@ -704,11 +761,11 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
 
     // 3. Controls Legend
     if (m_lastTermSize.cols >= 105) {
-        frame += "\033[2mControls: [WASD/Arrows] Move | [Space] Slow | [F] Fast | [X] Border | [B] Braille/ASCII | "
-                 "[T] RGB | [-/+] Speed | [R] Reset | [Q] Quit\033[0m\n";
+        frame += "\033[2mControls: [WASD/Arrows] Move | [Space] Slow | [F] Fast | [X] Border | [P/F4] Theme | [B] "
+                 "Braille/ASCII | [T] RGB | [-/+] Speed | [R] Reset | [Q] Quit\033[0m\n";
     } else {
-        frame += "\033[2mControls: [WASD] Move | [Space/F] Draw | [X] Border | [B] Mode | [T] RGB | [R] Reset | [Q] "
-                 "Quit\033[0m\n";
+        frame += "\033[2mControls: [WASD] Move | [Space/F] Draw | [X] Border | [P/F4] Theme | [B] Mode | [T] RGB | "
+                 "[R] Reset | [Q] Quit\033[0m\n";
     }
 
     presentFrame(frame);
@@ -723,6 +780,8 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
     const std::int32_t rows = (height + 3) / 4;
 
     std::vector<BrailleCell> grid(static_cast<std::size_t>(cols * rows));
+    const auto& theme = ColorPalette::get(m_paletteId);
+    const auto ansiColors = getThemeAnsi(m_paletteId);
 
     // 1. Plot Playfield Cells (Borders, Claimed Areas, Active Stix)
     for (std::int32_t y {0}; y < height; ++y) {
@@ -743,12 +802,12 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
                     cell.priority = 2;
                     if (m_truecolor) {
                         cell.isRgb = true;
-                        cell.r = 40;
-                        cell.g = 90;
-                        cell.b = 230;
+                        cell.r = theme.playfieldBorder.r;
+                        cell.g = theme.playfieldBorder.g;
+                        cell.b = theme.playfieldBorder.b;
                     } else {
                         cell.isRgb = false;
-                        cell.ansiColor = "\033[1;34m"; // Bright blue
+                        cell.ansiColor = ansiColors.border;
                     }
                 }
             } else if (state == CellState::ActiveStix) {
@@ -756,12 +815,12 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
                     cell.priority = 3;
                     if (m_truecolor) {
                         cell.isRgb = true;
-                        cell.r = 255;
-                        cell.g = 255;
-                        cell.b = 255;
+                        cell.r = theme.activeStix.r;
+                        cell.g = theme.activeStix.g;
+                        cell.b = theme.activeStix.b;
                     } else {
                         cell.isRgb = false;
-                        cell.ansiColor = "\033[1;37m"; // Bright white
+                        cell.ansiColor = ansiColors.activeStix;
                     }
                 }
             } else if (state == CellState::ClaimedSlow) {
@@ -769,12 +828,12 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
                     cell.priority = 1;
                     if (m_truecolor) {
                         cell.isRgb = true;
-                        cell.r = 0;
-                        cell.g = 210;
-                        cell.b = 230;
+                        cell.r = theme.claimedSlow.r;
+                        cell.g = theme.claimedSlow.g;
+                        cell.b = theme.claimedSlow.b;
                     } else {
                         cell.isRgb = false;
-                        cell.ansiColor = "\033[0;36m"; // Cyan
+                        cell.ansiColor = ansiColors.claimedSlow;
                     }
                 }
             } else if (state == CellState::ClaimedFast) {
@@ -782,12 +841,12 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
                     cell.priority = 1;
                     if (m_truecolor) {
                         cell.isRgb = true;
-                        cell.r = 30;
-                        cell.g = 220;
-                        cell.b = 100;
+                        cell.r = theme.claimedFast.r;
+                        cell.g = theme.claimedFast.g;
+                        cell.b = theme.claimedFast.b;
                     } else {
                         cell.isRgb = false;
-                        cell.ansiColor = "\033[0;32m"; // Green
+                        cell.ansiColor = ansiColors.claimedFast;
                     }
                 }
             }
@@ -805,30 +864,53 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
                 cell.priority = 3;
                 if (m_truecolor) {
                     cell.isRgb = true;
-                    cell.r = 255;
-                    cell.g = 255;
-                    cell.b = 255;
+                    cell.r = theme.activeStix.r;
+                    cell.g = theme.activeStix.g;
+                    cell.b = theme.activeStix.b;
                 } else {
                     cell.isRgb = false;
-                    cell.ansiColor = "\033[1;37m";
+                    cell.ansiColor = ansiColors.activeStix;
                 }
             }
         }
     }
 
-    // 3. Qix Ribbons (Sub-Pixel Vector Bresenham Line Rasterization with 24-bit Truecolor Neon Cycling)
+    // 3. Qix Ribbons (Sub-Pixel Vector Bresenham Line Rasterization with 24-bit Truecolor Cycling)
     for (const auto& ribbon : view.qixRibbons) {
         const auto totalSegs = ribbon.size();
         for (std::size_t segIdx {0}; segIdx < totalSegs; ++segIdx) {
             const auto& seg = ribbon[segIdx];
-            const double hue
-                = std::fmod(m_colorCycle * 6.0 + segIdx * (360.0 / std::max<std::size_t>(1, totalSegs)), 360.0);
-            const double sat = (segIdx == 0) ? 0.70 : 0.95;
-            const double val = (segIdx == 0)
-                ? 1.0
-                : std::max(0.35, 1.0 - 0.55 * (static_cast<double>(segIdx) / static_cast<double>(totalSegs)));
-            const Rgb segRgb = hsvToRgb(hue, sat, val);
-            const char* segAnsi = (segIdx == 0) ? "\033[1;31m" : ((segIdx < 3) ? "\033[1;35m" : "\033[0;35m");
+            Rgb segRgb {};
+            const char* segAnsi = "\033[1;31m";
+
+            if (theme.ribbonMode == RibbonColorMode::NeonGradient) {
+                const double hue = std::fmod((m_colorCycle * 4.0 + segIdx * 15.0), 120.0) + 280.0;
+                segRgb = hsvToRgb(hue, 0.90, 1.0);
+                segAnsi = (segIdx % 2 == 0) ? "\033[1;35m" : "\033[1;36m";
+            } else if (theme.ribbonMode == RibbonColorMode::MonochromeAmber) {
+                const double val = std::max(0.25,
+                    1.0
+                        - 0.70
+                            * (static_cast<double>(segIdx) / static_cast<double>(std::max<std::size_t>(1, totalSegs))));
+                segRgb = hsvToRgb(38.0, 0.95, val);
+                segAnsi = (val > 0.6) ? "\033[1;33m" : "\033[0;33m";
+            } else if (theme.ribbonMode == RibbonColorMode::MonochromeGreen) {
+                const double val = std::max(0.25,
+                    1.0
+                        - 0.70
+                            * (static_cast<double>(segIdx) / static_cast<double>(std::max<std::size_t>(1, totalSegs))));
+                segRgb = hsvToRgb(142.0, 0.95, val);
+                segAnsi = (val > 0.6) ? "\033[1;32m" : "\033[0;32m";
+            } else {
+                const double hue
+                    = std::fmod(m_colorCycle * 6.0 + segIdx * (360.0 / std::max<std::size_t>(1, totalSegs)), 360.0);
+                const double sat = (segIdx == 0) ? 0.70 : 0.95;
+                const double val = (segIdx == 0)
+                    ? 1.0
+                    : std::max(0.35, 1.0 - 0.55 * (static_cast<double>(segIdx) / static_cast<double>(totalSegs)));
+                segRgb = hsvToRgb(hue, sat, val);
+                segAnsi = (segIdx == 0) ? "\033[1;31m" : ((segIdx < 3) ? "\033[1;35m" : "\033[0;35m");
+            }
 
             bresenhamLine(seg.start.x, seg.start.y, seg.end.x, seg.end.y, [&](int lx, int ly) {
                 if (lx >= 0 && lx < width && ly >= 0 && ly < height) {
@@ -865,17 +947,17 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
                 if (m_truecolor) {
                     cell.isRgb = true;
                     if (sp.isSuper) {
-                        cell.r = 0;
-                        cell.g = 255;
-                        cell.b = 255;
+                        cell.r = theme.superSparx.r;
+                        cell.g = theme.superSparx.g;
+                        cell.b = theme.superSparx.b;
                     } else {
-                        cell.r = 255;
-                        cell.g = 50;
-                        cell.b = 220;
+                        cell.r = theme.sparx.r;
+                        cell.g = theme.sparx.g;
+                        cell.b = theme.sparx.b;
                     }
                 } else {
                     cell.isRgb = false;
-                    cell.ansiColor = sp.isSuper ? "\033[1;36m" : "\033[1;35m";
+                    cell.ansiColor = sp.isSuper ? ansiColors.superSparx : ansiColors.sparx;
                 }
             }
         }
@@ -889,12 +971,12 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
                 cell.priority = 5;
                 if (m_truecolor) {
                     cell.isRgb = true;
-                    cell.r = 255;
-                    cell.g = 50;
-                    cell.b = 220;
+                    cell.r = theme.sparx.r;
+                    cell.g = theme.sparx.g;
+                    cell.b = theme.sparx.b;
                 } else {
                     cell.isRgb = false;
-                    cell.ansiColor = "\033[1;35m";
+                    cell.ansiColor = ansiColors.sparx;
                 }
             }
         }
@@ -911,12 +993,12 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
             cell.priority = 5;
             if (m_truecolor) {
                 cell.isRgb = true;
-                cell.r = 255;
-                cell.g = 30;
-                cell.b = 30;
+                cell.r = theme.fuse.r;
+                cell.g = theme.fuse.g;
+                cell.b = theme.fuse.b;
             } else {
                 cell.isRgb = false;
-                cell.ansiColor = "\033[1;31m";
+                cell.ansiColor = ansiColors.fuse;
             }
         }
     }
@@ -930,23 +1012,29 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
         cell.priority = 6;
         if (m_truecolor) {
             cell.isRgb = true;
-            cell.r = 255;
-            cell.g = 220;
-            cell.b = 40;
+            if (view.drawMode != DrawMode::None) {
+                cell.r = theme.textValue.r;
+                cell.g = theme.textValue.g;
+                cell.b = theme.textValue.b;
+            } else {
+                cell.r = theme.marker.r;
+                cell.g = theme.marker.g;
+                cell.b = theme.marker.b;
+            }
         } else {
             cell.isRgb = false;
-            cell.ansiColor = "\033[1;33m";
+            cell.ansiColor = ansiColors.marker;
         }
     }
 
     // 7. Output Rendered Braille Frame with Border Framing
-    const std::string borderCol = m_truecolor ? "\033[38;2;60;120;240m" : "\033[1;34m";
-    const std::string titleCol = m_truecolor ? "\033[1;38;2;0;220;255m" : "\033[1;36m";
-    std::string modeBadge = m_brailleMode ? "BRAILLE (HI-RES)" : "ASCII";
+    const std::string borderCol = m_truecolor ? appendTruecolorStr(theme.hudBorder) : ansiColors.border;
+    const std::string titleCol = m_truecolor ? appendTruecolorStr(theme.textAccent) : "\033[1;36m";
+    std::string modeBadge = m_brailleMode ? "BRAILLE" : "ASCII";
     if (m_truecolor) {
         modeBadge += " RGB";
     }
-    const std::string titleBadge = " QIX C++17 ARCADE · " + modeBadge + " ";
+    const std::string titleBadge = std::string(" QIX · ") + modeBadge + " · " + theme.name + " ";
     const int badgeLen = static_cast<int>(titleBadge.size());
 
     if (cols >= badgeLen + 6) {
@@ -1011,9 +1099,11 @@ void TuiRenderer::renderAsciiPlayfield(std::string& frame, const GameView& view)
     const std::int32_t stepY = std::max(1, (height + maxRows - 1) / maxRows);
     const std::int32_t cols = (width + stepX - 1) / stepX;
 
-    const std::string borderCol = m_truecolor ? "\033[38;2;60;120;240m" : "\033[1;34m";
-    const std::string titleCol = m_truecolor ? "\033[1;38;2;0;220;255m" : "\033[1;36m";
-    const std::string titleBadge = " QIX C++17 ARCADE · ASCII ";
+    const auto& theme = ColorPalette::get(m_paletteId);
+    const auto ansi = getThemeAnsi(m_paletteId);
+    const std::string borderCol = m_truecolor ? appendTruecolorStr(theme.hudBorder) : ansi.border;
+    const std::string titleCol = m_truecolor ? appendTruecolorStr(theme.textAccent) : "\033[1;36m";
+    const std::string titleBadge = std::string(" QIX · ASCII · ") + theme.name + " ";
     const int badgeLen = static_cast<int>(titleBadge.size());
 
     // Top border
@@ -1039,13 +1129,25 @@ void TuiRenderer::renderAsciiPlayfield(std::string& frame, const GameView& view)
 
             // Player Marker
             if (p == view.markerPos) {
-                frame += "\033[1;33m@\033[0m";
+                if (m_truecolor) {
+                    appendTruecolor(frame, theme.marker.r, theme.marker.g, theme.marker.b);
+                    frame += "@\033[0m";
+                } else {
+                    frame += ansi.marker;
+                    frame += "@\033[0m";
+                }
                 continue;
             }
 
             // Fuse
             if (view.fusePos.has_value() && p == view.fusePos.value()) {
-                frame += "\033[1;31m!\033[0m";
+                if (m_truecolor) {
+                    appendTruecolor(frame, theme.fuse.r, theme.fuse.g, theme.fuse.b);
+                    frame += "!\033[0m";
+                } else {
+                    frame += ansi.fuse;
+                    frame += "!\033[0m";
+                }
                 continue;
             }
 
@@ -1069,7 +1171,14 @@ void TuiRenderer::renderAsciiPlayfield(std::string& frame, const GameView& view)
                 }
             }
             if (isSparx) {
-                frame += isSuper ? "\033[1;36mS\033[0m" : "\033[1;35m$\033[0m";
+                if (m_truecolor) {
+                    const auto& sc = isSuper ? theme.superSparx : theme.sparx;
+                    appendTruecolor(frame, sc.r, sc.g, sc.b);
+                    frame += (isSuper ? "S\033[0m" : "$\033[0m");
+                } else {
+                    frame += (isSuper ? ansi.superSparx : ansi.sparx);
+                    frame += (isSuper ? "S\033[0m" : "$\033[0m");
+                }
                 continue;
             }
 
@@ -1087,15 +1196,37 @@ void TuiRenderer::renderAsciiPlayfield(std::string& frame, const GameView& view)
                     const auto maxY = std::max(seg.start.y, seg.end.y);
                     if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
                         isQix = true;
-                        const double hue = std::fmod(
-                            m_colorCycle * 6.0 + segIdx * (360.0 / std::max<std::size_t>(1, totalSegs)), 360.0);
-                        const double sat = (segIdx == 0) ? 0.70 : 0.95;
-                        const double val = (segIdx == 0)
-                            ? 1.0
-                            : std::max(
-                                0.35, 1.0 - 0.55 * (static_cast<double>(segIdx) / static_cast<double>(totalSegs)));
-                        qixRgb = hsvToRgb(hue, sat, val);
-                        qixAnsi = (segIdx == 0) ? "\033[1;31m" : ((segIdx < 3) ? "\033[1;35m" : "\033[0;35m");
+                        if (theme.ribbonMode == RibbonColorMode::NeonGradient) {
+                            const double hue = std::fmod((m_colorCycle * 4.0 + segIdx * 15.0), 120.0) + 280.0;
+                            qixRgb = hsvToRgb(hue, 0.90, 1.0);
+                            qixAnsi = (segIdx % 2 == 0) ? "\033[1;35m" : "\033[1;36m";
+                        } else if (theme.ribbonMode == RibbonColorMode::MonochromeAmber) {
+                            const double val = std::max(0.25,
+                                1.0
+                                    - 0.70
+                                        * (static_cast<double>(segIdx)
+                                            / static_cast<double>(std::max<std::size_t>(1, totalSegs))));
+                            qixRgb = hsvToRgb(38.0, 0.95, val);
+                            qixAnsi = (val > 0.6) ? "\033[1;33m" : "\033[0;33m";
+                        } else if (theme.ribbonMode == RibbonColorMode::MonochromeGreen) {
+                            const double val = std::max(0.25,
+                                1.0
+                                    - 0.70
+                                        * (static_cast<double>(segIdx)
+                                            / static_cast<double>(std::max<std::size_t>(1, totalSegs))));
+                            qixRgb = hsvToRgb(142.0, 0.95, val);
+                            qixAnsi = (val > 0.6) ? "\033[1;32m" : "\033[0;32m";
+                        } else {
+                            const double hue = std::fmod(
+                                m_colorCycle * 6.0 + segIdx * (360.0 / std::max<std::size_t>(1, totalSegs)), 360.0);
+                            const double sat = (segIdx == 0) ? 0.70 : 0.95;
+                            const double val = (segIdx == 0)
+                                ? 1.0
+                                : std::max(
+                                    0.35, 1.0 - 0.55 * (static_cast<double>(segIdx) / static_cast<double>(totalSegs)));
+                            qixRgb = hsvToRgb(hue, sat, val);
+                            qixAnsi = (segIdx == 0) ? "\033[1;31m" : ((segIdx < 3) ? "\033[1;35m" : "\033[0;35m");
+                        }
                         break;
                     }
                 }
@@ -1114,16 +1245,40 @@ void TuiRenderer::renderAsciiPlayfield(std::string& frame, const GameView& view)
                 continue;
             }
 
-            // Stix trail
+            // Stix trail & Playfield Cells
             const auto state = view.playfield->getCell(x, y);
             if (state == CellState::ActiveStix) {
-                frame += "\033[1;37m*\033[0m";
+                if (m_truecolor) {
+                    appendTruecolor(frame, theme.activeStix.r, theme.activeStix.g, theme.activeStix.b);
+                    frame += "*\033[0m";
+                } else {
+                    frame += ansi.activeStix;
+                    frame += "*\033[0m";
+                }
             } else if (state == CellState::Border) {
-                frame += "\033[1;34m#\033[0m";
+                if (m_truecolor) {
+                    appendTruecolor(frame, theme.playfieldBorder.r, theme.playfieldBorder.g, theme.playfieldBorder.b);
+                    frame += "#\033[0m";
+                } else {
+                    frame += ansi.border;
+                    frame += "#\033[0m";
+                }
             } else if (state == CellState::ClaimedSlow) {
-                frame += "\033[0;36m.\033[0m";
+                if (m_truecolor) {
+                    appendTruecolor(frame, theme.claimedSlow.r, theme.claimedSlow.g, theme.claimedSlow.b);
+                    frame += ".\033[0m";
+                } else {
+                    frame += ansi.claimedSlow;
+                    frame += ".\033[0m";
+                }
             } else if (state == CellState::ClaimedFast) {
-                frame += "\033[0;32m,\033[0m";
+                if (m_truecolor) {
+                    appendTruecolor(frame, theme.claimedFast.r, theme.claimedFast.g, theme.claimedFast.b);
+                    frame += ",\033[0m";
+                } else {
+                    frame += ansi.claimedFast;
+                    frame += ",\033[0m";
+                }
             } else {
                 frame += " ";
             }
@@ -1184,6 +1339,13 @@ PlayerCommand TuiRenderer::processInput(std::string_view bytes, TuiAction& actio
                 case 'D':
                     cmd.direction = Direction::Left;
                     break;
+                case '~': {
+                    const auto param = m_inputQueue.substr(i + 2, j - (i + 2));
+                    if (param == "14" || param == "11" || param == "1;4P" || param == "1;*P") {
+                        action = TuiAction::CyclePalette;
+                    }
+                    break;
+                }
                 default:
                     break;
                 }
@@ -1208,6 +1370,9 @@ PlayerCommand TuiRenderer::processInput(std::string_view bytes, TuiAction& actio
                     break;
                 case 'D':
                     cmd.direction = Direction::Left;
+                    break;
+                case 'S':
+                    action = TuiAction::CyclePalette;
                     break;
                 default:
                     break;
@@ -1280,6 +1445,10 @@ PlayerCommand TuiRenderer::processInput(std::string_view bytes, TuiAction& actio
         case 'T':
             action = TuiAction::ToggleTruecolor;
             break;
+        case 'p':
+        case 'P':
+            action = TuiAction::CyclePalette;
+            break;
         case '\n':
         case '\r':
             action = TuiAction::Confirm;
@@ -1326,6 +1495,9 @@ PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
                 break;
             case 77:
                 readBuf += "\033[C";
+                break;
+            case 62: // F4
+                readBuf += "\033OS";
                 break;
             default:
                 break;
@@ -1401,12 +1573,14 @@ static int visualLength(const std::string& str) noexcept
 
 void TuiRenderer::renderNameEntry(std::string& frame, const NameEntryState& entry, const GameStats& stats) noexcept
 {
-    const std::string bCol = m_truecolor ? "\033[38;2;60;120;240m" : "\033[1;34m";
-    const std::string cCol = m_truecolor ? "\033[1;38;2;0;220;255m" : "\033[1;36m";
-    const std::string yCol = m_truecolor ? "\033[1;38;2;255;220;40m" : "\033[1;33m";
-    const std::string aBorder = m_truecolor ? "\033[1;38;2;255;215;0m" : "\033[1;33m";
-    const std::string inBorder = m_truecolor ? "\033[38;2;80;100;140m" : "\033[34m";
-    const std::string inText = m_truecolor ? "\033[1;38;2;200;220;255m" : "\033[1;37m";
+    const auto& theme = ColorPalette::get(m_paletteId);
+    const auto ansi = getThemeAnsi(m_paletteId);
+    const std::string bCol = m_truecolor ? appendTruecolorStr(theme.hudBorder) : ansi.border;
+    const std::string cCol = m_truecolor ? appendTruecolorStr(theme.textAccent) : "\033[1;36m";
+    const std::string yCol = m_truecolor ? appendTruecolorStr(theme.textValue) : "\033[1;33m";
+    const std::string aBorder = m_truecolor ? appendTruecolorStr(theme.textValue) : "\033[1;33m";
+    const std::string inBorder = m_truecolor ? appendTruecolorStr(theme.hudBorder) : "\033[34m";
+    const std::string inText = m_truecolor ? appendTruecolorStr(theme.textLabel) : "\033[1;37m";
     const std::string reset = "\033[0m";
 
     frame += "\n";
@@ -1485,9 +1659,11 @@ void TuiRenderer::renderNameEntry(std::string& frame, const NameEntryState& entr
 
 void TuiRenderer::renderHallOfFame(std::string& frame, const HighScoreTable* table, bool isGameOver) noexcept
 {
-    const std::string bCol = m_truecolor ? "\033[38;2;60;120;240m" : "\033[1;34m";
-    const std::string cCol = m_truecolor ? "\033[1;38;2;0;220;255m" : "\033[1;36m";
-    const std::string rCol = m_truecolor ? "\033[1;38;2;255;60;60m" : "\033[1;31m";
+    const auto& theme = ColorPalette::get(m_paletteId);
+    const auto ansi = getThemeAnsi(m_paletteId);
+    const std::string bCol = m_truecolor ? appendTruecolorStr(theme.hudBorder) : ansi.border;
+    const std::string cCol = m_truecolor ? appendTruecolorStr(theme.textAccent) : "\033[1;36m";
+    const std::string rCol = m_truecolor ? appendTruecolorStr(theme.markerDiamond) : "\033[1;31m";
     const std::string reset = "\033[0m";
 
     frame += "\n";
