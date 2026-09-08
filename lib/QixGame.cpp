@@ -105,7 +105,8 @@ void QixGame::step(std::uint32_t deltaMs) noexcept
     }
 
     // 5. Update Fuse
-    m_fuse.update(m_marker.isDrawing(), moved, m_marker.getTrail());
+    const bool markerActive = moved || m_marker.isPacingWait();
+    m_fuse.update(m_marker.isDrawing(), markerActive, m_marker.getTrail());
 
     // 6. Audit Collisions
     const auto collision = CollisionDetector::check(m_marker, m_qixList, m_sparxList, m_fuse);

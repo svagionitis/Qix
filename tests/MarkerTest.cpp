@@ -181,3 +181,31 @@ TEST(MarkerTest, HoldingDrawModeAdvancesStix)
     EXPECT_TRUE(closedLoop);
     EXPECT_EQ(marker.getPosition(), (qix::Point {5, 19}));
 }
+
+TEST(MarkerTest, FastVsSlowDrawPacing)
+{
+    qix::Playfield field {30, 30};
+    qix::Marker fastMarker {qix::Point {5, 0}, 3};
+    qix::Marker slowMarker {qix::Point {15, 0}, 3};
+
+    // 10 ticks of Fast Draw
+    std::int32_t fastSteps {0};
+    for (std::int32_t i {0}; i < 10; ++i) {
+        if (fastMarker.move(field, qix::PlayerCommand {qix::Direction::Down, qix::DrawMode::Fast})) {
+            ++fastSteps;
+        }
+    }
+    EXPECT_EQ(fastSteps, 10);
+    EXPECT_EQ(fastMarker.getPosition().y, 10);
+
+    // 10 ticks of Slow Draw
+    std::int32_t slowSteps {0};
+    for (std::int32_t i {0}; i < 10; ++i) {
+        if (slowMarker.move(field, qix::PlayerCommand {qix::Direction::Down, qix::DrawMode::Slow})) {
+            ++slowSteps;
+        }
+    }
+    // In 10 ticks, Slow Draw takes 5 steps (half speed of Fast Draw)
+    EXPECT_EQ(slowSteps, 5);
+    EXPECT_EQ(slowMarker.getPosition().y, 5);
+}

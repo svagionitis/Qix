@@ -37,7 +37,7 @@ TEST(GameEngineTest, CompleteDrawLoopAndScore)
 
     // Now at (2, 59). Draw upward along x=2 to top border (2, 0), far away from Qix center
     for (std::int32_t y {59}; y >= 0; --y) {
-        game.handleInput(qix::PlayerCommand {qix::Direction::Up, qix::DrawMode::Slow});
+        game.handleInput(qix::PlayerCommand {qix::Direction::Up, qix::DrawMode::Fast});
         game.step(16);
     }
 
@@ -213,9 +213,9 @@ TEST(GameEngineTest, LevelCompleteAwardsThresholdOvershootBonus)
         game.step(16);
     }
 
-    // Draw up along x=2 to top border (2, 0) in Slow draw mode
+    // Draw up along x=2 to top border (2, 0) in Fast draw mode
     for (std::int32_t y {59}; y >= 0; --y) {
-        game.handleInput(qix::PlayerCommand {qix::Direction::Up, qix::DrawMode::Slow});
+        game.handleInput(qix::PlayerCommand {qix::Direction::Up, qix::DrawMode::Fast});
         game.step(16);
     }
 
@@ -225,8 +225,8 @@ TEST(GameEngineTest, LevelCompleteAwardsThresholdOvershootBonus)
     EXPECT_EQ(view.stats.claimedPercent, 1U);
     // 1% claimed - 0% target = 1% overshoot * 1000 pts * 1x multiplier = 1000 pts bonus
     EXPECT_EQ(view.stats.thresholdBonus, 1000U);
-    // 58 cells * 200 pts (Slow) + 1000 bonus = 12600 pts
-    EXPECT_EQ(view.stats.score, 12600U);
+    // 58 cells * 100 pts (Fast) + 1000 bonus = 6800 pts
+    EXPECT_EQ(view.stats.score, 6800U);
 
     // Advancing level clears the threshold bonus
     game.nextLevel();
@@ -294,7 +294,10 @@ TEST(GameEngineTest, ExtraLifeAwardedAtScoreMilestone)
 
     // Draw up along x=6 to top border (6, 0) in Slow draw mode
     // Encloses x=1..5 (5 columns * 58 rows = 290 cells * 200 pts = 58,000 pts)
-    for (std::int32_t y {59}; y >= 0; --y) {
+    for (std::int32_t i {0}; i < 125; ++i) {
+        if (game.getView().markerPos.y == 0) {
+            break;
+        }
         game.handleInput(qix::PlayerCommand {qix::Direction::Up, qix::DrawMode::Slow});
         game.step(16);
     }
@@ -365,7 +368,7 @@ TEST(GameEngineTest, NameEntryInputNavigationAndConfirmation)
         game.step(16);
     }
     for (std::int32_t y {59}; y >= 0; --y) {
-        game.handleInput(qix::PlayerCommand {qix::Direction::Up, qix::DrawMode::Slow});
+        game.handleInput(qix::PlayerCommand {qix::Direction::Up, qix::DrawMode::Fast});
         game.step(16);
     }
     EXPECT_GT(game.getView().stats.score, 0U);

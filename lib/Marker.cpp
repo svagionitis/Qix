@@ -15,16 +15,22 @@ void Marker::resetPosition(Point resetPos) noexcept
     m_position = resetPos;
     m_drawMode = DrawMode::None;
     m_trail.clear();
+    m_slowTick = false;
+    m_pacingWait = false;
 }
 
 bool Marker::move(Playfield& field, PlayerCommand cmd) noexcept
 {
+    m_pacingWait = false;
+
     if (cmd.direction == Direction::None) {
+        m_slowTick = false;
         return false;
     }
 
     const auto nextPos = calculateNext(m_position, cmd.direction);
     if (!field.isInBounds(nextPos.x, nextPos.y)) {
+        m_slowTick = false;
         return false;
     }
 
@@ -32,6 +38,7 @@ bool Marker::move(Playfield& field, PlayerCommand cmd) noexcept
 
     // Case 1: Marker is currently navigating along existing perimeter
     if (!isDrawing()) {
+        m_slowTick = false;
         if (cmd.drawMode == DrawMode::None) {
             // Can only traverse along navigable regions when not drawing
             if (!isNavigable(nextCell)) {
@@ -57,6 +64,7 @@ bool Marker::move(Playfield& field, PlayerCommand cmd) noexcept
         m_position = nextPos;
         m_trail.push_back(m_position);
         field.setCell(nextPos.x, nextPos.y, CellState::ActiveStix);
+        m_slowTick = (m_drawMode == DrawMode::Slow);
         return true;
     }
 
@@ -64,12 +72,21 @@ bool Marker::move(Playfield& field, PlayerCommand cmd) noexcept
     // Hold-to-draw arcade rule: advancing the active Stix requires holding the matching draw button.
     // Releasing the button (DrawMode::None) or attempting to switch draw modes mid-stroke halts the marker.
     if (cmd.drawMode != m_drawMode) {
+        m_slowTick = false;
         return false;
     }
 
     // Disallow self-intersection with current trail
     const auto hitTrail = std::find(m_trail.begin(), m_trail.end(), nextPos);
     if (hitTrail != m_trail.end()) {
+        m_slowTick = false;
+        return false;
+    }
+
+    // Slow Draw pacing: advance 1 cell every 2 ticks (authentic arcade half-speed)
+    if (m_drawMode == DrawMode::Slow && m_slowTick) {
+        m_slowTick = false;
+        m_pacingWait = true;
         return false;
     }
 
@@ -78,6 +95,7 @@ bool Marker::move(Playfield& field, PlayerCommand cmd) noexcept
         m_position = nextPos;
         m_trail.push_back(m_position);
         field.setCell(nextPos.x, nextPos.y, CellState::ActiveStix);
+        m_slowTick = (m_drawMode == DrawMode::Slow);
         return true;
     }
 
@@ -85,9 +103,11 @@ bool Marker::move(Playfield& field, PlayerCommand cmd) noexcept
     if (isNavigable(nextCell)) {
         m_position = nextPos;
         m_trail.push_back(m_position);
+        m_slowTick = false;
         return true;
     }
 
+    m_slowTick = false;
     return false;
 }
 
@@ -115,6 +135,8 @@ void Marker::clearTrail() noexcept
 {
     m_trail.clear();
     m_drawMode = DrawMode::None;
+    m_slowTick = false;
+    m_pacingWait = false;
 }
 
 std::uint8_t Marker::getLives() const noexcept
@@ -179,6 +201,11 @@ bool Marker::isNavigable(CellState state) const noexcept
 bool Marker::isBorderOrClaimed(CellState state) noexcept
 {
     return state == CellState::Border || state == CellState::ClaimedSlow || state == CellState::ClaimedFast;
+}
+
+bool Marker::isPacingWait() const noexcept
+{
+    return m_pacingWait;
 }
 
 } // namespace qix

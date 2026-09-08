@@ -86,16 +86,24 @@ public:
     /// @return True if Border, ClaimedSlow, or ClaimedFast.
     [[nodiscard]] static bool isBorderOrClaimed(CellState state) noexcept;
 
+    /// @brief Check whether marker is in a pacing wait tick during Slow Draw.
+    /// @details While drawing in Slow mode, the marker advances every 2 ticks to
+    /// achieve authentic arcade half-speed drawing. During wait ticks, isPacingWait
+    /// returns true so the engine and hazards know the player is actively drawing.
+    /// @return True if marker held position solely due to Slow Draw pacing cadence.
+    [[nodiscard]] bool isPacingWait() const noexcept;
+
 private:
     Point m_position {0, 0};
     DrawMode m_drawMode {DrawMode::None};
     std::uint8_t m_lives {3};
     GameMode m_mode {DefaultGameMode};
     std::vector<Point> m_trail {};
+    bool m_slowTick {false};
+    bool m_pacingWait {false};
 
     [[nodiscard]] static Point calculateNext(Point current, Direction dir) noexcept;
 };
 
 } // namespace qix
-
 #endif // QIX_LIB_MARKER_H
