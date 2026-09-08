@@ -1,20 +1,74 @@
 #include "TuiRenderer.h"
 #include "HighScoreTable.h"
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #ifdef _WIN32
 #include <conio.h>
 #include <windows.h>
 #else
+#include <cstdlib>
 #include <fcntl.h>
+#include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
 #endif
 
 namespace qix::tui {
+
+namespace {
+
+    constexpr std::uint8_t kDotMask[4][2] = {
+        {0x01, 0x08}, // row 0: dot 1, dot 4
+        {0x02, 0x10}, // row 1: dot 2, dot 5
+        {0x04, 0x20}, // row 2: dot 3, dot 6
+        {0x40, 0x80}, // row 3: dot 7, dot 8
+    };
+
+    void appendBrailleUtf8(std::string& out, std::uint8_t mask) noexcept
+    {
+        out.push_back(static_cast<char>(0xE2));
+        out.push_back(static_cast<char>(0xA0 | ((mask >> 6) & 0x03)));
+        out.push_back(static_cast<char>(0x80 | (mask & 0x3F)));
+    }
+
+    template <typename PlotFn> void bresenhamLine(int x0, int y0, int x1, int y1, PlotFn&& plot) noexcept
+    {
+        const int dx = std::abs(x1 - x0);
+        const int dy = -std::abs(y1 - y0);
+        const int sx = (x0 < x1) ? 1 : -1;
+        const int sy = (y0 < y1) ? 1 : -1;
+        int err = dx + dy;
+
+        while (true) {
+            plot(x0, y0);
+            if (x0 == x1 && y0 == y1) {
+                break;
+            }
+            const int e2 = 2 * err;
+            if (e2 >= dy) {
+                err += dy;
+                x0 += sx;
+            }
+            if (e2 <= dx) {
+                err += dx;
+                y0 += sy;
+            }
+        }
+    }
+
+    struct BrailleCell {
+        std::uint8_t dots {0};
+        char specialChar {0};
+        const char* color {""};
+        std::uint8_t priority {0};
+    };
+
+} // namespace
 
 #ifndef _WIN32
 static struct termios s_origTermios;
@@ -79,10 +133,94 @@ void TuiRenderer::shutdown() noexcept
     m_initialized = false;
 }
 
+void TuiRenderer::clearScreen() noexcept
+{
+    std::cout << "\033[2J\033[H" << std::flush;
+}
+
+TerminalSize TuiRenderer::queryTerminalSize() noexcept
+{
+#ifdef _WIN32
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
+        const int cols = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+        const int rows = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+        if (cols >= 20 && rows >= 10) {
+            return TerminalSize {cols, rows};
+        }
+    }
+#else
+    struct winsize ws { };
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_col >= 20 && ws.ws_row >= 10) {
+        return TerminalSize {static_cast<int>(ws.ws_col), static_cast<int>(ws.ws_row)};
+    }
+    if (ioctl(STDIN_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_col >= 20 && ws.ws_row >= 10) {
+        return TerminalSize {static_cast<int>(ws.ws_col), static_cast<int>(ws.ws_row)};
+    }
+#endif
+
+    const char* colEnv = std::getenv("COLUMNS");
+    const char* rowEnv = std::getenv("LINES");
+    if (colEnv != nullptr && rowEnv != nullptr) {
+        const int c = std::atoi(colEnv);
+        const int r = std::atoi(rowEnv);
+        if (c >= 20 && r >= 10) {
+            return TerminalSize {c, r};
+        }
+    }
+
+    return TerminalSize {80, 24};
+}
+
+std::pair<std::int32_t, std::int32_t> TuiRenderer::computePlayfieldDimensions(bool /*brailleMode*/) noexcept
+{
+    const auto term = queryTerminalSize();
+    // Vertical overhead: HUD (2) + top border (1) + bottom border (1) + controls (1) + margin (1) = 6 lines
+    const int charRows = std::max(10, term.rows - 6);
+    // Horizontal overhead: left border (1) + right border (1) + side margin (2) = 4 chars
+    const int charCols = std::max(20, term.cols - 4);
+
+    return {static_cast<std::int32_t>(charCols * 2), static_cast<std::int32_t>(charRows * 4)};
+}
+
+bool TuiRenderer::checkAndHandleResize() noexcept
+{
+    const auto current = queryTerminalSize();
+    if (m_lastTermSize.cols == 0 && m_lastTermSize.rows == 0) {
+        m_lastTermSize = current;
+        return false;
+    }
+    if (m_lastTermSize.cols != current.cols || m_lastTermSize.rows != current.rows) {
+        m_lastTermSize = current;
+        clearScreen();
+        return true;
+    }
+    return false;
+}
+
+void TuiRenderer::setBrailleMode(bool enabled) noexcept
+{
+    m_brailleMode = enabled;
+}
+
+bool TuiRenderer::isBrailleMode() const noexcept
+{
+    return m_brailleMode;
+}
+
+void TuiRenderer::toggleBrailleMode() noexcept
+{
+    m_brailleMode = !m_brailleMode;
+}
+
 void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
 {
     if (!view.playfield) {
         return;
+    }
+
+    if (m_lastTermSize.cols == 0 && m_lastTermSize.rows == 0) {
+        m_lastTermSize = queryTerminalSize();
     }
 
     // Move cursor to top-left
@@ -125,7 +263,8 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     } else if (view.state == GameState::GameOver) {
         stateStr = "\033[1;31mGAME OVER\033[0m";
     }
-    frame += "State: " + stateStr + "\n";
+    frame
+        += "State: " + stateStr + " | Mode: \033[1;36m" + (m_brailleMode ? "Braille (Hi-Res)" : "ASCII") + "\033[0m\n";
 
     if (view.state == GameState::NameEntry) {
         renderNameEntry(frame, view.nameEntry, view.stats);
@@ -138,15 +277,206 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
         return;
     }
 
-    // 2. Playfield Grid
+    // 2. Playfield Grid (Braille Sub-Pixel or Classic ASCII)
+    if (m_brailleMode) {
+        renderBraillePlayfield(frame, view);
+    } else {
+        renderAsciiPlayfield(frame, view);
+    }
+
+    // 3. Controls Legend
+    frame += "\033[2mControls: [WASD/Arrows] Move | [Space] Slow | [F] Fast | [X] Border | [B] Braille/ASCII | [-/+] "
+             "Speed | [R] Reset | [Q] Quit\033[0m\n";
+
+    std::cout << frame << std::flush;
+}
+
+void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& view) noexcept
+{
     const auto width = view.playfield->getWidth();
     const auto height = view.playfield->getHeight();
 
-    // Downscale for standard terminal display if grid is large
-    const std::int32_t stepX = (width > 60) ? 2 : 1;
-    const std::int32_t stepY = (height > 30) ? 2 : 1;
+    const std::int32_t cols = (width + 1) / 2;
+    const std::int32_t rows = (height + 3) / 4;
+
+    std::vector<BrailleCell> grid(static_cast<std::size_t>(cols * rows));
+
+    // 1. Plot Playfield Cells (Borders, Claimed Areas, Active Stix)
+    for (std::int32_t y {0}; y < height; ++y) {
+        for (std::int32_t x {0}; x < width; ++x) {
+            const auto state = view.playfield->getCell(x, y);
+            if (state == CellState::Empty) {
+                continue;
+            }
+
+            const int cx = x / 2;
+            const int cy = y / 4;
+            auto& cell = grid[static_cast<std::size_t>(cy * cols + cx)];
+            const std::uint8_t dot = kDotMask[y % 4][x % 2];
+            cell.dots |= dot;
+
+            if (state == CellState::Border) {
+                if (cell.priority < 2) {
+                    cell.priority = 2;
+                    cell.color = "\033[1;34m"; // Bright blue
+                }
+            } else if (state == CellState::ActiveStix) {
+                if (cell.priority < 3) {
+                    cell.priority = 3;
+                    cell.color = "\033[1;37m"; // Bright white
+                }
+            } else if (state == CellState::ClaimedSlow) {
+                if (cell.priority < 1) {
+                    cell.priority = 1;
+                    cell.color = "\033[0;36m"; // Cyan
+                }
+            } else if (state == CellState::ClaimedFast) {
+                if (cell.priority < 1) {
+                    cell.priority = 1;
+                    cell.color = "\033[0;32m"; // Green
+                }
+            }
+        }
+    }
+
+    // 2. Active Stix Trail (ensure high fidelity along active trail)
+    for (const auto& pt : view.stixTrail) {
+        if (pt.x >= 0 && pt.x < width && pt.y >= 0 && pt.y < height) {
+            const int cx = pt.x / 2;
+            const int cy = pt.y / 4;
+            auto& cell = grid[static_cast<std::size_t>(cy * cols + cx)];
+            cell.dots |= kDotMask[pt.y % 4][pt.x % 2];
+            if (cell.priority < 3) {
+                cell.priority = 3;
+                cell.color = "\033[1;37m";
+            }
+        }
+    }
+
+    // 3. Qix Ribbons (Sub-Pixel Vector Bresenham Line Rasterization)
+    for (const auto& ribbon : view.qixRibbons) {
+        for (std::size_t segIdx {0}; segIdx < ribbon.size(); ++segIdx) {
+            const auto& seg = ribbon[segIdx];
+            const char* segColor = (segIdx == 0) ? "\033[1;31m" : ((segIdx < 3) ? "\033[1;35m" : "\033[0;35m");
+
+            bresenhamLine(seg.start.x, seg.start.y, seg.end.x, seg.end.y, [&](int lx, int ly) {
+                if (lx >= 0 && lx < width && ly >= 0 && ly < height) {
+                    const int cx = lx / 2;
+                    const int cy = ly / 4;
+                    auto& cell = grid[static_cast<std::size_t>(cy * cols + cx)];
+                    cell.dots |= kDotMask[ly % 4][lx % 2];
+                    if (cell.priority < 4) {
+                        cell.priority = 4;
+                        cell.color = segColor;
+                    }
+                }
+            });
+        }
+    }
+
+    // 4. Sparx & Super Sparx
+    if (!view.sparxList.empty()) {
+        for (const auto& sp : view.sparxList) {
+            if (sp.position.x >= 0 && sp.position.x < width && sp.position.y >= 0 && sp.position.y < height) {
+                const int cx = sp.position.x / 2;
+                const int cy = sp.position.y / 4;
+                auto& cell = grid[static_cast<std::size_t>(cy * cols + cx)];
+                cell.specialChar = sp.isSuper ? 'S' : '$';
+                cell.priority = 5;
+                cell.color = sp.isSuper ? "\033[1;36m" : "\033[1;35m";
+            }
+        }
+    } else {
+        for (const auto& pos : view.sparxPositions) {
+            if (pos.x >= 0 && pos.x < width && pos.y >= 0 && pos.y < height) {
+                const int cx = pos.x / 2;
+                const int cy = pos.y / 4;
+                auto& cell = grid[static_cast<std::size_t>(cy * cols + cx)];
+                cell.specialChar = '$';
+                cell.priority = 5;
+                cell.color = "\033[1;35m";
+            }
+        }
+    }
+
+    // 5. Fuse
+    if (view.fusePos.has_value()) {
+        const auto fp = view.fusePos.value();
+        if (fp.x >= 0 && fp.x < width && fp.y >= 0 && fp.y < height) {
+            const int cx = fp.x / 2;
+            const int cy = fp.y / 4;
+            auto& cell = grid[static_cast<std::size_t>(cy * cols + cx)];
+            cell.specialChar = '!';
+            cell.priority = 5;
+            cell.color = "\033[1;31m";
+        }
+    }
+
+    // 6. Player Marker
+    if (view.markerPos.x >= 0 && view.markerPos.x < width && view.markerPos.y >= 0 && view.markerPos.y < height) {
+        const int cx = view.markerPos.x / 2;
+        const int cy = view.markerPos.y / 4;
+        auto& cell = grid[static_cast<std::size_t>(cy * cols + cx)];
+        cell.specialChar = '@';
+        cell.priority = 6;
+        cell.color = "\033[1;33m";
+    }
+
+    // 7. Output Rendered Braille Frame with Border Framing
+    frame += "\033[1;34m┌";
+    for (int cx {0}; cx < cols; ++cx) {
+        frame += "─";
+    }
+    frame += "┐\033[0m\n";
+
+    for (std::int32_t cy {0}; cy < rows; ++cy) {
+        frame += "\033[1;34m│\033[0m";
+        for (std::int32_t cx {0}; cx < cols; ++cx) {
+            const auto& cell = grid[static_cast<std::size_t>(cy * cols + cx)];
+            if (cell.specialChar != 0) {
+                frame += cell.color;
+                frame += cell.specialChar;
+                frame += "\033[0m";
+            } else if (cell.dots != 0) {
+                frame += cell.color;
+                appendBrailleUtf8(frame, cell.dots);
+                frame += "\033[0m";
+            } else {
+                frame += " ";
+            }
+        }
+        frame += "\033[1;34m│\033[0m\n";
+    }
+
+    frame += "\033[1;34m└";
+    for (int cx {0}; cx < cols; ++cx) {
+        frame += "─";
+    }
+    frame += "┘\033[0m\n";
+}
+
+void TuiRenderer::renderAsciiPlayfield(std::string& frame, const GameView& view) noexcept
+{
+    const auto width = view.playfield->getWidth();
+    const auto height = view.playfield->getHeight();
+
+    const auto term = queryTerminalSize();
+    const int maxCols = std::max(20, term.cols - 4);
+    const int maxRows = std::max(10, term.rows - 6);
+
+    const std::int32_t stepX = std::max(1, (width + maxCols - 1) / maxCols);
+    const std::int32_t stepY = std::max(1, (height + maxRows - 1) / maxRows);
+    const std::int32_t cols = (width + stepX - 1) / stepX;
+
+    // Top border
+    frame += "\033[1;34m┌";
+    for (std::int32_t cx {0}; cx < cols; ++cx) {
+        frame += "─";
+    }
+    frame += "┐\033[0m\n";
 
     for (std::int32_t y {0}; y < height; y += stepY) {
+        frame += "\033[1;34m│\033[0m";
         for (std::int32_t x {0}; x < width; x += stepX) {
             Point p {x, y};
 
@@ -222,20 +552,23 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
                 frame += " ";
             }
         }
-        frame += "\n";
+        frame += "\033[1;34m│\033[0m\n";
     }
 
-    // 3. Controls Legend
-    frame += "\033[2mControls: [WASD/Arrows] Move | [Space] Slow | [F] Fast | [X] Border | [-/+] Speed | [R] "
-             "Reset | [Q] Quit\033[0m\n";
-
-    std::cout << frame << std::flush;
+    // Bottom border
+    frame += "\033[1;34m└";
+    for (std::int32_t cx {0}; cx < cols; ++cx) {
+        frame += "─";
+    }
+    frame += "┘\033[0m\n";
 }
 
 PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
 {
     PlayerCommand cmd {};
     action = TuiAction::None;
+
+    const bool resized = checkAndHandleResize();
 
     int ch = -1;
 
@@ -259,6 +592,9 @@ PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
                 break;
             default:
                 break;
+            }
+            if (action == TuiAction::None && resized) {
+                action = TuiAction::Resize;
             }
             return cmd;
         }
@@ -337,6 +673,10 @@ PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
         case 'X':
             action = TuiAction::DisengageDraw;
             break;
+        case 'b':
+        case 'B':
+            action = TuiAction::ToggleBraille;
+            break;
         case '\n':
         case '\r':
             action = TuiAction::Confirm;
@@ -344,6 +684,10 @@ PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
         default:
             break;
         }
+    }
+
+    if (action == TuiAction::None && resized) {
+        action = TuiAction::Resize;
     }
 
     return cmd;

@@ -22,7 +22,7 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
   - **Fuse**: Anti-stall hazard that ignites along the trail when the player stops moving while drawing.
   - **Victory Condition**: Capturing $\ge 75\%$ of the total playable area.
 - **Quad Frontends**:
-  - **Terminal Client (`qix_tui`)**: Lightweight console client with ANSI color rendering and non-blocking key polling across Linux (`termios`) and Windows console (`conio.h`).
+  - **Terminal Client (`qix_tui`)**: Lightweight console client with high-resolution Unicode Braille ($2 \times 4$ sub-pixel) rendering, Bresenham ribbon vector lines, classic ASCII downsampling mode, ANSI color formatting, and non-blocking key polling across Linux (`termios`) and Windows console (`conio.h`).
   - **Desktop Qt Client (`qix_qt`)**: Modern hardware-accelerated Qt client rendering neon color-cycling stick helix ribbons, glowing sparks, and real-time territory fills.
   - **Desktop SDL2 Client (`qix_sdl`)**: Direct 2D hardware-accelerated SDL2 client with embedded retro arcade font, alpha blending, and zero external font asset requirements.
   - **Desktop Raylib Client (`qix_raylib`)**: Pure hardware-accelerated 2D vector client featuring additive blending (`BLEND_ADDITIVE`) for intense arcade monitor phosphor glow.
@@ -194,6 +194,7 @@ You can select the ruleset mode at launch via CLI:
 | **Disengage Draw / Border** | `X` (Return to border nav) | Release draw key | Release draw key | Release draw key |
 | **Adjust Speed (Pacing)** | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) |
 | **Toggle CRT Filter** | N/A | `C` / `F2` / View Menu | `C` / `F2` | `C` / `F2` |
+| **Toggle Braille / ASCII** | `B` | N/A | N/A | N/A |
 | **Restart Session** | `R` | `R` | `R` | `R` |
 | **Next Level (on victory)**| Automatic / Step | `Space` or `Return` | `Space` or `Return` | `Space` or `Return` |
 | **Quit Game** | `Q` | `Escape` / Close Window | `Escape` / Close Window | `Escape` / Close Window |
@@ -210,6 +211,10 @@ All client frontends support configurable startup speed, game mode, and CRT filt
 ./build/bin/qix_raylib --delay 100 --classic # Raylib client in Classic mode
 ./build/bin/qix_sdl --delay 100 --crt        # SDL2 client with CRT scanlines & phosphor glow
 ./build/bin/qix_qt --mode classic -c         # Qt client in Classic mode with CRT filter
+./build/bin/qix_tui                        # Terminal client: auto-detects terminal size to fill screen
+./build/bin/qix_tui --braille                # Terminal client with 2x4 Braille sub-pixel rendering (default)
+./build/bin/qix_tui --ascii                  # Terminal client with classic ASCII downsampling
+./build/bin/qix_tui --width 80 --height 40   # Custom playfield dimensions override
 ./build/bin/qix_tui --mode modern            # Terminal client in Modern mode
 ```
 
