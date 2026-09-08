@@ -21,6 +21,7 @@ enum class TuiAction : std::uint8_t {
     DisengageDraw,
     Confirm,
     ToggleBraille,
+    ToggleTruecolor,
     Resize
 };
 
@@ -43,7 +44,8 @@ public:
     void render(const GameView& view, std::uint32_t delayMs = 75) noexcept;
 
     /// @brief Poll for a player command non-blockingly.
-    /// @param[out] action Special action (Quit, SpeedUp, SpeedDown, Restart, Confirm, ToggleBraille, Resize).
+    /// @param[out] action Special action (Quit, SpeedUp, SpeedDown, Restart, Confirm, ToggleBraille, ToggleTruecolor,
+    /// Resize).
     /// @return PlayerCommand structure.
     [[nodiscard]] PlayerCommand pollInput(TuiAction& action) noexcept;
 
@@ -57,6 +59,17 @@ public:
 
     /// @brief Toggle Braille rendering mode on/off.
     void toggleBrailleMode() noexcept;
+
+    /// @brief Enable or disable 24-bit Truecolor (RGB) rendering.
+    /// @param[in] enabled True for 24-bit Truecolor ANSI, false for standard 16-color ANSI.
+    void setTruecolor(bool enabled) noexcept;
+
+    /// @brief Check whether 24-bit Truecolor is currently enabled.
+    /// @return True if Truecolor is enabled.
+    [[nodiscard]] bool isTruecolor() const noexcept;
+
+    /// @brief Toggle 24-bit Truecolor mode on/off.
+    void toggleTruecolor() noexcept;
 
     /// @brief Query the current terminal window dimensions.
     /// @return Terminal size in columns and rows.
@@ -75,6 +88,8 @@ public:
 private:
     bool m_initialized {false};
     bool m_brailleMode {true};
+    bool m_truecolor {true};
+    std::uint32_t m_colorCycle {0};
     TerminalSize m_lastTermSize {0, 0};
 
     void clearScreen() noexcept;

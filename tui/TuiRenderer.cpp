@@ -61,10 +61,69 @@ namespace {
         }
     }
 
+    struct Rgb {
+        std::uint8_t r {0};
+        std::uint8_t g {0};
+        std::uint8_t b {0};
+    };
+
+    Rgb hsvToRgb(double h, double s, double v) noexcept
+    {
+        h = std::fmod(h, 360.0);
+        if (h < 0.0) {
+            h += 360.0;
+        }
+
+        const double c = v * s;
+        const double x = c * (1.0 - std::abs(std::fmod(h / 60.0, 2.0) - 1.0));
+        const double m = v - c;
+
+        double r1 = 0.0;
+        double g1 = 0.0;
+        double b1 = 0.0;
+
+        if (h < 60.0) {
+            r1 = c;
+            g1 = x;
+        } else if (h < 120.0) {
+            r1 = x;
+            g1 = c;
+        } else if (h < 180.0) {
+            g1 = c;
+            b1 = x;
+        } else if (h < 240.0) {
+            g1 = x;
+            b1 = c;
+        } else if (h < 300.0) {
+            r1 = x;
+            b1 = c;
+        } else {
+            r1 = c;
+            b1 = x;
+        }
+
+        return Rgb {static_cast<std::uint8_t>(std::clamp(std::round((r1 + m) * 255.0), 0.0, 255.0)),
+            static_cast<std::uint8_t>(std::clamp(std::round((g1 + m) * 255.0), 0.0, 255.0)),
+            static_cast<std::uint8_t>(std::clamp(std::round((b1 + m) * 255.0), 0.0, 255.0))};
+    }
+
+    void appendTruecolor(std::string& out, std::uint8_t r, std::uint8_t g, std::uint8_t b) noexcept
+    {
+        char buf[32];
+        const int len = std::snprintf(buf, sizeof(buf), "\033[38;2;%u;%u;%um", r, g, b);
+        if (len > 0) {
+            out.append(buf, static_cast<std::size_t>(len));
+        }
+    }
+
     struct BrailleCell {
         std::uint8_t dots {0};
         char specialChar {0};
-        const char* color {""};
+        std::uint8_t r {0};
+        std::uint8_t g {0};
+        std::uint8_t b {0};
+        bool isRgb {false};
+        const char* ansiColor {""};
         std::uint8_t priority {0};
     };
 
@@ -213,6 +272,21 @@ void TuiRenderer::toggleBrailleMode() noexcept
     m_brailleMode = !m_brailleMode;
 }
 
+void TuiRenderer::setTruecolor(bool enabled) noexcept
+{
+    m_truecolor = enabled;
+}
+
+bool TuiRenderer::isTruecolor() const noexcept
+{
+    return m_truecolor;
+}
+
+void TuiRenderer::toggleTruecolor() noexcept
+{
+    m_truecolor = !m_truecolor;
+}
+
 void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
 {
     if (!view.playfield) {
@@ -222,6 +296,8 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     if (m_lastTermSize.cols == 0 && m_lastTermSize.rows == 0) {
         m_lastTermSize = queryTerminalSize();
     }
+
+    ++m_colorCycle;
 
     // Move cursor to top-left
     std::string frame = "\033[H";
@@ -249,12 +325,9 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
         stateStr = "PLAYING";
     } else if (view.state == GameState::LevelComplete) {
         if (view.stats.splitBonus) {
-            stateStr = "\033[1;33mSPLIT BONUS! (" + std::to_string(view.stats.multiplier) + "x)\033[0m";
-        } else if (view.stats.thresholdBonus > 0) {
-            stateStr = "\033[1;32mVICTORY! \033[1;33m(+" + std::to_string(view.stats.thresholdBonus)
-                + " THRESHOLD BONUS)\033[0m";
+            stateStr = "\033[1;32mQIX SPLIT BONUS!\033[0m";
         } else {
-            stateStr = "\033[1;32mVICTORY!\033[0m";
+            stateStr = "\033[1;32mLEVEL COMPLETE\033[0m";
         }
     } else if (view.state == GameState::NameEntry) {
         stateStr = "\033[1;33mENTER INITIALS\033[0m";
@@ -263,8 +336,12 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     } else if (view.state == GameState::GameOver) {
         stateStr = "\033[1;31mGAME OVER\033[0m";
     }
-    frame
-        += "State: " + stateStr + " | Mode: \033[1;36m" + (m_brailleMode ? "Braille (Hi-Res)" : "ASCII") + "\033[0m\n";
+
+    std::string modeStr = m_brailleMode ? "Braille (Hi-Res)" : "ASCII";
+    if (m_truecolor) {
+        modeStr += " [RGB]";
+    }
+    frame += "State: " + stateStr + " | Mode: \033[1;36m" + modeStr + "\033[0m\n";
 
     if (view.state == GameState::NameEntry) {
         renderNameEntry(frame, view.nameEntry, view.stats);
@@ -285,8 +362,8 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     }
 
     // 3. Controls Legend
-    frame += "\033[2mControls: [WASD/Arrows] Move | [Space] Slow | [F] Fast | [X] Border | [B] Braille/ASCII | [-/+] "
-             "Speed | [R] Reset | [Q] Quit\033[0m\n";
+    frame += "\033[2mControls: [WASD/Arrows] Move | [Space] Slow | [F] Fast | [X] Border | [B] Braille/ASCII | [T] RGB "
+             "| [-/+] Speed | [R] Reset | [Q] Quit\033[0m\n";
 
     std::cout << frame << std::flush;
 }
@@ -318,22 +395,54 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
             if (state == CellState::Border) {
                 if (cell.priority < 2) {
                     cell.priority = 2;
-                    cell.color = "\033[1;34m"; // Bright blue
+                    if (m_truecolor) {
+                        cell.isRgb = true;
+                        cell.r = 40;
+                        cell.g = 90;
+                        cell.b = 230;
+                    } else {
+                        cell.isRgb = false;
+                        cell.ansiColor = "\033[1;34m"; // Bright blue
+                    }
                 }
             } else if (state == CellState::ActiveStix) {
                 if (cell.priority < 3) {
                     cell.priority = 3;
-                    cell.color = "\033[1;37m"; // Bright white
+                    if (m_truecolor) {
+                        cell.isRgb = true;
+                        cell.r = 255;
+                        cell.g = 255;
+                        cell.b = 255;
+                    } else {
+                        cell.isRgb = false;
+                        cell.ansiColor = "\033[1;37m"; // Bright white
+                    }
                 }
             } else if (state == CellState::ClaimedSlow) {
                 if (cell.priority < 1) {
                     cell.priority = 1;
-                    cell.color = "\033[0;36m"; // Cyan
+                    if (m_truecolor) {
+                        cell.isRgb = true;
+                        cell.r = 0;
+                        cell.g = 210;
+                        cell.b = 230;
+                    } else {
+                        cell.isRgb = false;
+                        cell.ansiColor = "\033[0;36m"; // Cyan
+                    }
                 }
             } else if (state == CellState::ClaimedFast) {
                 if (cell.priority < 1) {
                     cell.priority = 1;
-                    cell.color = "\033[0;32m"; // Green
+                    if (m_truecolor) {
+                        cell.isRgb = true;
+                        cell.r = 30;
+                        cell.g = 220;
+                        cell.b = 100;
+                    } else {
+                        cell.isRgb = false;
+                        cell.ansiColor = "\033[0;32m"; // Green
+                    }
                 }
             }
         }
@@ -348,16 +457,32 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
             cell.dots |= kDotMask[pt.y % 4][pt.x % 2];
             if (cell.priority < 3) {
                 cell.priority = 3;
-                cell.color = "\033[1;37m";
+                if (m_truecolor) {
+                    cell.isRgb = true;
+                    cell.r = 255;
+                    cell.g = 255;
+                    cell.b = 255;
+                } else {
+                    cell.isRgb = false;
+                    cell.ansiColor = "\033[1;37m";
+                }
             }
         }
     }
 
-    // 3. Qix Ribbons (Sub-Pixel Vector Bresenham Line Rasterization)
+    // 3. Qix Ribbons (Sub-Pixel Vector Bresenham Line Rasterization with 24-bit Truecolor Neon Cycling)
     for (const auto& ribbon : view.qixRibbons) {
-        for (std::size_t segIdx {0}; segIdx < ribbon.size(); ++segIdx) {
+        const auto totalSegs = ribbon.size();
+        for (std::size_t segIdx {0}; segIdx < totalSegs; ++segIdx) {
             const auto& seg = ribbon[segIdx];
-            const char* segColor = (segIdx == 0) ? "\033[1;31m" : ((segIdx < 3) ? "\033[1;35m" : "\033[0;35m");
+            const double hue
+                = std::fmod(m_colorCycle * 6.0 + segIdx * (360.0 / std::max<std::size_t>(1, totalSegs)), 360.0);
+            const double sat = (segIdx == 0) ? 0.70 : 0.95;
+            const double val = (segIdx == 0)
+                ? 1.0
+                : std::max(0.35, 1.0 - 0.55 * (static_cast<double>(segIdx) / static_cast<double>(totalSegs)));
+            const Rgb segRgb = hsvToRgb(hue, sat, val);
+            const char* segAnsi = (segIdx == 0) ? "\033[1;31m" : ((segIdx < 3) ? "\033[1;35m" : "\033[0;35m");
 
             bresenhamLine(seg.start.x, seg.start.y, seg.end.x, seg.end.y, [&](int lx, int ly) {
                 if (lx >= 0 && lx < width && ly >= 0 && ly < height) {
@@ -367,7 +492,15 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
                     cell.dots |= kDotMask[ly % 4][lx % 2];
                     if (cell.priority < 4) {
                         cell.priority = 4;
-                        cell.color = segColor;
+                        if (m_truecolor) {
+                            cell.isRgb = true;
+                            cell.r = segRgb.r;
+                            cell.g = segRgb.g;
+                            cell.b = segRgb.b;
+                        } else {
+                            cell.isRgb = false;
+                            cell.ansiColor = segAnsi;
+                        }
                     }
                 }
             });
@@ -383,7 +516,21 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
                 auto& cell = grid[static_cast<std::size_t>(cy * cols + cx)];
                 cell.specialChar = sp.isSuper ? 'S' : '$';
                 cell.priority = 5;
-                cell.color = sp.isSuper ? "\033[1;36m" : "\033[1;35m";
+                if (m_truecolor) {
+                    cell.isRgb = true;
+                    if (sp.isSuper) {
+                        cell.r = 0;
+                        cell.g = 255;
+                        cell.b = 255;
+                    } else {
+                        cell.r = 255;
+                        cell.g = 50;
+                        cell.b = 220;
+                    }
+                } else {
+                    cell.isRgb = false;
+                    cell.ansiColor = sp.isSuper ? "\033[1;36m" : "\033[1;35m";
+                }
             }
         }
     } else {
@@ -394,7 +541,15 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
                 auto& cell = grid[static_cast<std::size_t>(cy * cols + cx)];
                 cell.specialChar = '$';
                 cell.priority = 5;
-                cell.color = "\033[1;35m";
+                if (m_truecolor) {
+                    cell.isRgb = true;
+                    cell.r = 255;
+                    cell.g = 50;
+                    cell.b = 220;
+                } else {
+                    cell.isRgb = false;
+                    cell.ansiColor = "\033[1;35m";
+                }
             }
         }
     }
@@ -408,7 +563,15 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
             auto& cell = grid[static_cast<std::size_t>(cy * cols + cx)];
             cell.specialChar = '!';
             cell.priority = 5;
-            cell.color = "\033[1;31m";
+            if (m_truecolor) {
+                cell.isRgb = true;
+                cell.r = 255;
+                cell.g = 30;
+                cell.b = 30;
+            } else {
+                cell.isRgb = false;
+                cell.ansiColor = "\033[1;31m";
+            }
         }
     }
 
@@ -419,36 +582,53 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
         auto& cell = grid[static_cast<std::size_t>(cy * cols + cx)];
         cell.specialChar = '@';
         cell.priority = 6;
-        cell.color = "\033[1;33m";
+        if (m_truecolor) {
+            cell.isRgb = true;
+            cell.r = 255;
+            cell.g = 220;
+            cell.b = 40;
+        } else {
+            cell.isRgb = false;
+            cell.ansiColor = "\033[1;33m";
+        }
     }
 
     // 7. Output Rendered Braille Frame with Border Framing
-    frame += "\033[1;34m┌";
+    const std::string borderCol = m_truecolor ? "\033[38;2;40;90;230m" : "\033[1;34m";
+    frame += borderCol + "┌";
     for (int cx {0}; cx < cols; ++cx) {
         frame += "─";
     }
     frame += "┐\033[0m\n";
 
     for (std::int32_t cy {0}; cy < rows; ++cy) {
-        frame += "\033[1;34m│\033[0m";
+        frame += borderCol + "│\033[0m";
         for (std::int32_t cx {0}; cx < cols; ++cx) {
             const auto& cell = grid[static_cast<std::size_t>(cy * cols + cx)];
             if (cell.specialChar != 0) {
-                frame += cell.color;
+                if (cell.isRgb) {
+                    appendTruecolor(frame, cell.r, cell.g, cell.b);
+                } else {
+                    frame += cell.ansiColor;
+                }
                 frame += cell.specialChar;
                 frame += "\033[0m";
             } else if (cell.dots != 0) {
-                frame += cell.color;
+                if (cell.isRgb) {
+                    appendTruecolor(frame, cell.r, cell.g, cell.b);
+                } else {
+                    frame += cell.ansiColor;
+                }
                 appendBrailleUtf8(frame, cell.dots);
                 frame += "\033[0m";
             } else {
                 frame += " ";
             }
         }
-        frame += "\033[1;34m│\033[0m\n";
+        frame += borderCol + "│\033[0m\n";
     }
 
-    frame += "\033[1;34m└";
+    frame += borderCol + "└";
     for (int cx {0}; cx < cols; ++cx) {
         frame += "─";
     }
@@ -518,14 +698,27 @@ void TuiRenderer::renderAsciiPlayfield(std::string& frame, const GameView& view)
 
             // Qix segments
             bool isQix = false;
+            Rgb qixRgb {};
+            const char* qixAnsi = "\033[1;31m";
             for (const auto& ribbon : view.qixRibbons) {
-                for (const auto& seg : ribbon) {
+                const auto totalSegs = ribbon.size();
+                for (std::size_t segIdx {0}; segIdx < totalSegs; ++segIdx) {
+                    const auto& seg = ribbon[segIdx];
                     const auto minX = std::min(seg.start.x, seg.end.x);
                     const auto maxX = std::max(seg.start.x, seg.end.x);
                     const auto minY = std::min(seg.start.y, seg.end.y);
                     const auto maxY = std::max(seg.start.y, seg.end.y);
                     if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
                         isQix = true;
+                        const double hue = std::fmod(
+                            m_colorCycle * 6.0 + segIdx * (360.0 / std::max<std::size_t>(1, totalSegs)), 360.0);
+                        const double sat = (segIdx == 0) ? 0.70 : 0.95;
+                        const double val = (segIdx == 0)
+                            ? 1.0
+                            : std::max(
+                                0.35, 1.0 - 0.55 * (static_cast<double>(segIdx) / static_cast<double>(totalSegs)));
+                        qixRgb = hsvToRgb(hue, sat, val);
+                        qixAnsi = (segIdx == 0) ? "\033[1;31m" : ((segIdx < 3) ? "\033[1;35m" : "\033[0;35m");
                         break;
                     }
                 }
@@ -534,7 +727,13 @@ void TuiRenderer::renderAsciiPlayfield(std::string& frame, const GameView& view)
                 }
             }
             if (isQix) {
-                frame += "\033[1;31mX\033[0m";
+                if (m_truecolor) {
+                    appendTruecolor(frame, qixRgb.r, qixRgb.g, qixRgb.b);
+                    frame += "X\033[0m";
+                } else {
+                    frame += qixAnsi;
+                    frame += "X\033[0m";
+                }
                 continue;
             }
 
@@ -676,6 +875,10 @@ PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
         case 'b':
         case 'B':
             action = TuiAction::ToggleBraille;
+            break;
+        case 't':
+        case 'T':
+            action = TuiAction::ToggleTruecolor;
             break;
         case '\n':
         case '\r':

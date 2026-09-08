@@ -13,6 +13,7 @@ int main(int argc, char* argv[])
     const auto mode = qix::GameConfig::parseGameMode(argc, argv);
 
     bool brailleMode = true;
+    bool truecolor = true;
     std::int32_t customWidth = 0;
     std::int32_t customHeight = 0;
 
@@ -23,6 +24,10 @@ int main(int argc, char* argv[])
                 brailleMode = false;
             } else if (arg == "--braille") {
                 brailleMode = true;
+            } else if (arg == "--no-truecolor" || arg == "--no-rgb") {
+                truecolor = false;
+            } else if (arg == "--truecolor" || arg == "--rgb") {
+                truecolor = true;
             } else if ((arg == "--width" || arg == "-w") && i + 1 < argc && argv[i + 1] != nullptr) {
                 customWidth = std::atoi(argv[++i]);
             } else if ((arg == "--height" || arg == "-h") && i + 1 < argc && argv[i + 1] != nullptr) {
@@ -43,6 +48,7 @@ int main(int argc, char* argv[])
     auto game = std::make_unique<qix::QixGame>(width, height, 75, mode, delayMs);
     qix::tui::TuiRenderer renderer {};
     renderer.setBrailleMode(brailleMode);
+    renderer.setTruecolor(truecolor);
 
     renderer.init();
 
@@ -60,6 +66,12 @@ int main(int argc, char* argv[])
 
         if (action == qix::tui::TuiAction::ToggleBraille) {
             renderer.toggleBrailleMode();
+            renderer.render(game->getView(), delayMs);
+            continue;
+        }
+
+        if (action == qix::tui::TuiAction::ToggleTruecolor) {
+            renderer.toggleTruecolor();
             renderer.render(game->getView(), delayMs);
             continue;
         }

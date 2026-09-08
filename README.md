@@ -195,6 +195,7 @@ You can select the ruleset mode at launch via CLI:
 | **Adjust Speed (Pacing)** | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) |
 | **Toggle CRT Filter** | N/A | `C` / `F2` / View Menu | `C` / `F2` | `C` / `F2` |
 | **Toggle Braille / ASCII** | `B` | N/A | N/A | N/A |
+| **Toggle Truecolor (RGB)** | `T` | N/A | N/A | N/A |
 | **Restart Session** | `R` | `R` | `R` | `R` |
 | **Next Level (on victory)**| Automatic / Step | `Space` or `Return` | `Space` or `Return` | `Space` or `Return` |
 | **Quit Game** | `Q` | `Escape` / Close Window | `Escape` / Close Window | `Escape` / Close Window |
@@ -214,6 +215,7 @@ All client frontends support configurable startup speed, game mode, and CRT filt
 ./build/bin/qix_tui                        # Terminal client: auto-detects terminal size to fill screen
 ./build/bin/qix_tui --braille                # Terminal client with 2x4 Braille sub-pixel rendering (default)
 ./build/bin/qix_tui --ascii                  # Terminal client with classic ASCII downsampling
+./build/bin/qix_tui --no-truecolor           # Terminal client with standard 16-color ANSI (disables RGB)
 ./build/bin/qix_tui --width 80 --height 40   # Custom playfield dimensions override
 ./build/bin/qix_tui --mode modern            # Terminal client in Modern mode
 ```
