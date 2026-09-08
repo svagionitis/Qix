@@ -10,7 +10,11 @@ if(GTest_FOUND)
         GameConfigTest.cpp
         HighScoreTableTest.cpp
         SpeedConfigTest.cpp
+        TuiInputTest.cpp
+        ../tui/TuiRenderer.cpp
     )
+
+    target_include_directories(qix_tests PRIVATE ../tui)
 
     target_link_libraries(qix_tests
         PRIVATE

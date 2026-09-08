@@ -1139,71 +1139,89 @@ void TuiRenderer::renderAsciiPlayfield(std::string& frame, const GameView& view)
     frame += "┘\033[0m\n";
 }
 
-PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
+PlayerCommand TuiRenderer::processInput(std::string_view bytes, TuiAction& action) noexcept
 {
     PlayerCommand cmd {};
     action = TuiAction::None;
     m_typedChar = 0;
 
-    const bool resized = checkAndHandleResize();
-
-    int ch = -1;
-
-#ifdef _WIN32
-    if (_kbhit()) {
-        ch = _getch();
-        if (ch == 224) { // Extended key
-            ch = _getch();
-            switch (ch) {
-            case 72:
-                cmd.direction = Direction::Up;
-                break;
-            case 80:
-                cmd.direction = Direction::Down;
-                break;
-            case 75:
-                cmd.direction = Direction::Left;
-                break;
-            case 77:
-                cmd.direction = Direction::Right;
-                break;
-            default:
-                break;
-            }
-            if (action == TuiAction::None && resized) {
-                action = TuiAction::Resize;
-            }
-            return cmd;
-        }
+    if (!bytes.empty()) {
+        m_inputQueue.append(bytes);
     }
-#else
-    char buf[8] {0};
-    const auto n = read(STDIN_FILENO, buf, sizeof(buf) - 1);
-    if (n > 0) {
-        if (buf[0] == '\033' && n >= 3 && buf[1] == '[') {
-            switch (buf[2]) {
-            case 'A':
-                cmd.direction = Direction::Up;
-                break;
-            case 'B':
-                cmd.direction = Direction::Down;
-                break;
-            case 'C':
-                cmd.direction = Direction::Right;
-                break;
-            case 'D':
-                cmd.direction = Direction::Left;
-                break;
-            default:
+
+    std::size_t i {0};
+    while (i < m_inputQueue.size()) {
+        const unsigned char ch = static_cast<unsigned char>(m_inputQueue[i]);
+        if (ch == '\033') {
+            // Check for incomplete escape sequence at end of buffer
+            if (i + 1 >= m_inputQueue.size()) {
+                // Lone ESC at end of buffer; hold for next chunk
                 break;
             }
-            return cmd;
-        }
-        ch = static_cast<unsigned char>(buf[0]);
-    }
-#endif
+            if (m_inputQueue[i + 1] == '[') {
+                // CSI sequence: \033[ ...
+                std::size_t j {i + 2};
+                // Parameter bytes (0x30..0x3F) and intermediate bytes (0x20..0x2F)
+                while (j < m_inputQueue.size() && static_cast<unsigned char>(m_inputQueue[j]) >= 0x20
+                    && static_cast<unsigned char>(m_inputQueue[j]) <= 0x3F) {
+                    ++j;
+                }
+                if (j >= m_inputQueue.size()) {
+                    // Incomplete CSI sequence; hold for next chunk
+                    break;
+                }
+                const char finalChar = m_inputQueue[j];
+                switch (finalChar) {
+                case 'A':
+                    cmd.direction = Direction::Up;
+                    break;
+                case 'B':
+                    cmd.direction = Direction::Down;
+                    break;
+                case 'C':
+                    cmd.direction = Direction::Right;
+                    break;
+                case 'D':
+                    cmd.direction = Direction::Left;
+                    break;
+                default:
+                    break;
+                }
+                i = j + 1;
+                continue;
+            }
+            if (m_inputQueue[i + 1] == 'O') {
+                // SS3 sequence: \033O ...
+                if (i + 2 >= m_inputQueue.size()) {
+                    // Incomplete SS3; hold for next chunk
+                    break;
+                }
+                switch (m_inputQueue[i + 2]) {
+                case 'A':
+                    cmd.direction = Direction::Up;
+                    break;
+                case 'B':
+                    cmd.direction = Direction::Down;
+                    break;
+                case 'C':
+                    cmd.direction = Direction::Right;
+                    break;
+                case 'D':
+                    cmd.direction = Direction::Left;
+                    break;
+                default:
+                    break;
+                }
+                i += 3;
+                continue;
+            }
 
-    if (ch != -1) {
+            // Lone ESC or unrecognized escape prefix; advance past ESC
+            ++i;
+            continue;
+        }
+
+        // Regular character processing
         m_typedChar = static_cast<char>(ch);
         switch (ch) {
         case 8:
@@ -1220,12 +1238,10 @@ PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
             break;
         case '-':
         case '_':
-        case '[':
             action = TuiAction::SpeedDown;
             break;
         case '+':
         case '=':
-        case ']':
             action = TuiAction::SpeedUp;
             break;
         case 'w':
@@ -1274,7 +1290,62 @@ PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
             }
             break;
         }
+        ++i;
     }
+
+    if (i > 0) {
+        m_inputQueue.erase(0, i);
+    }
+    // Discard buffer if malformed noise accumulates beyond limit
+    if (m_inputQueue.size() > 32) {
+        m_inputQueue.clear();
+    }
+
+    return cmd;
+}
+
+PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
+{
+    const bool resized = checkAndHandleResize();
+
+    std::string readBuf {};
+#ifdef _WIN32
+    while (_kbhit()) {
+        const int ch = _getch();
+        if (ch == 0 || ch == 224) { // Extended key prefix
+            const int ext = _getch();
+            switch (ext) {
+            case 72:
+                readBuf += "\033[A";
+                break;
+            case 80:
+                readBuf += "\033[B";
+                break;
+            case 75:
+                readBuf += "\033[D";
+                break;
+            case 77:
+                readBuf += "\033[C";
+                break;
+            default:
+                break;
+            }
+        } else {
+            readBuf.push_back(static_cast<char>(ch));
+        }
+    }
+#else
+    char buf[128] {0};
+    while (true) {
+        const auto n = read(STDIN_FILENO, buf, sizeof(buf));
+        if (n <= 0) {
+            break;
+        }
+        readBuf.append(buf, static_cast<std::size_t>(n));
+    }
+#endif
+
+    PlayerCommand cmd = processInput(readBuf, action);
 
     if (action == TuiAction::None && resized) {
         action = TuiAction::Resize;

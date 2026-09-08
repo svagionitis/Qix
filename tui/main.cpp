@@ -9,7 +9,7 @@
 
 int main(int argc, char* argv[])
 {
-    std::uint32_t delayMs = qix::SpeedConfig::parseSpeedArgs(argc, argv);
+    std::uint32_t delayMs = qix::SpeedConfig::parseSpeedArgs(argc, argv, 40U);
     const auto mode = qix::GameConfig::parseGameMode(argc, argv);
 
     bool brailleMode = true;
@@ -62,6 +62,7 @@ int main(int argc, char* argv[])
     qix::PlayerCommand currentCmd {};
 
     while (running) {
+        const auto frameStart = std::chrono::steady_clock::now();
         qix::tui::TuiAction action = qix::tui::TuiAction::None;
         const auto cmd = renderer.pollInput(action);
 
@@ -96,7 +97,13 @@ int main(int argc, char* argv[])
                 game->handleInput(cmd);
             }
             renderer.render(game->getView(), delayMs);
-            std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
+            const auto frameElapsed
+                = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - frameStart)
+                      .count();
+            if (static_cast<std::uint32_t>(frameElapsed) < delayMs) {
+                std::this_thread::sleep_for(
+                    std::chrono::milliseconds(delayMs - static_cast<std::uint32_t>(frameElapsed)));
+            }
             continue;
         }
 
@@ -137,7 +144,13 @@ int main(int argc, char* argv[])
                 delayMs = game->getCurrentDelayMs();
             }
             renderer.render(game->getView(), delayMs);
-            std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
+            const auto frameElapsed
+                = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - frameStart)
+                      .count();
+            if (static_cast<std::uint32_t>(frameElapsed) < delayMs) {
+                std::this_thread::sleep_for(
+                    std::chrono::milliseconds(delayMs - static_cast<std::uint32_t>(frameElapsed)));
+            }
             continue;
         }
 
@@ -181,7 +194,12 @@ int main(int argc, char* argv[])
         // Reset direction after step
         currentCmd.direction = qix::Direction::None;
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
+        const auto frameElapsed
+            = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - frameStart)
+                  .count();
+        if (static_cast<std::uint32_t>(frameElapsed) < delayMs) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(delayMs - static_cast<std::uint32_t>(frameElapsed)));
+        }
     }
 
     renderer.shutdown();

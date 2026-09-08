@@ -2,6 +2,7 @@
 #include "IQixGame.h"
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace qix::tui {
@@ -51,6 +52,12 @@ public:
     /// Resize, CharInput, Backspace).
     /// @return PlayerCommand structure.
     [[nodiscard]] PlayerCommand pollInput(TuiAction& action) noexcept;
+
+    /// @brief Parse raw input bytes from terminal stream into player command and TUI action.
+    /// @param[in] bytes Raw byte sequence to process.
+    /// @param[out] action Special TUI action detected.
+    /// @return PlayerCommand structure.
+    [[nodiscard]] PlayerCommand processInput(std::string_view bytes, TuiAction& action) noexcept;
 
     /// @brief Retrieve the last typed printable character from user input.
     /// @details Provides access to the character code captured by the most recent pollInput() call.
@@ -113,6 +120,7 @@ private:
     std::uint32_t m_colorCycle {0};
     TerminalSize m_lastTermSize {0, 0};
     std::vector<std::string> m_prevLines {};
+    std::string m_inputQueue {};
 
     void clearScreen() noexcept;
     void presentFrame(const std::string& frame) noexcept;
