@@ -73,3 +73,25 @@ TEST(GameConfigTest, ParseCrtFlags)
     EXPECT_TRUE(qix::GameConfig::parseCrtFlag(2, argv));
     EXPECT_FALSE(qix::GameConfig::parseCrtFlag(0, nullptr));
 }
+
+TEST(GameConfigTest, ParseAudioFlags)
+{
+    EXPECT_FALSE(qix::GameConfig::parseAudioFlag({}));
+    EXPECT_TRUE(qix::GameConfig::parseAudioFlag({}, true));
+
+    EXPECT_TRUE(qix::GameConfig::parseAudioFlag({"--audio"}));
+    EXPECT_TRUE(qix::GameConfig::parseAudioFlag({"--sound"}));
+    EXPECT_TRUE(qix::GameConfig::parseAudioFlag({"-s"}));
+    EXPECT_TRUE(qix::GameConfig::parseAudioFlag({"--AUDIO"}));
+
+    EXPECT_FALSE(qix::GameConfig::parseAudioFlag({"--no-audio"}));
+    EXPECT_FALSE(qix::GameConfig::parseAudioFlag({"--no-sound"}));
+    EXPECT_FALSE(qix::GameConfig::parseAudioFlag({"--audio", "--no-audio"}));
+    EXPECT_TRUE(qix::GameConfig::parseAudioFlag({"--no-audio", "--audio"}));
+
+    char arg0[] = "qix_app";
+    char arg1[] = "--sound";
+    char* argv[] = {arg0, arg1, nullptr};
+    EXPECT_TRUE(qix::GameConfig::parseAudioFlag(2, argv));
+    EXPECT_FALSE(qix::GameConfig::parseAudioFlag(0, nullptr));
+}

@@ -1,4 +1,5 @@
 #pragma once
+#include "ArcadeAudio.h"
 #include "IQixGame.h"
 #include "RaylibRenderer.h"
 #include "SpeedConfig.h"
@@ -12,13 +13,14 @@ namespace qix::raylib {
 /// @brief Raylib application controller coordinating input dispatch, pacing timer, and rendering.
 class RaylibApp {
 public:
-    /// @brief Construct RaylibApp with a game instance, initial simulation delay, and CRT filter state.
+    /// @brief Construct RaylibApp with a game instance, initial simulation delay, CRT filter state, and audio state.
     /// @param[in] game Unique pointer to IQixGame engine instance.
     /// @param[in] delayMs Initial tick delay in milliseconds.
     /// @param[in] crtEnabled Whether CRT scanlines & phosphor glow filter is initially active.
+    /// @param[in] audioEnabled Whether procedural chiptune audio is initially active (default: false).
     explicit RaylibApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs = SpeedConfig::DefaultDelayMs,
-        bool crtEnabled = false) noexcept;
-    ~RaylibApp() = default;
+        bool crtEnabled = false, bool audioEnabled = false) noexcept;
+    ~RaylibApp();
 
     // Non-copyable
     RaylibApp(const RaylibApp&) = delete;
@@ -64,11 +66,29 @@ public:
     /// @brief Toggle CRT filter on/off at runtime.
     void toggleCrt() noexcept;
 
+    /// @brief Enable or disable procedural arcade sound synthesis.
+    /// @param[in] enabled True to unmute audio, false to mute.
+    void setAudioEnabled(bool enabled) noexcept;
+
+    /// @brief Check whether procedural sound is currently unmuted.
+    /// @return True if sound is enabled.
+    [[nodiscard]] bool isAudioEnabled() const noexcept;
+
+    /// @brief Toggle procedural sound on/off at runtime.
+    void toggleAudio() noexcept;
+
+    /// @brief Access internal audio synthesizer.
+    /// @return Reference to ArcadeAudio.
+    [[nodiscard]] ArcadeAudio& getAudio() noexcept;
+
 private:
     std::unique_ptr<IQixGame> m_game;
     RaylibRenderer m_renderer {};
+    ArcadeAudio m_audio {};
     PlayerCommand m_currentCmd {};
     std::uint32_t m_delayMs {SpeedConfig::DefaultDelayMs};
+    AudioStream m_audioStream {};
+    bool m_audioDeviceReady {false};
 
     void processInput() noexcept;
 };

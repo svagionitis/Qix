@@ -2,9 +2,63 @@
 #include <QKeyEvent>
 #include <QMenuBar>
 
+#if defined(QIX_QT_HAS_MULTIMEDIA)
+#include <QAudioFormat>
+#include <QIODevice>
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+#include <QAudioSink>
+#include <QMediaDevices>
+#else
+#include <QAudioDeviceInfo>
+#include <QAudioOutput>
+#endif
+
+namespace {
+class AudioStreamDevice : public QIODevice {
+public:
+    explicit AudioStreamDevice(qix::ArcadeAudio& audio, QObject* parent = nullptr)
+        : QIODevice {parent}
+        , m_audio {audio}
+    {
+        open(QIODevice::ReadOnly | QIODevice::Unbuffered);
+    }
+
+    bool isSequential() const override
+    {
+        return true;
+    }
+
+    qint64 bytesAvailable() const override
+    {
+        return 4096 + QIODevice::bytesAvailable();
+    }
+
+protected:
+    qint64 readData(char* data, qint64 maxlen) override
+    {
+        const auto samplesToGenerate = static_cast<std::size_t>(maxlen / sizeof(std::int16_t));
+        if (samplesToGenerate > 0 && data != nullptr) {
+            m_audio.generateSamples(reinterpret_cast<std::int16_t*>(data), samplesToGenerate);
+            return static_cast<qint64>(samplesToGenerate * sizeof(std::int16_t));
+        }
+        return 0;
+    }
+
+    qint64 writeData(const char* /*data*/, qint64 /*len*/) override
+    {
+        return 0;
+    }
+
+private:
+    qix::ArcadeAudio& m_audio;
+};
+} // namespace
+#endif
+
 namespace qix::qt {
 
-MainWindow::MainWindow(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bool crtEnabled, QWidget* parent)
+MainWindow::MainWindow(
+    std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bool crtEnabled, bool audioEnabled, QWidget* parent)
     : QMainWindow {parent}
     , m_game {std::move(game)}
     , m_delayMs {SpeedConfig::clampDelay(delayMs)}
@@ -17,16 +71,71 @@ MainWindow::MainWindow(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bo
     m_canvas->setCrtEnabled(crtEnabled);
     setCentralWidget(m_canvas);
 
-    // Menu Bar with View -> CRT Filter
+    // Menu Bar with View -> CRT Filter and Sound
     auto* viewMenu = menuBar()->addMenu(tr("&View"));
     m_crtAction = viewMenu->addAction(tr("&CRT Filter (Scanlines && Glow)"), this, &MainWindow::toggleCrt);
     m_crtAction->setCheckable(true);
     m_crtAction->setChecked(crtEnabled);
     m_crtAction->setShortcut(QKeySequence(Qt::Key_F2));
 
+    m_audioAction = viewMenu->addAction(tr("&Sound (M / F3)"), this, &MainWindow::toggleAudio);
+    m_audioAction->setCheckable(true);
+    m_audioAction->setChecked(audioEnabled);
+    m_audioAction->setShortcut(QKeySequence(Qt::Key_F3));
+
+    m_audio.setMuted(!audioEnabled);
+    initAudio(audioEnabled);
+
     // Dynamic simulation and rendering loop
     connect(&m_timer, &QTimer::timeout, this, &MainWindow::onTick);
     m_timer.start(static_cast<int>(m_delayMs));
+}
+
+MainWindow::~MainWindow()
+{
+#if defined(QIX_QT_HAS_MULTIMEDIA)
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+    if (m_audioSink) {
+        m_audioSink->stop();
+    }
+#else
+    if (m_audioOutput) {
+        m_audioOutput->stop();
+    }
+#endif
+    if (m_audioStreamDevice) {
+        m_audioStreamDevice->close();
+    }
+#endif
+}
+
+void MainWindow::initAudio(bool /*audioEnabled*/)
+{
+#if defined(QIX_QT_HAS_MULTIMEDIA)
+    QAudioFormat format;
+    format.setSampleRate(static_cast<int>(ArcadeAudio::SampleRate));
+    format.setChannelCount(1);
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+    format.setSampleFormat(QAudioFormat::Int16);
+    const auto device = QMediaDevices::defaultAudioOutput();
+    if (!device.isNull()) {
+        m_audioStreamDevice = std::make_unique<AudioStreamDevice>(m_audio, this);
+        m_audioSink = std::make_unique<QAudioSink>(device, format, this);
+        m_audioSink->start(m_audioStreamDevice.get());
+    }
+#else
+    format.setSampleSize(16);
+    format.setCodec("audio/pcm");
+    format.setByteOrder(QAudioFormat::LittleEndian);
+    format.setSampleType(QAudioFormat::SignedInt);
+    const auto info = QAudioDeviceInfo::defaultOutputDevice();
+    if (!info.isNull()) {
+        m_audioStreamDevice = std::make_unique<AudioStreamDevice>(m_audio, this);
+        m_audioOutput = std::make_unique<QAudioOutput>(info, format, this);
+        m_audioOutput->start(m_audioStreamDevice.get());
+    }
+#endif
+#endif
 }
 
 std::uint32_t MainWindow::getDelayMs() const noexcept
@@ -90,6 +199,27 @@ void MainWindow::toggleCrt() noexcept
     }
 }
 
+void MainWindow::setAudioEnabled(bool enabled) noexcept
+{
+    m_audio.setMuted(!enabled);
+    if (m_audioAction != nullptr) {
+        m_audioAction->setChecked(enabled);
+    }
+}
+
+bool MainWindow::isAudioEnabled() const noexcept
+{
+    return !m_audio.isMuted();
+}
+
+void MainWindow::toggleAudio() noexcept
+{
+    m_audio.toggleMute();
+    if (m_audioAction != nullptr) {
+        m_audioAction->setChecked(!m_audio.isMuted());
+    }
+}
+
 void MainWindow::onTick()
 {
     if (!m_game) {
@@ -98,6 +228,8 @@ void MainWindow::onTick()
 
     m_game->handleInput(m_currentCmd);
     m_game->step(m_delayMs);
+
+    m_audio.update(m_game->getView(), m_delayMs);
 
     m_canvas->updateView(m_game->getView());
 
@@ -208,6 +340,10 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
     case Qt::Key_C:
     case Qt::Key_F2:
         toggleCrt();
+        break;
+    case Qt::Key_M:
+    case Qt::Key_F3:
+        toggleAudio();
         break;
     case Qt::Key_Escape:
         close();

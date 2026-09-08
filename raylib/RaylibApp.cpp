@@ -3,16 +3,55 @@
 
 namespace qix::raylib {
 
-RaylibApp::RaylibApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bool crtEnabled) noexcept
+static RaylibApp* s_currentApp {nullptr};
+
+static void raylibAudioCallback(void* bufferData, unsigned int frames) noexcept
+{
+    if (s_currentApp != nullptr && bufferData != nullptr && frames > 0) {
+        s_currentApp->getAudio().generateSamples(
+            reinterpret_cast<std::int16_t*>(bufferData), static_cast<std::size_t>(frames));
+    } else if (bufferData != nullptr && frames > 0) {
+        std::fill_n(reinterpret_cast<std::int16_t*>(bufferData), frames, static_cast<std::int16_t>(0));
+    }
+}
+
+RaylibApp::RaylibApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bool crtEnabled, bool audioEnabled) noexcept
     : m_game {std::move(game)}
     , m_delayMs {SpeedConfig::clampDelay(delayMs)}
 {
     m_renderer.setCrtEnabled(crtEnabled);
+    m_audio.setMuted(!audioEnabled);
+}
+
+RaylibApp::~RaylibApp()
+{
+    if (m_audioDeviceReady) {
+        if (s_currentApp == this) {
+            s_currentApp = nullptr;
+        }
+        UnloadAudioStream(m_audioStream);
+        CloseAudioDevice();
+        m_audioDeviceReady = false;
+    }
 }
 
 bool RaylibApp::init(const std::string& title, int width, int height) noexcept
 {
-    return m_renderer.init(title, width, height);
+    const bool ok = m_renderer.init(title, width, height);
+    if (!ok) {
+        return false;
+    }
+
+    InitAudioDevice();
+    if (IsAudioDeviceReady()) {
+        m_audioDeviceReady = true;
+        m_audioStream = LoadAudioStream(ArcadeAudio::SampleRate, 16, 1);
+        s_currentApp = this;
+        SetAudioStreamCallback(m_audioStream, raylibAudioCallback);
+        PlayAudioStream(m_audioStream);
+    }
+
+    return true;
 }
 
 std::uint32_t RaylibApp::getDelayMs() const noexcept
@@ -58,6 +97,26 @@ bool RaylibApp::isCrtEnabled() const noexcept
 void RaylibApp::toggleCrt() noexcept
 {
     m_renderer.toggleCrt();
+}
+
+void RaylibApp::setAudioEnabled(bool enabled) noexcept
+{
+    m_audio.setMuted(!enabled);
+}
+
+bool RaylibApp::isAudioEnabled() const noexcept
+{
+    return !m_audio.isMuted();
+}
+
+void RaylibApp::toggleAudio() noexcept
+{
+    m_audio.toggleMute();
+}
+
+ArcadeAudio& RaylibApp::getAudio() noexcept
+{
+    return m_audio;
 }
 
 void RaylibApp::processInput() noexcept
@@ -167,6 +226,11 @@ void RaylibApp::processInput() noexcept
     if (IsKeyPressed(KEY_C) || IsKeyPressed(KEY_F2)) {
         toggleCrt();
     }
+
+    // Toggle procedural arcade audio
+    if (IsKeyPressed(KEY_M) || IsKeyPressed(KEY_F3)) {
+        toggleAudio();
+    }
 }
 
 void RaylibApp::run() noexcept
@@ -183,6 +247,7 @@ void RaylibApp::run() noexcept
             if (m_game) {
                 m_game->handleInput(m_currentCmd);
                 m_game->step(m_delayMs);
+                m_audio.update(m_game->getView(), m_delayMs);
                 m_currentCmd.direction = Direction::None;
             }
             lastStepTime = currentTime;

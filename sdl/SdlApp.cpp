@@ -3,15 +3,20 @@
 
 namespace qix::sdl {
 
-SdlApp::SdlApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bool crtEnabled) noexcept
+SdlApp::SdlApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bool crtEnabled, bool audioEnabled) noexcept
     : m_game {std::move(game)}
     , m_delayMs {SpeedConfig::clampDelay(delayMs)}
 {
     m_renderer.setCrtEnabled(crtEnabled);
+    m_audio.setMuted(!audioEnabled);
 }
 
 SdlApp::~SdlApp()
 {
+    if (m_audioDevice != 0) {
+        SDL_CloseAudioDevice(m_audioDevice);
+        m_audioDevice = 0;
+    }
     if (m_sdlInitialized) {
         SDL_Quit();
     }
@@ -19,10 +24,25 @@ SdlApp::~SdlApp()
 
 bool SdlApp::init(const std::string& title, int width, int height) noexcept
 {
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_AUDIO) != 0) {
         return false;
     }
     m_sdlInitialized = true;
+
+    // Open audio device
+    SDL_AudioSpec desired {};
+    desired.freq = static_cast<int>(ArcadeAudio::SampleRate);
+    desired.format = AUDIO_S16SYS;
+    desired.channels = 1;
+    desired.samples = 1024;
+    desired.callback = sdlAudioCallback;
+    desired.userdata = this;
+
+    SDL_AudioSpec obtained {};
+    m_audioDevice = SDL_OpenAudioDevice(nullptr, 0, &desired, &obtained, 0);
+    if (m_audioDevice != 0) {
+        SDL_PauseAudioDevice(m_audioDevice, 0);
+    }
 
     return m_renderer.init(title, width, height);
 }
@@ -70,6 +90,32 @@ bool SdlApp::isCrtEnabled() const noexcept
 void SdlApp::toggleCrt() noexcept
 {
     m_renderer.toggleCrt();
+}
+
+void SdlApp::setAudioEnabled(bool enabled) noexcept
+{
+    m_audio.setMuted(!enabled);
+}
+
+bool SdlApp::isAudioEnabled() const noexcept
+{
+    return !m_audio.isMuted();
+}
+
+void SdlApp::toggleAudio() noexcept
+{
+    m_audio.toggleMute();
+}
+
+void SdlApp::sdlAudioCallback(void* userdata, Uint8* stream, int len) noexcept
+{
+    auto* app = static_cast<SdlApp*>(userdata);
+    if (app != nullptr && stream != nullptr && len > 0) {
+        app->m_audio.generateSamples(
+            reinterpret_cast<std::int16_t*>(stream), static_cast<std::size_t>(len) / sizeof(std::int16_t));
+    } else if (stream != nullptr && len > 0) {
+        std::fill_n(stream, len, static_cast<Uint8>(0));
+    }
 }
 
 void SdlApp::processEvents(bool& running) noexcept
@@ -193,6 +239,10 @@ void SdlApp::processEvents(bool& running) noexcept
             case SDLK_F2:
                 toggleCrt();
                 break;
+            case SDLK_m:
+            case SDLK_F3:
+                toggleAudio();
+                break;
             case SDLK_ESCAPE:
                 running = false;
                 break;
@@ -224,6 +274,8 @@ void SdlApp::run() noexcept
         if (m_game) {
             m_game->handleInput(m_currentCmd);
             m_game->step(m_delayMs);
+
+            m_audio.update(m_game->getView(), m_delayMs);
 
             m_renderer.render(m_game->getView(), m_delayMs);
             m_renderer.present();

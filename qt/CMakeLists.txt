@@ -6,6 +6,7 @@ find_package(QT NAMES Qt6 Qt5 COMPONENTS Core Gui Widgets QUIET)
 
 if(QT_FOUND)
     find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core Gui Widgets REQUIRED)
+    find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Multimedia QUIET)
 
     add_executable(qix_qt
         main.cpp
@@ -22,6 +23,11 @@ if(QT_FOUND)
             Qt${QT_VERSION_MAJOR}::Gui
             Qt${QT_VERSION_MAJOR}::Widgets
     )
+
+    if(TARGET Qt${QT_VERSION_MAJOR}::Multimedia)
+        target_link_libraries(qix_qt PRIVATE Qt${QT_VERSION_MAJOR}::Multimedia)
+        target_compile_definitions(qix_qt PRIVATE QIX_QT_HAS_MULTIMEDIA=1)
+    endif()
 
     apply_compiler_flags(qix_qt)
 

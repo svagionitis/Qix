@@ -2,6 +2,7 @@ find_package(GTest QUIET)
 
 if(GTest_FOUND)
     add_executable(qix_tests
+        ArcadeAudioTest.cpp
         PlayfieldTest.cpp
         MarkerTest.cpp
         TerritoryFillTest.cpp

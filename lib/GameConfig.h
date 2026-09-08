@@ -43,6 +43,20 @@ public:
     /// @param[in] defaultCrt Fallback value if flag is absent (default: false).
     /// @return True if CRT filter is enabled, false otherwise.
     [[nodiscard]] static bool parseCrtFlag(const std::vector<std::string>& args, bool defaultCrt = false) noexcept;
+
+    /// @brief Parse audio sound synthesis flag from command line arguments (--audio, --sound, -s, --no-audio,
+    /// --no-sound).
+    /// @param[in] argc Argument count.
+    /// @param[in] argv Argument array.
+    /// @param[in] defaultAudio Fallback value if flag is absent (default: false).
+    /// @return True if audio output is enabled, false otherwise.
+    [[nodiscard]] static bool parseAudioFlag(int argc, char* const argv[], bool defaultAudio = false) noexcept;
+
+    /// @brief Parse audio sound synthesis flag from a vector of argument strings.
+    /// @param[in] args Vector of command line argument strings.
+    /// @param[in] defaultAudio Fallback value if flag is absent (default: false).
+    /// @return True if audio output is enabled, false otherwise.
+    [[nodiscard]] static bool parseAudioFlag(const std::vector<std::string>& args, bool defaultAudio = false) noexcept;
 };
 
 } // namespace qix

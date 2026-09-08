@@ -1,4 +1,5 @@
 #pragma once
+#include "ArcadeAudio.h"
 #include "IQixGame.h"
 #include "SdlRenderer.h"
 #include "SpeedConfig.h"
@@ -13,12 +14,13 @@ namespace qix::sdl {
 /// @brief Desktop SDL2 application controller coordinating event routing, simulation pacing, and rendering.
 class SdlApp {
 public:
-    /// @brief Construct SdlApp with a game instance, initial simulation delay, and CRT filter state.
+    /// @brief Construct SdlApp with a game instance, initial simulation delay, CRT filter state, and audio state.
     /// @param[in] game Unique pointer to IQixGame engine instance.
     /// @param[in] delayMs Initial tick delay in milliseconds.
     /// @param[in] crtEnabled Whether CRT scanlines & phosphor glow filter is initially active.
+    /// @param[in] audioEnabled Whether procedural chiptune audio is initially active (default: false).
     explicit SdlApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs = SpeedConfig::DefaultDelayMs,
-        bool crtEnabled = false) noexcept;
+        bool crtEnabled = false, bool audioEnabled = false) noexcept;
     ~SdlApp();
 
     // Non-copyable
@@ -64,14 +66,28 @@ public:
     /// @brief Toggle CRT filter on/off at runtime.
     void toggleCrt() noexcept;
 
+    /// @brief Enable or disable procedural arcade sound synthesis.
+    /// @param[in] enabled True to unmute audio, false to mute.
+    void setAudioEnabled(bool enabled) noexcept;
+
+    /// @brief Check whether procedural sound is currently unmuted.
+    /// @return True if sound is enabled.
+    [[nodiscard]] bool isAudioEnabled() const noexcept;
+
+    /// @brief Toggle procedural sound on/off at runtime.
+    void toggleAudio() noexcept;
+
 private:
     std::unique_ptr<IQixGame> m_game;
     SdlRenderer m_renderer {};
+    ArcadeAudio m_audio {};
     PlayerCommand m_currentCmd {};
     std::uint32_t m_delayMs {SpeedConfig::DefaultDelayMs};
     bool m_sdlInitialized {false};
+    SDL_AudioDeviceID m_audioDevice {0};
 
     void processEvents(bool& running) noexcept;
+    static void sdlAudioCallback(void* userdata, Uint8* stream, int len) noexcept;
 };
 
 } // namespace qix::sdl
