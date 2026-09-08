@@ -446,8 +446,25 @@ void QixCanvas::drawOverlays(QPainter& painter)
         return;
     }
 
+    if (m_view.state == GameState::Attract) {
+        if (m_view.attractStage == AttractStage::GameplayDemo) {
+            drawDemoBanners(painter);
+            return;
+        }
+    }
+
     painter.save();
     painter.fillRect(rect(), QColor(0, 0, 0, 200));
+
+    if (m_view.state == GameState::Attract) {
+        if (m_view.attractStage == AttractStage::TitleScores) {
+            drawHallOfFame(painter, false, true);
+        } else if (m_view.attractStage == AttractStage::Instructions) {
+            drawInstructionsCard(painter);
+        }
+        painter.restore();
+        return;
+    }
 
     if (m_view.state == GameState::LevelComplete) {
         QFont font("Monospace", 24, QFont::Bold);
@@ -474,9 +491,9 @@ void QixCanvas::drawOverlays(QPainter& painter)
     } else if (m_view.state == GameState::NameEntry) {
         drawNameEntry(painter);
     } else if (m_view.state == GameState::HallOfFame) {
-        drawHallOfFame(painter, false);
+        drawHallOfFame(painter, false, false);
     } else if (m_view.state == GameState::GameOver) {
-        drawHallOfFame(painter, true);
+        drawHallOfFame(painter, true, false);
     }
 
     painter.restore();
@@ -519,14 +536,15 @@ void QixCanvas::drawNameEntry(QPainter& painter)
 
         if (isActive) {
             painter.setPen(QColor(250, 204, 21));
-            painter.setFont(QFont("Monospace", 12, QFont::Bold));
-            painter.drawText(QRect(bx, boxY - 20, boxW, 20), Qt::AlignCenter, "^");
-            painter.drawText(QRect(bx, boxY + boxH, boxW, 20), Qt::AlignCenter, "v");
+            painter.setFont(QFont("Monospace", 14, QFont::Bold));
+            painter.drawText(QRect(bx, boxY - 20, boxW, 18), Qt::AlignCenter, "^");
+            painter.drawText(QRect(bx, boxY + boxH + 2, boxW, 18), Qt::AlignCenter, "v");
         }
 
         painter.setPen(QColor(248, 250, 252));
         painter.setFont(QFont("Monospace", 26, QFont::Bold));
-        painter.drawText(QRect(bx, boxY, boxW, boxH), Qt::AlignCenter, QString(m_view.nameEntry.initials[i]));
+        const QString ch(m_view.nameEntry.initials[i]);
+        painter.drawText(QRect(bx, boxY, boxW, boxH), Qt::AlignCenter, ch);
     }
 
     painter.setPen(QColor(148, 163, 184));
@@ -536,7 +554,7 @@ void QixCanvas::drawNameEntry(QPainter& painter)
     painter.restore();
 }
 
-void QixCanvas::drawHallOfFame(QPainter& painter, bool isGameOver)
+void QixCanvas::drawHallOfFame(QPainter& painter, bool isGameOver, bool isAttract)
 {
     const int w = width();
     const int h = height();
@@ -548,6 +566,11 @@ void QixCanvas::drawHallOfFame(QPainter& painter, bool isGameOver)
         painter.setPen(QColor(248, 113, 113));
         painter.setFont(QFont("Monospace", 22, QFont::Bold));
         painter.drawText(QRect(0, curY, w, 35), Qt::AlignCenter, "GAME OVER");
+        curY += 40;
+    } else if (isAttract) {
+        painter.setPen(QColor(59, 130, 246));
+        painter.setFont(QFont("Monospace", 20, QFont::Bold));
+        painter.drawText(QRect(0, curY, w, 35), Qt::AlignCenter, "TAITO 1981 - QIX ARCADE");
         curY += 40;
     }
 
@@ -592,9 +615,75 @@ void QixCanvas::drawHallOfFame(QPainter& painter, bool isGameOver)
     }
 
     curY += 15;
-    painter.setPen(QColor(243, 244, 246));
+    painter.setPen(isAttract ? QColor(74, 222, 128) : QColor(243, 244, 246));
     painter.setFont(QFont("Monospace", 12, QFont::Bold));
-    painter.drawText(QRect(0, curY, w, 25), Qt::AlignCenter, "Press [R] or [SPACE] to Play Again");
+    painter.drawText(QRect(0, curY, w, 25), Qt::AlignCenter,
+        isAttract ? "INSERT COIN  -  PRESS [SPACE] TO PLAY" : "Press [R] or [SPACE] to Play Again");
+    painter.restore();
+}
+
+void QixCanvas::drawDemoBanners(QPainter& painter)
+{
+    const int w = width();
+    const int h = height();
+
+    painter.save();
+    const QRect topBox((w - 340) / 2, 16, 340, 36);
+    painter.fillRect(topBox, QColor(15, 23, 42, 220));
+    painter.setPen(QPen(QColor(250, 204, 21), 2));
+    painter.drawRect(topBox);
+    painter.setFont(QFont("Monospace", 14, QFont::Bold));
+    painter.setPen(QColor(250, 204, 21));
+    painter.drawText(topBox, Qt::AlignCenter, "*** GAMEPLAY DEMO ***");
+
+    const QRect botBox((w - 440) / 2, h - 50, 440, 34);
+    painter.fillRect(botBox, QColor(15, 23, 42, 220));
+    painter.setPen(QPen(QColor(74, 222, 128), 2));
+    painter.drawRect(botBox);
+    painter.setFont(QFont("Monospace", 12, QFont::Bold));
+    painter.setPen(QColor(74, 222, 128));
+    painter.drawText(botBox, Qt::AlignCenter, "INSERT COIN - PRESS ANY KEY TO PLAY");
+    painter.restore();
+}
+
+void QixCanvas::drawInstructionsCard(QPainter& painter)
+{
+    const int w = width();
+    const int h = height();
+
+    painter.save();
+    painter.setPen(QColor(250, 204, 21));
+    painter.setFont(QFont("Monospace", 22, QFont::Bold));
+    painter.drawText(QRect(0, h / 2 - 150, w, 35), Qt::AlignCenter, "HOW TO PLAY");
+
+    struct Rule {
+        const char* header;
+        const char* detail;
+        QColor color;
+    };
+    const std::array<Rule, 5> rules {{
+        {"OBJECTIVE", "CLAIM 75% OR MORE OF THE PLAYFIELD TO WIN", QColor(59, 130, 246)},
+        {"SLOW DRAW", "HOLD [SPACE] WHILE MOVING (2X POINTS - 200 PTS/CELL)", QColor(34, 197, 94)},
+        {"FAST DRAW", "HOLD [SHIFT/F] WHILE MOVING (1X POINTS - 100 PTS/CELL)", QColor(245, 158, 11)},
+        {"HAZARDS", "AVOID THE BOUNCING QIX & PATROLLING SPARX ENEMIES", QColor(239, 68, 68)},
+        {"THE FUSE", "BURNS DOWN YOUR TRAIL IF YOU HESITATE - KEEP MOVING!", QColor(217, 70, 239)}
+    }};
+
+    int y = h / 2 - 95;
+    for (const auto& r : rules) {
+        painter.setPen(r.color);
+        painter.setFont(QFont("Monospace", 11, QFont::Bold));
+        painter.drawText(QRect(w / 2 - 250, y, 500, 20), Qt::AlignLeft, r.header);
+
+        painter.setPen(QColor(229, 231, 235));
+        painter.setFont(QFont("Monospace", 10));
+        painter.drawText(QRect(w / 2 - 250, y + 18, 500, 20), Qt::AlignLeft, r.detail);
+        y += 44;
+    }
+
+    painter.setPen(QColor(74, 222, 128));
+    painter.setFont(QFont("Monospace", 12, QFont::Bold));
+    painter.drawText(QRect(0, h / 2 + 145, w, 25), Qt::AlignCenter, "INSERT COIN - PRESS ANY KEY TO PLAY");
     painter.restore();
 }
 

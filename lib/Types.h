@@ -43,7 +43,14 @@ inline constexpr GameMode DefaultGameMode {GameMode::Classic};
 enum class DrawMode : std::uint8_t { None = 0, Slow, Fast };
 
 /// @brief State of the game session.
-enum class GameState : std::uint8_t { Ready = 0, Playing, PlayerDying, LevelComplete, GameOver, NameEntry, HallOfFame };
+enum class GameState : std::uint8_t { Ready = 0, Playing, PlayerDying, LevelComplete, GameOver, NameEntry, HallOfFame, Attract };
+
+/// @brief Attract cycle phase during non-interactive arcade showcase.
+enum class AttractStage : std::uint8_t {
+    TitleScores = 0, ///< High scores, title logo, and insert coin banner.
+    Instructions = 1, ///< Arcade how-to-play rules and scoring values card.
+    GameplayDemo = 2 ///< Autonomous AI agent live gameplay simulation.
+};
 
 /// @brief Player input command.
 struct PlayerCommand {
@@ -70,6 +77,9 @@ struct GameStats {
     std::uint32_t currentDelayMs {75U};
     std::uint32_t thresholdBonus {0};
     std::uint32_t nextExtraLifeScore {50000U};
+    bool isAttractMode {false};
+    AttractStage attractStage {AttractStage::TitleScores};
+    std::uint32_t attractTimerMs {0};
 };
 
 /// @brief Active 3-letter initials entry state for Hall of Fame qualification.

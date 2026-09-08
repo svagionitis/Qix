@@ -440,3 +440,69 @@ TEST(GameEngineTest, ZeroScoreGameOverDirectly)
     EXPECT_EQ(game.getView().stats.lives, 0U);
     EXPECT_EQ(game.getView().state, qix::GameState::GameOver);
 }
+
+TEST(GameEngineTest, AttractModeManualTransitions)
+{
+    qix::QixGame game {80, 60, 75};
+    EXPECT_FALSE(game.isAttractMode());
+
+    game.startAttractMode();
+    EXPECT_TRUE(game.isAttractMode());
+    EXPECT_EQ(game.getView().state, qix::GameState::Attract);
+    EXPECT_TRUE(game.getView().isAttractMode);
+    EXPECT_EQ(game.getView().attractStage, qix::AttractStage::TitleScores);
+
+    game.exitAttractMode();
+    EXPECT_FALSE(game.isAttractMode());
+    EXPECT_EQ(game.getView().state, qix::GameState::Ready);
+    EXPECT_FALSE(game.getView().isAttractMode);
+}
+
+TEST(GameEngineTest, AttractModeInputBreakout)
+{
+    qix::QixGame game {80, 60, 75};
+    game.startAttractMode();
+    EXPECT_EQ(game.getView().state, qix::GameState::Attract);
+
+    // Player presses directional or draw key
+    game.handleInput(qix::PlayerCommand {qix::Direction::Right, qix::DrawMode::None});
+    EXPECT_EQ(game.getView().state, qix::GameState::Ready);
+    EXPECT_FALSE(game.isAttractMode());
+}
+
+TEST(GameEngineTest, AttractModeIdleTimeout)
+{
+    qix::QixGame game {80, 60, 75};
+    EXPECT_EQ(game.getView().state, qix::GameState::Ready);
+
+    // Idle for 19 seconds (under 20s threshold)
+    game.step(19000);
+    EXPECT_EQ(game.getView().state, qix::GameState::Ready);
+    EXPECT_FALSE(game.isAttractMode());
+
+    // Step past 20s threshold (1500 ms more)
+    game.step(1500);
+    EXPECT_EQ(game.getView().state, qix::GameState::Attract);
+    EXPECT_TRUE(game.isAttractMode());
+}
+
+TEST(GameEngineTest, AttractModeCycleStages)
+{
+    qix::QixGame game {80, 60, 75};
+    game.startAttractMode();
+    EXPECT_EQ(game.getView().attractStage, qix::AttractStage::TitleScores);
+
+    // Advance past TitleScores duration (6000 ms)
+    game.step(6500);
+    EXPECT_EQ(game.getView().attractStage, qix::AttractStage::Instructions);
+
+    // Advance past Instructions duration (6000 ms)
+    game.step(6500);
+    EXPECT_EQ(game.getView().attractStage, qix::AttractStage::GameplayDemo);
+
+    // Run multiple ticks in GameplayDemo; verify DemoBot steps safely
+    for (int i = 0; i < 30; ++i) {
+        game.step(50);
+        EXPECT_EQ(game.getView().state, qix::GameState::Attract);
+    }
+}

@@ -141,6 +141,20 @@ void RaylibApp::processInput() noexcept
     const auto view = m_game ? m_game->getView() : GameView {};
 
     // State screen transitions
+    if (view.state == GameState::Attract) {
+        if (GetKeyPressed() > 0 || GetCharPressed() > 0) {
+            if (m_game) {
+                m_game->exitAttractMode();
+            }
+            return;
+        }
+    } else if (IsKeyPressed(KEY_F1)) {
+        if (m_game) {
+            m_game->startAttractMode();
+        }
+        return;
+    }
+
     if (view.state == GameState::LevelComplete) {
         if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
             if (m_game) {

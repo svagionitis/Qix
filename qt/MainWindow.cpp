@@ -294,6 +294,16 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
 {
     const auto view = m_game->getView();
 
+    if (view.state == GameState::Attract) {
+        m_game->exitAttractMode();
+        m_canvas->updateView(m_game->getView());
+        return;
+    } else if (event->key() == Qt::Key_F1) {
+        m_game->startAttractMode();
+        m_canvas->updateView(m_game->getView());
+        return;
+    }
+
     // Restart or advance level on state screens
     if (view.state == GameState::LevelComplete) {
         if (event->key() == Qt::Key_Space || event->key() == Qt::Key_Return) {

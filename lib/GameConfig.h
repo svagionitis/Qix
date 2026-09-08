@@ -73,6 +73,19 @@ public:
     /// @return Configured PaletteId.
     [[nodiscard]] static PaletteId parsePaletteFlag(
         const std::vector<std::string>& args, PaletteId defaultPalette = PaletteId::Classic) noexcept;
+
+    /// @brief Parse attract / demo mode flag from command line arguments (--attract, --demo, -d).
+    /// @param[in] argc Argument count.
+    /// @param[in] argv Argument array.
+    /// @param[in] defaultAttract Fallback value if flag is absent (default: false).
+    /// @return True if attract mode should start immediately, false otherwise.
+    [[nodiscard]] static bool parseAttractFlag(int argc, char* const argv[], bool defaultAttract = false) noexcept;
+
+    /// @brief Parse attract / demo mode flag from a vector of argument strings.
+    /// @param[in] args Vector of command line argument strings.
+    /// @param[in] defaultAttract Fallback value if flag is absent (default: false).
+    /// @return True if attract mode should start immediately, false otherwise.
+    [[nodiscard]] static bool parseAttractFlag(const std::vector<std::string>& args, bool defaultAttract = false) noexcept;
 };
 
 } // namespace qix

@@ -24,6 +24,8 @@ struct GameView {
     GameMode mode {DefaultGameMode};
     NameEntryState nameEntry {};
     const HighScoreTable* highScoreTable {nullptr};
+    bool isAttractMode {false};
+    AttractStage attractStage {AttractStage::TitleScores};
 };
 
 /// @class IQixGame
@@ -76,6 +78,16 @@ public:
 
     /// @brief Confirm and submit current initials in NameEntry state.
     virtual void confirmInitials() noexcept = 0;
+
+    /// @brief Manually start the arcade attract showcase loop.
+    virtual void startAttractMode() noexcept = 0;
+
+    /// @brief Exit attract showcase and return to player Ready state.
+    virtual void exitAttractMode() noexcept = 0;
+
+    /// @brief Check whether game is currently running in attract showcase mode.
+    /// @return True if in attract mode.
+    [[nodiscard]] virtual bool isAttractMode() const noexcept = 0;
 };
 
 } // namespace qix

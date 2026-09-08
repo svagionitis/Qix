@@ -12,10 +12,14 @@ int main(int argc, char* argv[])
     const auto crtEnabled = qix::GameConfig::parseCrtFlag(argc, argv);
     const auto audioEnabled = qix::GameConfig::parseAudioFlag(argc, argv, false);
     const auto palette = qix::GameConfig::parsePaletteFlag(argc, argv);
+    const auto attractMode = qix::GameConfig::parseAttractFlag(argc, argv);
 
     QApplication app(argc, argv);
 
     auto game = std::make_unique<qix::QixGame>(80, 60, 75, mode, delayMs);
+    if (attractMode) {
+        game->startAttractMode();
+    }
     qix::qt::MainWindow window(std::move(game), delayMs, crtEnabled, audioEnabled, palette);
     window.show();
 

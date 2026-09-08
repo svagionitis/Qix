@@ -25,14 +25,32 @@ void QixGame::step(std::uint32_t deltaMs) noexcept
 {
     if (m_state == GameState::GameOver || m_state == GameState::LevelComplete || m_state == GameState::NameEntry
         || m_state == GameState::HallOfFame) {
+        if (m_state == GameState::GameOver || m_state == GameState::HallOfFame) {
+            m_idleTimerMs += deltaMs;
+            if (m_idleTimerMs >= IdleTimeoutMs) {
+                startAttractMode();
+                return;
+            }
+        }
         updateSnapshot();
         return;
     }
 
+    if (m_state == GameState::Attract) {
+        updateAttractCycle(deltaMs);
+        return;
+    }
+
     if (m_state == GameState::Ready) {
-        if (m_pendingCmd.direction != Direction::None) {
+        if (m_pendingCmd.direction != Direction::None || m_pendingCmd.drawMode != DrawMode::None) {
             m_state = GameState::Playing;
+            m_idleTimerMs = 0;
         } else {
+            m_idleTimerMs += deltaMs;
+            if (m_idleTimerMs >= IdleTimeoutMs) {
+                startAttractMode();
+                return;
+            }
             updateSnapshot();
             return;
         }
@@ -123,6 +141,17 @@ void QixGame::step(std::uint32_t deltaMs) noexcept
 
 void QixGame::handleInput(PlayerCommand cmd) noexcept
 {
+    if (m_state == GameState::Attract) {
+        if (cmd.direction != Direction::None || cmd.drawMode != DrawMode::None) {
+            exitAttractMode();
+            return;
+        }
+    } else {
+        if (cmd.direction != Direction::None || cmd.drawMode != DrawMode::None) {
+            m_idleTimerMs = 0;
+        }
+    }
+
     m_pendingCmd = cmd;
     if (m_state == GameState::NameEntry) {
         handleNameEntryInput(cmd);
@@ -136,6 +165,8 @@ const GameView& QixGame::getView() const noexcept
 
 void QixGame::reset() noexcept
 {
+    m_idleTimerMs = 0;
+    m_stats.isAttractMode = false;
     m_playfield.initBorders();
     m_marker = Marker {Point {m_playfield.getWidth() / 2, m_playfield.getHeight() - 1}, 3};
     m_stats.score = 0;
@@ -231,14 +262,19 @@ void QixGame::updateSnapshot() noexcept
     m_view.fusePos = m_fuse.getPosition();
     m_stats.lives = m_marker.getLives();
     m_stats.mode = m_mode;
-    if (m_stats.score > m_stats.highScore) {
+    if (m_stats.score > m_stats.highScore && m_state != GameState::Attract) {
         m_stats.highScore = m_stats.score;
     }
+    m_stats.isAttractMode = (m_state == GameState::Attract);
+    m_stats.attractStage = m_attractStage;
+    m_stats.attractTimerMs = m_attractStageTimerMs;
     m_view.stats = m_stats;
     m_view.state = m_state;
     m_view.mode = m_mode;
     m_view.nameEntry = m_nameEntry;
     m_view.highScoreTable = &m_highScoreTable;
+    m_view.isAttractMode = (m_state == GameState::Attract);
+    m_view.attractStage = m_attractStage;
 }
 
 void QixGame::handleDeath() noexcept
@@ -410,6 +446,143 @@ void QixGame::handleNameEntryInput(PlayerCommand cmd) noexcept
     }
 
     updateSnapshot();
+}
+
+void QixGame::startAttractMode() noexcept
+{
+    m_state = GameState::Attract;
+    m_attractStage = AttractStage::TitleScores;
+    m_attractStageTimerMs = 0;
+    m_idleTimerMs = 0;
+    resetDemoPlayfield();
+    updateSnapshot();
+}
+
+void QixGame::exitAttractMode() noexcept
+{
+    m_state = GameState::Ready;
+    m_idleTimerMs = 0;
+    reset();
+}
+
+bool QixGame::isAttractMode() const noexcept
+{
+    return m_state == GameState::Attract;
+}
+
+void QixGame::resetDemoPlayfield() noexcept
+{
+    m_playfield.initBorders();
+    m_marker = Marker {Point {m_playfield.getWidth() / 2, m_playfield.getHeight() - 1}, 3};
+    m_stats.score = 0;
+    m_stats.claimedCells = 0;
+    m_stats.claimedPercent = 0;
+    m_stats.lives = 3;
+    m_stats.level = 1;
+    m_stats.multiplier = 1;
+    m_stats.splitBonus = false;
+    m_stats.thresholdBonus = 0;
+    m_stats.timeUp = false;
+    m_stats.timeRemainingMs = computeLevelTimeMs(1);
+    m_demoBot.reset();
+    setupEntities();
+    updateSnapshot();
+}
+
+void QixGame::updateAttractCycle(std::uint32_t deltaMs) noexcept
+{
+    m_attractStageTimerMs += deltaMs;
+
+    if (m_attractStage == AttractStage::TitleScores) {
+        if (m_attractStageTimerMs >= TitleStageDurationMs) {
+            m_attractStage = AttractStage::Instructions;
+            m_attractStageTimerMs = 0;
+        }
+        updateSnapshot();
+        return;
+    }
+
+    if (m_attractStage == AttractStage::Instructions) {
+        if (m_attractStageTimerMs >= InstructionsStageDurationMs) {
+            m_attractStage = AttractStage::GameplayDemo;
+            m_attractStageTimerMs = 0;
+            resetDemoPlayfield();
+        }
+        updateSnapshot();
+        return;
+    }
+
+    // In GameplayDemo stage:
+    if (m_attractStageTimerMs >= DemoStageDurationMs) {
+        m_attractStage = AttractStage::TitleScores;
+        m_attractStageTimerMs = 0;
+        updateSnapshot();
+        return;
+    }
+
+    // Advance Demo Bot gameplay:
+    const auto botCmd = m_demoBot.update(m_view);
+    m_pendingCmd = botCmd;
+
+    const bool wasDrawing = m_marker.isDrawing();
+    const auto oldTrailSize = m_marker.getTrail().size();
+
+    const bool moved = m_marker.move(m_playfield, m_pendingCmd);
+
+    if (wasDrawing && moved && m_marker.getTrail().size() > oldTrailSize) {
+        const auto currentPos = m_marker.getPosition();
+        const auto cellState = m_playfield.getCell(currentPos.x, currentPos.y);
+
+        const bool isClosingCell = (m_mode == GameMode::Classic)
+            ? (cellState == CellState::Border)
+            : (cellState == CellState::Border || cellState == CellState::ClaimedSlow
+                || cellState == CellState::ClaimedFast);
+
+        if (isClosingCell) {
+            std::vector<Point> qixPositions {};
+            for (const auto& qix : m_qixList) {
+                qixPositions.push_back(qix.getHead().start);
+            }
+
+            const auto fillRes = m_fill.execute(m_playfield, m_marker.getTrail(), qixPositions, m_marker.getDrawMode(),
+                m_stats.targetPercent, m_stats.multiplier);
+
+            m_stats.score += fillRes.pointsAwarded;
+            m_stats.claimedCells = fillRes.totalClaimedSoFar;
+            m_stats.claimedPercent = fillRes.claimedPercent;
+            m_stats.thresholdBonus = fillRes.thresholdBonus;
+
+            m_marker.clearTrail();
+            m_fuse.reset();
+
+            if (fillRes.thresholdMet || fillRes.splitOccurred) {
+                m_attractStage = AttractStage::TitleScores;
+                m_attractStageTimerMs = 0;
+                updateSnapshot();
+                return;
+            }
+        }
+    }
+
+    for (auto& qix : m_qixList) {
+        qix.update(m_playfield);
+    }
+    for (auto& sparx : m_sparxList) {
+        sparx.update(m_playfield);
+    }
+
+    const bool markerActive = moved || m_marker.isPacingWait();
+    m_fuse.update(m_marker.isDrawing(), markerActive, m_marker.getTrail());
+
+    const auto collision = CollisionDetector::check(m_marker, m_qixList, m_sparxList, m_fuse);
+    if (collision != CollisionEvent::None) {
+        clearActiveStix();
+        m_fuse.reset();
+        resetDemoPlayfield();
+    }
+
+    updateSnapshot();
+    m_pendingCmd.direction = Direction::None;
 }
 
 } // namespace qix

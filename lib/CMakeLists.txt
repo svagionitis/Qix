@@ -5,6 +5,8 @@ add_library(qix_core STATIC
     CollisionDetector.h
     ColorPalette.cpp
     ColorPalette.h
+    DemoBot.cpp
+    DemoBot.h
     Fuse.cpp
     Fuse.h
     GameConfig.cpp

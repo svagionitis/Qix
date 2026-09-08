@@ -51,7 +51,11 @@ int main(int argc, char* argv[])
         height = autoH;
     }
 
+    const auto attractMode = qix::GameConfig::parseAttractFlag(argc, argv);
     auto game = std::make_unique<qix::QixGame>(width, height, 75, mode, delayMs);
+    if (attractMode) {
+        game->startAttractMode();
+    }
     qix::tui::TuiRenderer renderer {};
     renderer.setBrailleMode(brailleMode);
     renderer.setTruecolor(truecolor);
@@ -75,6 +79,15 @@ int main(int argc, char* argv[])
             }
             renderer.render(game->getView(), delayMs);
             continue;
+        }
+
+        if (game->getView().state == qix::GameState::Attract) {
+            if (action != qix::tui::TuiAction::None || cmd.direction != qix::Direction::None
+                || cmd.drawMode != qix::DrawMode::None) {
+                game->exitAttractMode();
+                renderer.render(game->getView(), delayMs);
+                continue;
+            }
         }
 
         if (game->getView().state == qix::GameState::NameEntry) {

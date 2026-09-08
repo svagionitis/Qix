@@ -21,6 +21,11 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
   - **Sparx**: Clockwise and counter-clockwise perimeter patrollers.
   - **Fuse**: Anti-stall hazard that ignites along the trail when the player stops moving while drawing.
   - **Victory Condition**: Capturing $\ge 75\%$ of the total playable area.
+- **Attract Mode & Automated Gameplay Demo**:
+  - Autonomous AI controller (`DemoBot`) executing real-time strategic Stix cuts, demonstrating Fast and Slow draw, evading Qix and Sparx, and racking up points.
+  - Authentic 3-stage arcade showcase: Title & High Scores $\to$ How-To-Play Instructions Card $\to$ Live Gameplay Demo with blinking retro banners.
+  - Automatic 20-second inactivity idle timeout and instant takeover upon any keypress.
+  - Direct launch support via `--demo` / `--attract` CLI flags and runtime `F1` shortcut.
 - **Quad Frontends**:
   - **Terminal Client (`qix_tui`)**: Lightweight console client with high-resolution Unicode Braille ($2 \times 4$ sub-pixel) rendering, 24-bit Truecolor (RGB) dynamic neon stick ribbons, modern arcade HUD cards and box-drawing borders (`┌─┬─┐`, `│ │ │`, `└─┴─┘`), real-time territory progress bar with 1/8th fractional blocks (`▏`..`█`), classic ASCII mode, and non-blocking key polling across Linux (`termios`) and Windows (`conio.h`).
   - **Desktop Qt Client (`qix_qt`)**: Modern hardware-accelerated Qt client rendering neon color-cycling stick helix ribbons, glowing sparks, and real-time territory fills.
@@ -198,6 +203,7 @@ You can select the ruleset mode at launch via CLI:
 | **Toggle Truecolor (RGB)** | `T` | N/A | N/A | N/A |
 | **Restart Session** | `R` | `R` | `R` | `R` |
 | **Next Level (on victory)**| Automatic / Step | `Space` or `Return` | `Space` or `Return` | `Space` or `Return` |
+| **Attract / Demo Mode** | Auto (20s idle) / Exit on key | Auto (20s idle) / `F1` | Auto (20s idle) / `F1` | Auto (20s idle) / `F1` |
 | **Initials Entry (High Score)** | Type `A`-`Z`/`0`-`9`, `WASD`/Arrows, `Del`, `Enter` | Type letters, Arrows / `Return` | Type letters, Arrows / `Return` | Type letters, Arrows / `Return` |
 | **Quit Game** | `Q` | `Escape` / Close Window | `Escape` / Close Window | `Escape` / Close Window |
 
@@ -208,12 +214,15 @@ Just like the original 1981 *Qix* arcade cabinet equipped with dedicated Slow an
 - **Draw Mode Lock**: The drawing mode is locked upon entering empty territory. Attempting to switch between Slow and Fast draw mid-stroke is rejected.
 - **Terminal Disengage (`qix_tui`)**: Because terminal emulators do not emit key release events, `Space` and `F` engage Slow and Fast draw, while `X` disengages back to border navigation. Completing a cut automatically resets the draw mode.
 
-All client frontends support configurable startup speed, game mode, and CRT filter via CLI flags:
+All client frontends support configurable startup speed, game mode, CRT filter, and attract showcase via CLI flags:
 ```bash
 ./build/bin/qix_raylib --delay 100 --classic # Raylib client in Classic mode
+./build/bin/qix_raylib --demo                # Launch directly into arcade Attract / Demo mode
 ./build/bin/qix_sdl --delay 100 --crt        # SDL2 client with CRT scanlines & phosphor glow
+./build/bin/qix_sdl --attract                # SDL2 client starting in Attract mode
 ./build/bin/qix_qt --mode classic -c         # Qt client in Classic mode with CRT filter
 ./build/bin/qix_tui                        # Terminal client: auto-detects terminal size to fill screen
+./build/bin/qix_tui --demo                   # Terminal client in Attract demo mode
 ./build/bin/qix_tui --braille                # Terminal client with 2x4 Braille sub-pixel rendering (default)
 ./build/bin/qix_tui --ascii                  # Terminal client with classic ASCII downsampling
 ./build/bin/qix_tui --no-truecolor           # Terminal client with standard 16-color ANSI (disables RGB)

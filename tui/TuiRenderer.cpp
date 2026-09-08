@@ -252,7 +252,10 @@ namespace {
 
         std::string statusVal = "READY";
         std::string statusCol = truecolor ? appendTruecolorStr(theme.textValue) : "\033[1;33m";
-        if (view.state == GameState::Playing) {
+        if (view.state == GameState::Attract) {
+            statusVal = "DEMO";
+            statusCol = truecolor ? appendTruecolorStr(theme.textValue) : "\033[1;33m";
+        } else if (view.state == GameState::Playing) {
             statusVal = "PLAYING";
             statusCol = truecolor ? appendTruecolorStr(theme.progressBarTarget) : "\033[1;32m";
         } else if (view.state == GameState::LevelComplete) {
@@ -741,13 +744,25 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     // 1. Modern Arcade HUD Cards Deck
     renderHudCards(frame, view, delayMs, cols, m_truecolor, m_paletteId);
 
+    if (view.state == GameState::Attract) {
+        if (view.attractStage == AttractStage::TitleScores) {
+            renderHallOfFame(frame, view.highScoreTable, false, true);
+            presentFrame(frame);
+            return;
+        } else if (view.attractStage == AttractStage::Instructions) {
+            renderInstructions(frame);
+            presentFrame(frame);
+            return;
+        }
+    }
+
     if (view.state == GameState::NameEntry) {
         renderNameEntry(frame, view.nameEntry, view.stats);
         presentFrame(frame);
         return;
     }
     if (view.state == GameState::HallOfFame || view.state == GameState::GameOver) {
-        renderHallOfFame(frame, view.highScoreTable, view.state == GameState::GameOver);
+        renderHallOfFame(frame, view.highScoreTable, view.state == GameState::GameOver, false);
         presentFrame(frame);
         return;
     }
@@ -760,7 +775,9 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     }
 
     // 3. Controls Legend
-    if (m_lastTermSize.cols >= 105) {
+    if (view.state == GameState::Attract) {
+        frame += "  \033[1;33m*** ARCADE DEMO MODE ***   \033[1;32mINSERT COIN - PRESS ANY KEY TO PLAY\033[0m\n";
+    } else if (m_lastTermSize.cols >= 105) {
         frame += "\033[2mControls: [WASD/Arrows] Move | [Space] Slow | [F] Fast | [X] Border | [P/F4] Theme | [B] "
                  "Braille/ASCII | [T] RGB | [-/+] Speed | [R] Reset | [Q] Quit\033[0m\n";
     } else {
@@ -1657,18 +1674,22 @@ void TuiRenderer::renderNameEntry(std::string& frame, const NameEntryState& entr
     frame += "  " + bCol + "└────────────────────────────────────────────────────────────┘" + reset + "\n";
 }
 
-void TuiRenderer::renderHallOfFame(std::string& frame, const HighScoreTable* table, bool isGameOver) noexcept
+void TuiRenderer::renderHallOfFame(
+    std::string& frame, const HighScoreTable* table, bool isGameOver, bool isAttract) noexcept
 {
     const auto& theme = ColorPalette::get(m_paletteId);
     const auto ansi = getThemeAnsi(m_paletteId);
     const std::string bCol = m_truecolor ? appendTruecolorStr(theme.hudBorder) : ansi.border;
     const std::string cCol = m_truecolor ? appendTruecolorStr(theme.textAccent) : "\033[1;36m";
     const std::string rCol = m_truecolor ? appendTruecolorStr(theme.markerDiamond) : "\033[1;31m";
+    const std::string yCol = m_truecolor ? appendTruecolorStr(theme.textValue) : "\033[1;33m";
     const std::string reset = "\033[0m";
 
     frame += "\n";
     if (isGameOver) {
         frame += "  " + rCol + "╔═════════════════════════ GAME OVER ═════════════════════════╗" + reset + "\n";
+    } else if (isAttract) {
+        frame += "  " + yCol + "╔════════════════════ TAITO 1981 - QIX ARCADE ════════════════════╗" + reset + "\n";
     }
     frame += "  " + bCol + "┌────────────────────────────────────────────────────────────┐" + reset + "\n";
     frame += "  " + bCol + "│" + cCol + "                  ★ ARCADE HALL OF FAME ★                   " + bCol + "│"
@@ -1726,8 +1747,46 @@ void TuiRenderer::renderHallOfFame(std::string& frame, const HighScoreTable* tab
     }
 
     frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
+    const std::string prompt = isAttract ? "           INSERT COIN - PRESS [SPACE] TO PLAY            "
+                                         : "              Press [R] or [Space] to Play Again            ";
     frame += "  " + bCol + "│" + (m_truecolor ? "\033[1;38;2;50;240;120m" : "\033[1;32m")
-        + "              Press [R] or [Space] to Play Again            " + bCol + "│" + reset + "\n";
+        + prompt + bCol + "│" + reset + "\n";
+    frame += "  " + bCol + "└────────────────────────────────────────────────────────────┘" + reset + "\n";
+}
+
+void TuiRenderer::renderInstructions(std::string& frame) noexcept
+{
+    const auto& theme = ColorPalette::get(m_paletteId);
+    const auto ansi = getThemeAnsi(m_paletteId);
+    const std::string bCol = m_truecolor ? appendTruecolorStr(theme.hudBorder) : ansi.border;
+    const std::string cCol = m_truecolor ? appendTruecolorStr(theme.textAccent) : "\033[1;36m";
+    const std::string yCol = m_truecolor ? appendTruecolorStr(theme.textValue) : "\033[1;33m";
+    const std::string gCol = m_truecolor ? "\033[1;38;2;50;240;120m" : "\033[1;32m";
+    const std::string reset = "\033[0m";
+
+    frame += "\n";
+    frame += "  " + bCol + "┌────────────────────────────────────────────────────────────┐" + reset + "\n";
+    frame += "  " + bCol + "│" + yCol + "                       ★ HOW TO PLAY ★                      " + bCol + "│"
+        + reset + "\n";
+    frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
+    frame += "  " + bCol + "│" + cCol + "  OBJECTIVE:                                                " + bCol + "│"
+        + reset + "\n";
+    frame += "  " + bCol + "│    Claim 75% or more of the open playfield to clear level. " + bCol + "│" + reset + "\n";
+    frame += "  " + bCol + "│                                                            " + bCol + "│" + reset + "\n";
+    frame += "  " + bCol + "│" + cCol + "  DRAWING STIX:                                             " + bCol + "│"
+        + reset + "\n";
+    frame += "  " + bCol + "│    [Space] + Move : SLOW DRAW (2X Points - 200 pts/cell)   " + bCol + "│" + reset + "\n";
+    frame += "  " + bCol + "│    [F]     + Move : FAST DRAW (1X Points - 100 pts/cell)   " + bCol + "│" + reset + "\n";
+    frame += "  " + bCol + "│    [X]            : Disengage drawing back to border       " + bCol + "│" + reset + "\n";
+    frame += "  " + bCol + "│                                                            " + bCol + "│" + reset + "\n";
+    frame += "  " + bCol + "│" + cCol + "  HAZARDS & ADVERSARIES:                                    " + bCol + "│"
+        + reset + "\n";
+    frame += "  " + bCol + "│    THE QIX  : Bouncing stick helix in empty space. Avoid it!" + bCol + "│" + reset + "\n";
+    frame += "  " + bCol + "│    SPARX    : Patrol borders. Super Sparx chase your trail! " + bCol + "│" + reset + "\n";
+    frame += "  " + bCol + "│    THE FUSE : Burns your trail if you hesitate. Keep moving!" + bCol + "│" + reset + "\n";
+    frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
+    frame += "  " + bCol + "│" + gCol + "           INSERT COIN - PRESS [SPACE] TO PLAY            " + bCol + "│"
+        + reset + "\n";
     frame += "  " + bCol + "└────────────────────────────────────────────────────────────┘" + reset + "\n";
 }
 

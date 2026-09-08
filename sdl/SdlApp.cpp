@@ -149,6 +149,18 @@ void SdlApp::processEvents(bool& running) noexcept
             const auto view = m_game ? m_game->getView() : GameView {};
 
             // State screen transitions
+            if (view.state == GameState::Attract) {
+                if (m_game) {
+                    m_game->exitAttractMode();
+                }
+                continue;
+            } else if (key == SDLK_F1) {
+                if (m_game) {
+                    m_game->startAttractMode();
+                }
+                continue;
+            }
+
             if (view.state == GameState::LevelComplete) {
                 if (key == SDLK_SPACE || key == SDLK_RETURN || key == SDLK_KP_ENTER) {
                     if (m_game) {

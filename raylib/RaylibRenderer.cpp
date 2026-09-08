@@ -408,11 +408,27 @@ void RaylibRenderer::drawOverlays(const GameView& view) noexcept
         return;
     }
 
+    if (view.state == GameState::Attract) {
+        if (view.attractStage == AttractStage::GameplayDemo) {
+            drawDemoBanners();
+            return;
+        }
+    }
+
     const int screenW = GetScreenWidth();
     const int screenH = GetScreenHeight();
 
     // Semi-transparent blackout
     DrawRectangle(0, 0, screenW, screenH, Color {0, 0, 0, 200});
+
+    if (view.state == GameState::Attract) {
+        if (view.attractStage == AttractStage::TitleScores) {
+            drawHallOfFame(view.highScoreTable, false, true);
+        } else if (view.attractStage == AttractStage::Instructions) {
+            drawInstructionsCard();
+        }
+        return;
+    }
 
     if (view.state == GameState::LevelComplete) {
         const char* text1 = view.stats.splitBonus ? "QIX SPLIT BONUS!" : "LEVEL COMPLETE!";
@@ -443,9 +459,9 @@ void RaylibRenderer::drawOverlays(const GameView& view) noexcept
     } else if (view.state == GameState::NameEntry) {
         drawNameEntry(view.nameEntry, view.stats);
     } else if (view.state == GameState::HallOfFame) {
-        drawHallOfFame(view.highScoreTable, false);
+        drawHallOfFame(view.highScoreTable, false, false);
     } else if (view.state == GameState::GameOver) {
-        drawHallOfFame(view.highScoreTable, true);
+        drawHallOfFame(view.highScoreTable, true, false);
     }
 }
 
@@ -459,24 +475,18 @@ void RaylibRenderer::drawNameEntry(const NameEntryState& entry, const GameStats&
     const int wTitle = MeasureText(title, fontTitle);
     DrawText(title, (screenW - wTitle) / 2, screenH / 2 - 140, fontTitle, Color {250, 204, 21, 255});
 
-    const std::string rankStr
-        = "NEW RECORD! RANK #" + std::to_string(entry.rank) + " - SCORE: " + std::to_string(stats.score);
-    const int fontSub = 18;
-    const int wSub = MeasureText(rankStr.c_str(), fontSub);
-    DrawText(rankStr.c_str(), (screenW - wSub) / 2, screenH / 2 - 95, fontSub, Color {99, 179, 237, 255});
+    char scoreBuf[64];
+    std::snprintf(scoreBuf, sizeof(scoreBuf), "SCORE: %u   RANK #%zu", stats.score, entry.rank);
+    const int fontScore = 18;
+    const int wScore = MeasureText(scoreBuf, fontScore);
+    DrawText(scoreBuf, (screenW - wScore) / 2, screenH / 2 - 95, fontScore, Color {226, 232, 240, 255});
 
-    const char* prompt = "ENTER YOUR INITIALS";
-    const int fontPrompt = 16;
-    const int wPrompt = MeasureText(prompt, fontPrompt);
-    DrawText(prompt, (screenW - wPrompt) / 2, screenH / 2 - 60, fontPrompt, Color {243, 244, 246, 255});
-
-    // 3 Letter Boxes
-    const int boxW = 50;
-    const int boxH = 60;
-    const int gap = 20;
+    const int boxW = 54;
+    const int boxH = 64;
+    const int gap = 16;
     const int totalW = 3 * boxW + 2 * gap;
     const int startX = (screenW - totalW) / 2;
-    const int boxY = screenH / 2 - 20;
+    const int boxY = screenH / 2 - 40;
 
     for (std::uint8_t i {0}; i < 3; ++i) {
         const int bx = startX + static_cast<int>(i) * (boxW + gap);
@@ -504,7 +514,7 @@ void RaylibRenderer::drawNameEntry(const NameEntryState& entry, const GameStats&
     DrawText(navHelp, (screenW - wHelp) / 2, screenH / 2 + 75, fontHelp, Color {148, 163, 184, 255});
 }
 
-void RaylibRenderer::drawHallOfFame(const HighScoreTable* table, bool isGameOver) noexcept
+void RaylibRenderer::drawHallOfFame(const HighScoreTable* table, bool isGameOver, bool isAttract) noexcept
 {
     const int screenW = GetScreenWidth();
     const int screenH = GetScreenHeight();
@@ -517,6 +527,12 @@ void RaylibRenderer::drawHallOfFame(const HighScoreTable* table, bool isGameOver
         const int wGo = MeasureText(goText, fontGo);
         DrawText(goText, (screenW - wGo) / 2, curY, fontGo, Color {248, 113, 113, 255});
         curY += 35;
+    } else if (isAttract) {
+        const char* attText = "TAITO 1981 - QIX ARCADE";
+        const int fontAtt = 24;
+        const int wAtt = MeasureText(attText, fontAtt);
+        DrawText(attText, (screenW - wAtt) / 2, curY, fontAtt, Color {59, 130, 246, 255});
+        curY += 32;
     }
 
     const char* title = "ARCADE HALL OF FAME";
@@ -561,10 +577,82 @@ void RaylibRenderer::drawHallOfFame(const HighScoreTable* table, bool isGameOver
     }
 
     curY += 15;
-    const char* prompt = "Press [R] or [SPACE] to Play Again";
+    const bool blink = (static_cast<int>(GetTime() * 3.0) % 2 == 0);
+    const char* prompt = isAttract ? (blink ? "INSERT COIN  -  PRESS [SPACE] TO PLAY" : "")
+                                   : "Press [R] or [SPACE] to Play Again";
     const int fontPrompt = 16;
     const int wPrompt = MeasureText(prompt, fontPrompt);
-    DrawText(prompt, (screenW - wPrompt) / 2, curY, fontPrompt, Color {243, 244, 246, 255});
+    DrawText(prompt, (screenW - wPrompt) / 2, curY, fontPrompt,
+        isAttract ? Color {74, 222, 128, 255} : Color {243, 244, 246, 255});
+}
+
+void RaylibRenderer::drawDemoBanners() noexcept
+{
+    const int screenW = GetScreenWidth();
+    const int screenH = GetScreenHeight();
+
+    // Top banner card
+    DrawRectangle(screenW / 2 - 170, 16, 340, 36, Color {15, 23, 42, 220});
+    DrawRectangleLinesEx(Rectangle {static_cast<float>(screenW / 2 - 170), 16.0f, 340.0f, 36.0f}, 2.0f,
+        Color {250, 204, 21, 255});
+
+    const char* demoText = "*** GAMEPLAY DEMO ***";
+    const int fontDemo = 20;
+    const int wDemo = MeasureText(demoText, fontDemo);
+    DrawText(demoText, (screenW - wDemo) / 2, 24, fontDemo, Color {250, 204, 21, 255});
+
+    // Bottom blinking prompt
+    const bool blink = (static_cast<int>(GetTime() * 3.0) % 2 == 0);
+    if (blink) {
+        DrawRectangle(screenW / 2 - 220, screenH - 54, 440, 34, Color {15, 23, 42, 220});
+        DrawRectangleLinesEx(Rectangle {static_cast<float>(screenW / 2 - 220), static_cast<float>(screenH - 54),
+                                 440.0f, 34.0f},
+            1.5f, Color {74, 222, 128, 255});
+
+        const char* prompt = "INSERT COIN - PRESS ANY KEY TO PLAY";
+        const int fontPrompt = 18;
+        const int wPrompt = MeasureText(prompt, fontPrompt);
+        DrawText(prompt, (screenW - wPrompt) / 2, screenH - 46, fontPrompt, Color {74, 222, 128, 255});
+    }
+}
+
+void RaylibRenderer::drawInstructionsCard() noexcept
+{
+    const int screenW = GetScreenWidth();
+    const int screenH = GetScreenHeight();
+
+    const char* title = "HOW TO PLAY";
+    const int fontTitle = 30;
+    const int wTitle = MeasureText(title, fontTitle);
+    DrawText(title, (screenW - wTitle) / 2, screenH / 2 - 150, fontTitle, Color {250, 204, 21, 255});
+
+    struct RuleLine {
+        const char* header;
+        const char* detail;
+        Color color;
+    };
+    const std::array<RuleLine, 5> rules {{
+        {"OBJECTIVE", "CLAIM 75% OR MORE OF THE PLAYFIELD TO COMPLETE LEVEL", Color {59, 130, 246, 255}},
+        {"SLOW DRAW", "HOLD [SPACE] WHILE MOVING (2X POINTS - 200 PTS/CELL)", Color {34, 197, 94, 255}},
+        {"FAST DRAW", "HOLD [SHIFT] OR [F] WHILE MOVING (1X POINTS - 100 PTS/CELL)", Color {245, 158, 11, 255}},
+        {"HAZARDS", "AVOID THE BOUNCING QIX & PATROLLING SPARX ENEMIES", Color {239, 68, 68, 255}},
+        {"THE FUSE", "BURNS DOWN YOUR TRAIL IF YOU HESITATE - KEEP MOVING!", Color {217, 70, 239, 255}}
+    }};
+
+    int y = screenH / 2 - 100;
+    for (const auto& rule : rules) {
+        DrawText(rule.header, screenW / 2 - 270, y, 16, rule.color);
+        DrawText(rule.detail, screenW / 2 - 270, y + 20, 15, Color {229, 231, 235, 255});
+        y += 48;
+    }
+
+    const bool blink = (static_cast<int>(GetTime() * 3.0) % 2 == 0);
+    if (blink) {
+        const char* prompt = "INSERT COIN - PRESS ANY KEY TO PLAY";
+        const int fontP = 18;
+        const int wp = MeasureText(prompt, fontP);
+        DrawText(prompt, (screenW - wp) / 2, screenH / 2 + 155, fontP, Color {74, 222, 128, 255});
+    }
 }
 
 } // namespace qix::raylib

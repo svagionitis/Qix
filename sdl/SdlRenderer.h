@@ -115,7 +115,9 @@ private:
     void drawEntities(const GameView& view, const SDL_Rect& fieldRect) noexcept;
     void drawOverlays(const GameView& view) noexcept;
     void drawNameEntry(const NameEntryState& entry, const GameStats& stats) noexcept;
-    void drawHallOfFame(const HighScoreTable* table, bool isGameOver) noexcept;
+    void drawHallOfFame(const HighScoreTable* table, bool isGameOver, bool isAttract = false) noexcept;
+    void drawDemoBanners() noexcept;
+    void drawInstructionsCard() noexcept;
 
     void applyCrtFilter(int width, int height) noexcept;
     void drawFilledDiamond(int cx, int cy, int radius, SDL_Color color) noexcept;

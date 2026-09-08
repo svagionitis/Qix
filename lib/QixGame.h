@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CollisionDetector.h"
+#include "DemoBot.h"
 #include "Fuse.h"
 #include "HighScoreTable.h"
 #include "IQixGame.h"
@@ -45,6 +46,10 @@ public:
     void inputInitialsChar(char c) noexcept override;
     void confirmInitials() noexcept override;
 
+    void startAttractMode() noexcept override;
+    void exitAttractMode() noexcept override;
+    [[nodiscard]] bool isAttractMode() const noexcept override;
+
     /// @brief Calculate initial level time budget in milliseconds.
     /// @param[in] level Current game level (1-indexed).
     /// @return Initial countdown duration in milliseconds.
@@ -86,6 +91,15 @@ private:
     HighScoreTable m_highScoreTable {};
     NameEntryState m_nameEntry {};
 
+    DemoBot m_demoBot {};
+    AttractStage m_attractStage {AttractStage::TitleScores};
+    std::uint32_t m_idleTimerMs {0};
+    std::uint32_t m_attractStageTimerMs {0};
+    static constexpr std::uint32_t IdleTimeoutMs {20000U};
+    static constexpr std::uint32_t TitleStageDurationMs {6000U};
+    static constexpr std::uint32_t InstructionsStageDurationMs {6000U};
+    static constexpr std::uint32_t DemoStageDurationMs {22000U};
+
     void setupEntities() noexcept;
     void updateSnapshot() noexcept;
     void handleDeath() noexcept;
@@ -93,6 +107,8 @@ private:
     void updateLevelTimer(std::uint32_t deltaMs) noexcept;
     void spawnEscalationSparx() noexcept;
     void handleNameEntryInput(PlayerCommand cmd) noexcept;
+    void updateAttractCycle(std::uint32_t deltaMs) noexcept;
+    void resetDemoPlayfield() noexcept;
 };
 
 } // namespace qix

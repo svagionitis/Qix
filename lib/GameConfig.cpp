@@ -166,4 +166,34 @@ PaletteId GameConfig::parsePaletteFlag(int argc, char* const argv[], PaletteId d
     return parsePaletteFlag(args, defaultPalette);
 }
 
+bool GameConfig::parseAttractFlag(const std::vector<std::string>& args, bool defaultAttract) noexcept
+{
+    bool attract {defaultAttract};
+
+    for (const auto& rawArg : args) {
+        const auto arg = toLower(rawArg);
+        if (arg == "--attract" || arg == "--demo" || arg == "-d") {
+            attract = true;
+        } else if (arg == "--no-attract" || arg == "--no-demo") {
+            attract = false;
+        }
+    }
+
+    return attract;
+}
+
+bool GameConfig::parseAttractFlag(int argc, char* const argv[], bool defaultAttract) noexcept
+{
+    std::vector<std::string> args {};
+    if (argc > 1 && argv != nullptr) {
+        args.reserve(static_cast<std::size_t>(argc - 1));
+        for (int i {1}; i < argc; ++i) {
+            if (argv[i] != nullptr) {
+                args.emplace_back(argv[i]);
+            }
+        }
+    }
+    return parseAttractFlag(args, defaultAttract);
+}
+
 } // namespace qix

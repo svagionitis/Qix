@@ -62,7 +62,9 @@ private:
     void drawEntities(QPainter& painter, const QRect& fieldRect);
     void drawOverlays(QPainter& painter);
     void drawNameEntry(QPainter& painter);
-    void drawHallOfFame(QPainter& painter, bool isGameOver);
+    void drawHallOfFame(QPainter& painter, bool isGameOver, bool isAttract = false);
+    void drawDemoBanners(QPainter& painter);
+    void drawInstructionsCard(QPainter& painter);
 };
 
 } // namespace qix::qt
