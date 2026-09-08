@@ -2,6 +2,7 @@
 #include "IQixGame.h"
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace qix::tui {
 
@@ -78,6 +79,17 @@ public:
     /// @brief Toggle 24-bit Truecolor mode on/off.
     void toggleTruecolor() noexcept;
 
+    /// @brief Enable or disable flicker-free differential screen updates.
+    /// @param[in] enabled True to emit only modified lines, false for full redraws.
+    void setDifferentialUpdates(bool enabled) noexcept;
+
+    /// @brief Check whether differential screen updates are currently enabled.
+    /// @return True if differential updates are enabled.
+    [[nodiscard]] bool isDifferentialUpdates() const noexcept;
+
+    /// @brief Invalidate screen cache to force a full redraw on the next frame.
+    void invalidateScreen() noexcept;
+
     /// @brief Query the current terminal window dimensions.
     /// @return Terminal size in columns and rows.
     [[nodiscard]] static TerminalSize queryTerminalSize() noexcept;
@@ -96,11 +108,14 @@ private:
     bool m_initialized {false};
     bool m_brailleMode {true};
     bool m_truecolor {true};
+    bool m_differentialUpdates {true};
     char m_typedChar {0};
     std::uint32_t m_colorCycle {0};
     TerminalSize m_lastTermSize {0, 0};
+    std::vector<std::string> m_prevLines {};
 
     void clearScreen() noexcept;
+    void presentFrame(const std::string& frame) noexcept;
     void renderAsciiPlayfield(std::string& frame, const GameView& view) noexcept;
     void renderBraillePlayfield(std::string& frame, const GameView& view) noexcept;
     void renderNameEntry(std::string& frame, const NameEntryState& entry, const GameStats& stats) noexcept;

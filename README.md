@@ -217,6 +217,7 @@ All client frontends support configurable startup speed, game mode, and CRT filt
 ./build/bin/qix_tui --braille                # Terminal client with 2x4 Braille sub-pixel rendering (default)
 ./build/bin/qix_tui --ascii                  # Terminal client with classic ASCII downsampling
 ./build/bin/qix_tui --no-truecolor           # Terminal client with standard 16-color ANSI (disables RGB)
+./build/bin/qix_tui --no-diff                # Disable flicker-free differential updates (forces full redraws)
 ./build/bin/qix_tui --width 80 --height 40   # Custom playfield dimensions override
 ./build/bin/qix_tui --mode modern            # Terminal client in Modern mode
 ```

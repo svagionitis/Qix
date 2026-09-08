@@ -456,6 +456,7 @@ void TuiRenderer::init() noexcept
 
     // Hide cursor and clear screen
     std::cout << "\033[?25l\033[2J\033[H" << std::flush;
+    m_prevLines.clear();
     m_initialized = true;
 }
 
@@ -474,11 +475,13 @@ void TuiRenderer::shutdown() noexcept
     }
 #endif
 
+    m_prevLines.clear();
     m_initialized = false;
 }
 
 void TuiRenderer::clearScreen() noexcept
 {
+    m_prevLines.clear();
     std::cout << "\033[2J\033[H" << std::flush;
 }
 
@@ -544,7 +547,10 @@ bool TuiRenderer::checkAndHandleResize() noexcept
 
 void TuiRenderer::setBrailleMode(bool enabled) noexcept
 {
-    m_brailleMode = enabled;
+    if (m_brailleMode != enabled) {
+        m_brailleMode = enabled;
+        invalidateScreen();
+    }
 }
 
 bool TuiRenderer::isBrailleMode() const noexcept
@@ -555,11 +561,15 @@ bool TuiRenderer::isBrailleMode() const noexcept
 void TuiRenderer::toggleBrailleMode() noexcept
 {
     m_brailleMode = !m_brailleMode;
+    invalidateScreen();
 }
 
 void TuiRenderer::setTruecolor(bool enabled) noexcept
 {
-    m_truecolor = enabled;
+    if (m_truecolor != enabled) {
+        m_truecolor = enabled;
+        invalidateScreen();
+    }
 }
 
 bool TuiRenderer::isTruecolor() const noexcept
@@ -570,11 +580,84 @@ bool TuiRenderer::isTruecolor() const noexcept
 void TuiRenderer::toggleTruecolor() noexcept
 {
     m_truecolor = !m_truecolor;
+    invalidateScreen();
+}
+
+void TuiRenderer::setDifferentialUpdates(bool enabled) noexcept
+{
+    m_differentialUpdates = enabled;
+    if (!enabled) {
+        invalidateScreen();
+    }
+}
+
+bool TuiRenderer::isDifferentialUpdates() const noexcept
+{
+    return m_differentialUpdates;
+}
+
+void TuiRenderer::invalidateScreen() noexcept
+{
+    m_prevLines.clear();
 }
 
 char TuiRenderer::getTypedChar() const noexcept
 {
     return m_typedChar;
+}
+
+void TuiRenderer::presentFrame(const std::string& frame) noexcept
+{
+    if (!m_differentialUpdates) {
+        std::cout << frame << std::flush;
+        return;
+    }
+
+    std::size_t startPos = 0;
+    if (frame.rfind("\033[H", 0) == 0) {
+        startPos = 3;
+    }
+
+    std::vector<std::string> currentLines;
+    currentLines.reserve(32);
+
+    std::size_t lineStart = startPos;
+    while (lineStart < frame.size()) {
+        const std::size_t lineEnd = frame.find('\n', lineStart);
+        if (lineEnd == std::string::npos) {
+            currentLines.push_back(frame.substr(lineStart));
+            break;
+        }
+        currentLines.push_back(frame.substr(lineStart, lineEnd - lineStart));
+        lineStart = lineEnd + 1;
+    }
+
+    if (!currentLines.empty() && currentLines.back().empty() && lineStart > startPos && frame.back() == '\n') {
+        currentLines.pop_back();
+    }
+
+    std::string diffOutput;
+    diffOutput.reserve(4096);
+
+    const std::size_t curSize = currentLines.size();
+    const std::size_t prevSize = m_prevLines.size();
+
+    for (std::size_t r = 0; r < curSize; ++r) {
+        if (r >= prevSize || currentLines[r] != m_prevLines[r]) {
+            diffOutput += "\033[" + std::to_string(r + 1) + ";1H" + currentLines[r] + "\033[K\033[0m";
+        }
+    }
+
+    for (std::size_t r = curSize; r < prevSize; ++r) {
+        diffOutput += "\033[" + std::to_string(r + 1) + ";1H\033[K\033[0m";
+    }
+
+    if (!diffOutput.empty()) {
+        diffOutput += "\033[H";
+        std::cout << diffOutput << std::flush;
+    }
+
+    m_prevLines = std::move(currentLines);
 }
 
 void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
@@ -603,12 +686,12 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
 
     if (view.state == GameState::NameEntry) {
         renderNameEntry(frame, view.nameEntry, view.stats);
-        std::cout << frame << std::flush;
+        presentFrame(frame);
         return;
     }
     if (view.state == GameState::HallOfFame || view.state == GameState::GameOver) {
         renderHallOfFame(frame, view.highScoreTable, view.state == GameState::GameOver);
-        std::cout << frame << std::flush;
+        presentFrame(frame);
         return;
     }
 
@@ -628,7 +711,7 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
                  "Quit\033[0m\n";
     }
 
-    std::cout << frame << std::flush;
+    presentFrame(frame);
 }
 
 void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& view) noexcept

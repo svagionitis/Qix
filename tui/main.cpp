@@ -14,6 +14,7 @@ int main(int argc, char* argv[])
 
     bool brailleMode = true;
     bool truecolor = true;
+    bool diffUpdates = true;
     std::int32_t customWidth = 0;
     std::int32_t customHeight = 0;
 
@@ -28,6 +29,10 @@ int main(int argc, char* argv[])
                 truecolor = false;
             } else if (arg == "--truecolor" || arg == "--rgb") {
                 truecolor = true;
+            } else if (arg == "--no-diff" || arg == "--no-differential") {
+                diffUpdates = false;
+            } else if (arg == "--diff" || arg == "--differential") {
+                diffUpdates = true;
             } else if ((arg == "--width" || arg == "-w") && i + 1 < argc && argv[i + 1] != nullptr) {
                 customWidth = std::atoi(argv[++i]);
             } else if ((arg == "--height" || arg == "-h") && i + 1 < argc && argv[i + 1] != nullptr) {
@@ -49,6 +54,7 @@ int main(int argc, char* argv[])
     qix::tui::TuiRenderer renderer {};
     renderer.setBrailleMode(brailleMode);
     renderer.setTruecolor(truecolor);
+    renderer.setDifferentialUpdates(diffUpdates);
 
     renderer.init();
 
