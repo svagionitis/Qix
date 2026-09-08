@@ -59,6 +59,41 @@ int main(int argc, char* argv[])
         qix::tui::TuiAction action = qix::tui::TuiAction::None;
         const auto cmd = renderer.pollInput(action);
 
+        if (action == qix::tui::TuiAction::Resize) {
+            if (!customSizeSpecified && game->getView().state == qix::GameState::Ready) {
+                const auto [newW, newH] = qix::tui::TuiRenderer::computePlayfieldDimensions(renderer.isBrailleMode());
+                game = std::make_unique<qix::QixGame>(newW, newH, 75, mode, delayMs);
+            }
+            renderer.render(game->getView(), delayMs);
+            continue;
+        }
+
+        if (game->getView().state == qix::GameState::NameEntry) {
+            if (action == qix::tui::TuiAction::Backspace) {
+                game->handleInput(qix::PlayerCommand {qix::Direction::Left, qix::DrawMode::None});
+            } else if (action == qix::tui::TuiAction::Confirm
+                || (action == qix::tui::TuiAction::None && cmd.drawMode == qix::DrawMode::Slow)) {
+                if (game->getView().nameEntry.cursorIndex < 2) {
+                    game->handleInput(qix::PlayerCommand {qix::Direction::Right, qix::DrawMode::None});
+                } else {
+                    game->confirmInitials();
+                }
+            } else if (action == qix::tui::TuiAction::CharInput || action == qix::tui::TuiAction::Quit
+                || action == qix::tui::TuiAction::Restart || action == qix::tui::TuiAction::ToggleBraille
+                || action == qix::tui::TuiAction::ToggleTruecolor || action == qix::tui::TuiAction::DisengageDraw
+                || cmd.drawMode == qix::DrawMode::Fast) {
+                const char typed = renderer.getTypedChar();
+                if (typed != 0) {
+                    game->inputInitialsChar(typed);
+                }
+            } else if (cmd.direction != qix::Direction::None) {
+                game->handleInput(cmd);
+            }
+            renderer.render(game->getView(), delayMs);
+            std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
+            continue;
+        }
+
         if (action == qix::tui::TuiAction::Quit) {
             running = false;
             break;
@@ -76,34 +111,12 @@ int main(int argc, char* argv[])
             continue;
         }
 
-        if (action == qix::tui::TuiAction::Resize) {
-            if (!customSizeSpecified && game->getView().state == qix::GameState::Ready) {
-                const auto [newW, newH] = qix::tui::TuiRenderer::computePlayfieldDimensions(renderer.isBrailleMode());
-                game = std::make_unique<qix::QixGame>(newW, newH, 75, mode, delayMs);
-            }
-            renderer.render(game->getView(), delayMs);
-            continue;
-        }
-
         if (game->getView().state == qix::GameState::LevelComplete) {
             if (cmd.drawMode == qix::DrawMode::Slow || cmd.direction != qix::Direction::None) {
                 game->nextLevel();
                 delayMs = game->getCurrentDelayMs();
                 continue;
             }
-        } else if (game->getView().state == qix::GameState::NameEntry) {
-            if (action == qix::tui::TuiAction::Confirm || cmd.drawMode != qix::DrawMode::None) {
-                if (game->getView().nameEntry.cursorIndex < 2) {
-                    game->handleInput(qix::PlayerCommand {qix::Direction::Right, qix::DrawMode::None});
-                } else {
-                    game->confirmInitials();
-                }
-            } else if (cmd.direction != qix::Direction::None) {
-                game->handleInput(cmd);
-            }
-            renderer.render(game->getView(), delayMs);
-            std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
-            continue;
         } else if (game->getView().state == qix::GameState::HallOfFame
             || game->getView().state == qix::GameState::GameOver) {
             if (action == qix::tui::TuiAction::Restart || action == qix::tui::TuiAction::Confirm

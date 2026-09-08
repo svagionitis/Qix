@@ -572,6 +572,11 @@ void TuiRenderer::toggleTruecolor() noexcept
     m_truecolor = !m_truecolor;
 }
 
+char TuiRenderer::getTypedChar() const noexcept
+{
+    return m_typedChar;
+}
+
 void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
 {
     if (!view.playfield) {
@@ -1055,6 +1060,7 @@ PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
 {
     PlayerCommand cmd {};
     action = TuiAction::None;
+    m_typedChar = 0;
 
     const bool resized = checkAndHandleResize();
 
@@ -1115,7 +1121,12 @@ PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
 #endif
 
     if (ch != -1) {
+        m_typedChar = static_cast<char>(ch);
         switch (ch) {
+        case 8:
+        case 127:
+            action = TuiAction::Backspace;
+            break;
         case 'q':
         case 'Q':
             action = TuiAction::Quit;
@@ -1152,6 +1163,7 @@ PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
             break;
         case ' ':
             cmd.drawMode = DrawMode::Slow;
+            action = TuiAction::Confirm;
             break;
         case 'f':
         case 'F':
@@ -1174,6 +1186,9 @@ PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
             action = TuiAction::Confirm;
             break;
         default:
+            if (std::isalnum(static_cast<unsigned char>(ch)) != 0 || ch == '!' || ch == '.' || ch == '?') {
+                action = TuiAction::CharInput;
+            }
             break;
         }
     }
@@ -1185,53 +1200,132 @@ PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
     return cmd;
 }
 
+static std::string formatScore(std::uint32_t score)
+{
+    std::string s = std::to_string(score);
+    int n = static_cast<int>(s.length()) - 3;
+    while (n > 0) {
+        s.insert(static_cast<std::size_t>(n), ",");
+        n -= 3;
+    }
+    return s;
+}
+
+static int visualLength(const std::string& str) noexcept
+{
+    int len = 0;
+    std::size_t i = 0;
+    while (i < str.size()) {
+        if (str[i] == '\033') {
+            while (i < str.size() && str[i] != 'm') {
+                ++i;
+            }
+            if (i < str.size() && str[i] == 'm') {
+                ++i;
+            }
+            continue;
+        }
+        const auto uc = static_cast<unsigned char>(str[i]);
+        if (uc < 0x80) {
+            ++len;
+            ++i;
+        } else if ((uc & 0xE0) == 0xC0) {
+            ++len;
+            i += 2;
+        } else if ((uc & 0xF0) == 0xE0) {
+            ++len;
+            i += 3;
+        } else if ((uc & 0xF8) == 0xF0) {
+            len += 2;
+            i += 4;
+        } else {
+            ++i;
+        }
+    }
+    return len;
+}
+
 void TuiRenderer::renderNameEntry(std::string& frame, const NameEntryState& entry, const GameStats& stats) noexcept
 {
     const std::string bCol = m_truecolor ? "\033[38;2;60;120;240m" : "\033[1;34m";
     const std::string cCol = m_truecolor ? "\033[1;38;2;0;220;255m" : "\033[1;36m";
+    const std::string yCol = m_truecolor ? "\033[1;38;2;255;220;40m" : "\033[1;33m";
+    const std::string aBorder = m_truecolor ? "\033[1;38;2;255;215;0m" : "\033[1;33m";
+    const std::string inBorder = m_truecolor ? "\033[38;2;80;100;140m" : "\033[34m";
+    const std::string inText = m_truecolor ? "\033[1;38;2;200;220;255m" : "\033[1;37m";
     const std::string reset = "\033[0m";
 
     frame += "\n";
     frame += "  " + bCol + "┌────────────────────────────────────────────────────────────┐" + reset + "\n";
-    frame += "  " + bCol + "│" + cCol + "                 ★ ARCADE HALL OF FAME ★                    " + bCol + "│"
+    frame += "  " + bCol + "│" + cCol + "                  ★ ARCADE HALL OF FAME ★                   " + bCol + "│"
         + reset + "\n";
     frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
 
-    char contentBuf[80];
-    std::snprintf(
-        contentBuf, sizeof(contentBuf), "NEW HIGH SCORE RECORD! RANK #%zu - SCORE: %u", entry.rank, stats.score);
-    const int cLen = static_cast<int>(std::strlen(contentBuf));
-    const int padL = std::max(0, (60 - cLen) / 2);
-    const int padR = std::max(0, 60 - cLen - padL);
+    // High Score Banner
+    const std::string bannerText
+        = "🏆 NEW HIGH SCORE RECORD! RANK #" + std::to_string(entry.rank) + " - SCORE: " + formatScore(stats.score);
+    const int bVisLen = visualLength(bannerText);
+    const int bPadL = std::max(0, (60 - bVisLen) / 2);
+    const int bPadR = std::max(0, 60 - bVisLen - bPadL);
+    frame += "  " + bCol + "│" + reset + std::string(bPadL, ' ') + yCol + bannerText + reset + std::string(bPadR, ' ')
+        + bCol + "│" + reset + "\n";
 
-    frame += "  " + bCol + "│" + reset + std::string(padL, ' ')
-        + (m_truecolor ? "\033[1;38;2;255;220;40m" : "\033[1;33m") + contentBuf + reset + std::string(padR, ' ') + bCol
-        + "│" + reset + "\n";
     frame += "  " + bCol + "│                                                            │" + reset + "\n";
-    frame += "  " + bCol + "│                ENTER YOUR 3-LETTER INITIALS                │" + reset + "\n";
-    frame += "  " + bCol + "│                                                            │" + reset + "\n";
+    frame += "  " + bCol + "│" + cCol + "                ENTER YOUR 3-LETTER INITIALS                " + bCol + "│"
+        + reset + "\n";
 
-    const std::string slot0 = (entry.cursorIndex == 0)
-        ? ("\033[1;33m[" + std::string(1, entry.initials[0]) + "]\033[0m")
-        : (" " + std::string(1, entry.initials[0]) + " ");
-    const std::string slot1 = (entry.cursorIndex == 1)
-        ? ("\033[1;33m[" + std::string(1, entry.initials[1]) + "]\033[0m")
-        : (" " + std::string(1, entry.initials[1]) + " ");
-    const std::string slot2 = (entry.cursorIndex == 2)
-        ? ("\033[1;33m[" + std::string(1, entry.initials[2]) + "]\033[0m")
-        : (" " + std::string(1, entry.initials[2]) + " ");
+    // Indicator Arrow Up Row
+    const int activeSlot = std::clamp(static_cast<int>(entry.cursorIndex), 0, 2);
+    const int arrowOffset = 19 + activeSlot * 10;
+    frame += "  " + bCol + "│" + std::string(arrowOffset, ' ') + yCol + "▲" + reset
+        + std::string(60 - arrowOffset - 1, ' ') + bCol + "│" + reset + "\n";
 
-    frame += "  " + bCol + "│                           " + slot0 + "  " + slot1 + "  " + slot2
-        + "                        " + bCol + "│" + reset + "\n";
-    frame += "  " + bCol + "│                                                            │" + reset + "\n";
+    // 3D Letter Cards Deck
+    const bool blinkState = ((m_colorCycle / 4) % 2 == 0);
+    const std::string padL(16, ' ');
+    const std::string gap(3, ' ');
+    const std::string padR(17, ' ');
+
+    std::string cardTop[3];
+    std::string cardMid[3];
+    std::string cardBot[3];
+
+    for (int i = 0; i < 3; ++i) {
+        const char ch = (i < 3) ? entry.initials[i] : ' ';
+        if (i == activeSlot) {
+            cardTop[i] = aBorder + "╔═════╗" + reset;
+            if (blinkState) {
+                cardMid[i] = aBorder + "║" + (m_truecolor ? "\033[7;1;38;2;255;220;40m" : "\033[7;1;33m") + "  "
+                    + std::string(1, ch) + "  " + reset + aBorder + "║" + reset;
+            } else {
+                cardMid[i] = aBorder + "║" + (m_truecolor ? "\033[1;38;2;255;255;255m" : "\033[1;37m") + "  "
+                    + std::string(1, ch) + "  " + reset + aBorder + "║" + reset;
+            }
+            cardBot[i] = aBorder + "╚═════╝" + reset;
+        } else {
+            cardTop[i] = inBorder + "┌─────┐" + reset;
+            cardMid[i]
+                = inBorder + "│" + reset + inText + "  " + std::string(1, ch) + "  " + reset + inBorder + "│" + reset;
+            cardBot[i] = inBorder + "└─────┘" + reset;
+        }
+    }
+
+    frame += "  " + bCol + "│" + padL + cardTop[0] + gap + cardTop[1] + gap + cardTop[2] + padR + bCol + "│" + reset
+        + "\n";
+    frame += "  " + bCol + "│" + padL + cardMid[0] + gap + cardMid[1] + gap + cardMid[2] + padR + bCol + "│" + reset
+        + "\n";
+    frame += "  " + bCol + "│" + padL + cardBot[0] + gap + cardBot[1] + gap + cardBot[2] + padR + bCol + "│" + reset
+        + "\n";
+
+    // Indicator Arrow Down Row
+    frame += "  " + bCol + "│" + std::string(arrowOffset, ' ') + yCol + "▼" + reset
+        + std::string(60 - arrowOffset - 1, ' ') + bCol + "│" + reset + "\n";
+
     frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
 
-    const std::string legend = "[W/S] Change Letter   [A/D] Move Slot   [Space/Enter] OK";
-    const int legLen = static_cast<int>(legend.size());
-    const int legPadL = std::max(0, (60 - legLen) / 2);
-    const int legPadR = std::max(0, 60 - legLen - legPadL);
-    frame += "  " + bCol + "│" + cCol + std::string(legPadL, ' ') + legend + std::string(legPadR, ' ') + bCol + "│"
-        + reset + "\n";
+    // Control Legend
+    const std::string legend = " [Arrows/WASD] Pick  [A-Z/0-9] Type  [Del] Back  [Enter] OK ";
+    frame += "  " + bCol + "│" + cCol + legend + bCol + "│" + reset + "\n";
     frame += "  " + bCol + "└────────────────────────────────────────────────────────────┘" + reset + "\n";
 }
 
@@ -1247,10 +1341,10 @@ void TuiRenderer::renderHallOfFame(std::string& frame, const HighScoreTable* tab
         frame += "  " + rCol + "╔═════════════════════════ GAME OVER ═════════════════════════╗" + reset + "\n";
     }
     frame += "  " + bCol + "┌────────────────────────────────────────────────────────────┐" + reset + "\n";
-    frame += "  " + bCol + "│" + cCol + "                 ★ ARCADE HALL OF FAME ★                    " + bCol + "│"
+    frame += "  " + bCol + "│" + cCol + "                  ★ ARCADE HALL OF FAME ★                   " + bCol + "│"
         + reset + "\n";
     frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
-    frame += "  " + bCol + "│" + cCol + "  RANK   NAME         SCORE          LEVEL      MODE        " + bCol + "│"
+    frame += "  " + bCol + "│" + cCol + "   RANK       NAME       SCORE        LEVEL       MODE      " + bCol + "│"
         + reset + "\n";
     frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
 
@@ -1260,17 +1354,47 @@ void TuiRenderer::renderHallOfFame(std::string& frame, const HighScoreTable* tab
 
         for (std::size_t i {0}; i < maxRows; ++i) {
             const auto& e = entries[i];
-            const char* modeStr = (e.mode == GameMode::Classic) ? "CLASSIC" : "MODERN";
-            char rowContent[80];
-            std::snprintf(rowContent, sizeof(rowContent), "  %2zu.    %-4s        %8u            %2u      %-7s", i + 1,
-                e.initials.c_str(), e.score, static_cast<unsigned>(e.level), modeStr);
-            const int rLen = static_cast<int>(std::strlen(rowContent));
-            const int rPad = std::max(0, 60 - rLen);
-            frame += "  " + bCol + "│" + reset + rowContent + std::string(rPad, ' ') + bCol + "│" + reset + "\n";
+            const char* modeStr = (e.mode == GameMode::Classic) ? "  CLASSIC  " : "  MODERN   ";
+
+            std::string rankStr;
+            std::string rowCol;
+            if (i == 0) {
+                rankStr = " 🥇 1ST  ";
+                rowCol = m_truecolor ? "\033[1;38;2;255;215;0m" : "\033[1;33m";
+            } else if (i == 1) {
+                rankStr = " 🥈 2ND  ";
+                rowCol = m_truecolor ? "\033[1;38;2;220;225;235m" : "\033[1;37m";
+            } else if (i == 2) {
+                rankStr = " 🥉 3RD  ";
+                rowCol = m_truecolor ? "\033[1;38;2;205;127;50m" : "\033[33m";
+            } else {
+                rankStr = "    " + std::to_string(i + 1) + "TH  ";
+                rowCol = m_truecolor ? "\033[38;2;120;200;230m" : "\033[36m";
+            }
+
+            char nameBuf[16];
+            std::snprintf(nameBuf, sizeof(nameBuf), "  %-3s ", e.initials.c_str());
+
+            char scoreBuf[32];
+            const std::string sFormatted = formatScore(e.score);
+            std::snprintf(scoreBuf, sizeof(scoreBuf), "%12s  ", sFormatted.c_str());
+
+            char levelBuf[16];
+            std::snprintf(levelBuf, sizeof(levelBuf), " LV %-2u  ", static_cast<unsigned>(e.level));
+
+            frame += "  " + bCol + "│" + rowCol + "  " + rankStr + "  " + nameBuf + "  " + scoreBuf + "  " + levelBuf
+                + "  " + modeStr + "  " + bCol + "│" + reset + "\n";
+        }
+
+        // Fill remaining rows if fewer than 8 entries
+        for (std::size_t i {maxRows}; i < 8; ++i) {
+            const std::string rankStr = "    " + std::to_string(i + 1) + "TH  ";
+            const std::string dimCol = m_truecolor ? "\033[38;2;80;100;120m" : "\033[2;37m";
+            frame += "  " + bCol + "│" + dimCol + "  " + rankStr + "    ---             0    LV  1    CLASSIC    "
+                + bCol + "│" + reset + "\n";
         }
     }
 
-    frame += "  " + bCol + "│                                                            │" + reset + "\n";
     frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
     frame += "  " + bCol + "│" + (m_truecolor ? "\033[1;38;2;50;240;120m" : "\033[1;32m")
         + "              Press [R] or [Space] to Play Again            " + bCol + "│" + reset + "\n";

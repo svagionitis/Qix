@@ -22,7 +22,9 @@ enum class TuiAction : std::uint8_t {
     Confirm,
     ToggleBraille,
     ToggleTruecolor,
-    Resize
+    Resize,
+    CharInput,
+    Backspace
 };
 
 /// @class TuiRenderer
@@ -45,9 +47,14 @@ public:
 
     /// @brief Poll for a player command non-blockingly.
     /// @param[out] action Special action (Quit, SpeedUp, SpeedDown, Restart, Confirm, ToggleBraille, ToggleTruecolor,
-    /// Resize).
+    /// Resize, CharInput, Backspace).
     /// @return PlayerCommand structure.
     [[nodiscard]] PlayerCommand pollInput(TuiAction& action) noexcept;
+
+    /// @brief Retrieve the last typed printable character from user input.
+    /// @details Provides access to the character code captured by the most recent pollInput() call.
+    /// @return Character code entered by the user, or 0 if none.
+    [[nodiscard]] char getTypedChar() const noexcept;
 
     /// @brief Enable or disable high-resolution Braille sub-pixel rendering.
     /// @param[in] enabled True for Braille sub-pixel rendering, false for ASCII grid.
@@ -89,6 +96,7 @@ private:
     bool m_initialized {false};
     bool m_brailleMode {true};
     bool m_truecolor {true};
+    char m_typedChar {0};
     std::uint32_t m_colorCycle {0};
     TerminalSize m_lastTermSize {0, 0};
 

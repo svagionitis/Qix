@@ -198,6 +198,7 @@ You can select the ruleset mode at launch via CLI:
 | **Toggle Truecolor (RGB)** | `T` | N/A | N/A | N/A |
 | **Restart Session** | `R` | `R` | `R` | `R` |
 | **Next Level (on victory)**| Automatic / Step | `Space` or `Return` | `Space` or `Return` | `Space` or `Return` |
+| **Initials Entry (High Score)** | Type `A`-`Z`/`0`-`9`, `WASD`/Arrows, `Del`, `Enter` | Type letters, Arrows / `Return` | Type letters, Arrows / `Return` | Type letters, Arrows / `Return` |
 | **Quit Game** | `Q` | `Escape` / Close Window | `Escape` / Close Window | `Escape` / Close Window |
 
 #### Authentic Two-Button Cabinet Hold-to-Draw Mechanics
@@ -229,6 +230,9 @@ All client frontends support configurable startup speed, game mode, and CRT filt
 - **Threshold Overshoot Bonus**: Reaching or exceeding 75% completes the level. Any territory claimed **beyond** the 75% target awards a classic arcade bonus of **1,000 points per 1% over threshold** (multiplied by the active score multiplier: $\text{Bonus} = (\text{claimed\%} - 75) \times 1,000 \times \text{multiplier}$).
 - **Extra Life Score Milestones**: Players earn a bonus life every **50,000 points** (e.g. 50k, 100k, 150k, capped at 9 lives). Bonus lives carry over across levels for the remainder of your game session.
 - **Automatic Speed Escalation**: Advancing through levels automatically escalates simulation speed (reducing tick delay by 5ms per level down to 20ms / 50 FPS) and tightens Fuse hesitation tolerance (igniting faster when paused). Players can still adjust baseline speed at runtime using `-` / `+` keys.
+- **Hall of Fame & Initials Entry**: When qualifying for a top-8 score upon game over, players enter their 3-letter initials.
+  - In the Terminal Client (`qix_tui`), players are presented with interactive 3D box-drawing letter cards, blinking reverse-video block cursor on the active slot, directional indicator arrows (`▲`/`▼`), direct alphanumeric typing (`A`–`Z`, `0`–`9`), cycling (`W`/`S`/Arrows), slot navigation (`A`/`D`/`Space`/`Enter`), and `Backspace` correction.
+  - The Hall of Fame leaderboard displays podium medals (`🥇 1ST`, `🥈 2ND`, `🥉 3RD`), thousands-separated scores (e.g. `125,400`), level reached, and ruleset mode, persisted automatically to disk (`~/.qix_highscores.dat`).
 
 ### Enemies & Hazards
 - **The Qix**: A kinetic stick helix wandering inside the uncaptured territory. If it touches your active Stix trail while you are drawing, you lose a life.
