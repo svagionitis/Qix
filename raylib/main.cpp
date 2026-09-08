@@ -12,12 +12,14 @@ int main(int argc, char* argv[])
     const auto audioEnabled = qix::GameConfig::parseAudioFlag(argc, argv, false);
     const auto palette = qix::GameConfig::parsePaletteFlag(argc, argv);
     const auto attractMode = qix::GameConfig::parseAttractFlag(argc, argv);
+    const auto artEnabled = qix::GameConfig::parseArtFlag(argc, argv, true);
+    const auto artScene = qix::GameConfig::parseArtSceneFlag(argc, argv, -1);
 
     auto game = std::make_unique<qix::QixGame>(80, 60, 75, mode, delayMs);
     if (attractMode) {
         game->startAttractMode();
     }
-    qix::raylib::RaylibApp app(std::move(game), delayMs, crtEnabled, audioEnabled, palette);
+    qix::raylib::RaylibApp app(std::move(game), delayMs, crtEnabled, audioEnabled, palette, artEnabled, artScene);
 
     if (!app.init("Qix Arcade (Raylib)", 960, 720)) {
         return 1;

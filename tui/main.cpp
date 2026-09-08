@@ -12,6 +12,8 @@ int main(int argc, char* argv[])
     std::uint32_t delayMs = qix::SpeedConfig::parseSpeedArgs(argc, argv, 40U);
     const auto mode = qix::GameConfig::parseGameMode(argc, argv);
     const auto palette = qix::GameConfig::parsePaletteFlag(argc, argv);
+    const auto artEnabled = qix::GameConfig::parseArtFlag(argc, argv, true);
+    const auto artScene = qix::GameConfig::parseArtSceneFlag(argc, argv, -1);
 
     bool brailleMode = true;
     bool truecolor = true;
@@ -61,6 +63,8 @@ int main(int argc, char* argv[])
     renderer.setTruecolor(truecolor);
     renderer.setDifferentialUpdates(diffUpdates);
     renderer.setPalette(palette);
+    renderer.setArtEnabled(artEnabled);
+    renderer.setArtScene(artScene);
 
     renderer.init();
 
@@ -141,6 +145,12 @@ int main(int argc, char* argv[])
 
         if (action == qix::tui::TuiAction::CyclePalette) {
             renderer.cyclePalette();
+            renderer.render(game->getView(), delayMs);
+            continue;
+        }
+
+        if (action == qix::tui::TuiAction::ToggleArt) {
+            renderer.toggleArt();
             renderer.render(game->getView(), delayMs);
             continue;
         }

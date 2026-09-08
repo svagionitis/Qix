@@ -26,7 +26,7 @@ class MainWindow : public QMainWindow {
 public:
     explicit MainWindow(std::unique_ptr<IQixGame> game, std::uint32_t delayMs = SpeedConfig::DefaultDelayMs,
         bool crtEnabled = false, bool audioEnabled = false, PaletteId palette = PaletteId::Classic,
-        QWidget* parent = nullptr);
+        bool artEnabled = true, int artScene = -1, QWidget* parent = nullptr);
     ~MainWindow() override;
 
     /// @brief Get the current tick delay in milliseconds.
@@ -76,6 +76,21 @@ public:
     /// @brief Cycle to next color palette theme.
     void cyclePalette() noexcept;
 
+    /// @brief Enable or disable background art reveal mode.
+    /// @param[in] enabled True to reveal background artwork under claimed territory.
+    void setArtEnabled(bool enabled) noexcept;
+
+    /// @brief Check whether background art reveal mode is currently active.
+    /// @return True if background art reveal is enabled.
+    [[nodiscard]] bool isArtEnabled() const noexcept;
+
+    /// @brief Toggle background art reveal mode on/off at runtime.
+    void toggleArt() noexcept;
+
+    /// @brief Set active background art scene (-1 for automatic progression with game level).
+    /// @param[in] scene Scene index or -1 for auto.
+    void setArtScene(int scene) noexcept;
+
 protected:
     void keyPressEvent(QKeyEvent* event) override;
     void keyReleaseEvent(QKeyEvent* event) override;
@@ -88,6 +103,7 @@ private:
     QixCanvas* m_canvas {nullptr};
     QAction* m_crtAction {nullptr};
     QAction* m_audioAction {nullptr};
+    QAction* m_artAction {nullptr};
     QAction* m_classicThemeAction {nullptr};
     QAction* m_synthwaveThemeAction {nullptr};
     QAction* m_amberThemeAction {nullptr};

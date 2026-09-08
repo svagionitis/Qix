@@ -1,4 +1,5 @@
 #pragma once
+#include "BackgroundArt.h"
 #include "BitmapFont.h"
 #include "ColorPalette.h"
 #include "IQixGame.h"
@@ -99,21 +100,44 @@ public:
     /// @brief Cycle to next color palette theme.
     void cyclePalette() noexcept;
 
+    /// @brief Enable or disable background art reveal mode.
+    /// @param[in] enabled True to reveal artwork in claimed cells.
+    void setArtEnabled(bool enabled) noexcept;
+
+    /// @brief Check whether background art reveal mode is enabled.
+    /// @return True if art reveal mode is active.
+    [[nodiscard]] bool isArtEnabled() const noexcept;
+
+    /// @brief Toggle background art reveal mode on/off.
+    void toggleArt() noexcept;
+
+    /// @brief Force a specific artwork scene, or -1 for auto level-based.
+    /// @param[in] scene Scene index (0..3) or -1 for auto.
+    void setArtScene(int scene) noexcept;
+
 private:
     std::unique_ptr<SDL_Window, SdlWindowDeleter> m_window {nullptr};
     std::unique_ptr<SDL_Renderer, SdlRendererDeleter> m_renderer {nullptr};
     std::unique_ptr<SDL_Texture, SdlTextureDeleter> m_sceneTexture {nullptr};
+    std::unique_ptr<SDL_Texture, SdlTextureDeleter> m_artTexture {nullptr};
     int m_textureWidth {0};
     int m_textureHeight {0};
+    int m_artWidth {0};
+    int m_artHeight {0};
+    ArtScene m_currentScene {ArtScene::Count};
     bool m_crtEnabled {false};
+    bool m_artEnabled {true};
+    int m_forcedArtScene {-1};
     PaletteId m_paletteId {PaletteId::Classic};
     std::uint32_t m_colorCycle {0};
 
+    void ensureArtTexture(ArtScene scene) noexcept;
+
     void drawHud(const GameStats& stats, std::uint32_t delayMs) noexcept;
-    void drawPlayfield(const Playfield& playfield, const SDL_Rect& fieldRect) noexcept;
+    void drawPlayfield(const Playfield& playfield, const SDL_Rect& fieldRect, const GameView& view) noexcept;
     void drawQixRibbons(const std::vector<std::deque<LineSegment>>& ribbons, const SDL_Rect& fieldRect) noexcept;
     void drawEntities(const GameView& view, const SDL_Rect& fieldRect) noexcept;
-    void drawOverlays(const GameView& view) noexcept;
+    void drawOverlays(const GameView& view, const SDL_Rect& fieldRect) noexcept;
     void drawNameEntry(const NameEntryState& entry, const GameStats& stats) noexcept;
     void drawHallOfFame(const HighScoreTable* table, bool isGameOver, bool isAttract = false) noexcept;
     void drawDemoBanners() noexcept;

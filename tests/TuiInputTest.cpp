@@ -147,3 +147,26 @@ TEST(TuiInputTest, PaletteThemeInputAndCycling)
     (void)renderer.processInput("\033[14~", action);
     EXPECT_EQ(action, TuiAction::CyclePalette);
 }
+
+TEST(TuiInputTest, ArtRevealInputAndToggle)
+{
+    TuiRenderer renderer {};
+    EXPECT_TRUE(renderer.isArtEnabled());
+
+    renderer.toggleArt();
+    EXPECT_FALSE(renderer.isArtEnabled());
+    renderer.toggleArt();
+    EXPECT_TRUE(renderer.isArtEnabled());
+
+    TuiAction action {TuiAction::None};
+
+    (void)renderer.processInput("v", action);
+    EXPECT_EQ(action, TuiAction::ToggleArt);
+
+    (void)renderer.processInput("V", action);
+    EXPECT_EQ(action, TuiAction::ToggleArt);
+
+    // F5 escape sequence: \033[15~
+    (void)renderer.processInput("\033[15~", action);
+    EXPECT_EQ(action, TuiAction::ToggleArt);
+}

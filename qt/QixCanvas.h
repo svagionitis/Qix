@@ -1,6 +1,8 @@
 #pragma once
+#include "BackgroundArt.h"
 #include "ColorPalette.h"
 #include "IQixGame.h"
+#include <QImage>
 #include <QWidget>
 
 namespace qix::qt {
@@ -44,6 +46,21 @@ public:
     /// @brief Cycle to next color palette theme.
     void cyclePalette() noexcept;
 
+    /// @brief Enable or disable background art reveal mode.
+    /// @param[in] enabled True to reveal background artwork under claimed territory.
+    void setArtEnabled(bool enabled) noexcept;
+
+    /// @brief Check whether background art reveal mode is currently active.
+    /// @return True if background art reveal is enabled.
+    [[nodiscard]] bool isArtEnabled() const noexcept;
+
+    /// @brief Toggle background art reveal mode on/off at runtime.
+    void toggleArt() noexcept;
+
+    /// @brief Set active background art scene (-1 for automatic progression with game level).
+    /// @param[in] scene Scene index or -1 for auto.
+    void setArtScene(int scene) noexcept;
+
 protected:
     void paintEvent(QPaintEvent* event) override;
 
@@ -53,7 +70,14 @@ private:
     std::uint32_t m_delayMs {75U};
     bool m_crtEnabled {false};
     PaletteId m_paletteId {PaletteId::Classic};
+    bool m_artEnabled {true};
+    int m_customArtScene {-1};
+    ArtScene m_currentArtScene {ArtScene::CyberpunkSkyline};
+    QImage m_artImage {};
+    QImage m_artMutedImage {};
+    int m_artLevel {-1};
 
+    void ensureArtImage();
     void applyCrtFilter(QPainter& painter, const QImage& sceneImage);
 
     void drawHud(QPainter& painter);

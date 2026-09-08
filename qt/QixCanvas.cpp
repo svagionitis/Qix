@@ -70,6 +70,64 @@ void QixCanvas::cyclePalette() noexcept
     update();
 }
 
+void QixCanvas::setArtEnabled(bool enabled) noexcept
+{
+    m_artEnabled = enabled;
+    update();
+}
+
+bool QixCanvas::isArtEnabled() const noexcept
+{
+    return m_artEnabled;
+}
+
+void QixCanvas::toggleArt() noexcept
+{
+    m_artEnabled = !m_artEnabled;
+    update();
+}
+
+void QixCanvas::setArtScene(int scene) noexcept
+{
+    m_customArtScene = scene;
+    m_artLevel = -1;
+    update();
+}
+
+void QixCanvas::ensureArtImage()
+{
+    const auto scene = (m_customArtScene >= 0)
+        ? BackgroundArt::fromIndex(m_customArtScene)
+        : BackgroundArt::getSceneForLevel(m_view.stats.level);
+
+    if (m_artLevel == m_view.stats.level && m_currentArtScene == scene && !m_artImage.isNull()) {
+        return;
+    }
+
+    m_currentArtScene = scene;
+    m_artLevel = m_view.stats.level;
+
+    constexpr int ArtW = 640;
+    constexpr int ArtH = 480;
+    std::vector<std::uint8_t> rgba;
+    BackgroundArt::generateRgbaBuffer(scene, ArtW, ArtH, rgba);
+
+    QImage raw(rgba.data(), ArtW, ArtH, ArtW * 4, QImage::Format_RGBA8888);
+    m_artImage = raw.copy();
+
+    m_artMutedImage = m_artImage.copy();
+    for (int y = 0; y < ArtH; ++y) {
+        auto* scan = reinterpret_cast<QRgb*>(m_artMutedImage.scanLine(y));
+        for (int x = 0; x < ArtW; ++x) {
+            const QRgb p = scan[x];
+            const int r = qRed(p) / 3;
+            const int g = std::min(255, qGreen(p) * 2 / 3 + 30);
+            const int b = std::min(255, qBlue(p) * 4 / 5 + 60);
+            scan[x] = qRgba(r, g, b, 255);
+        }
+    }
+}
+
 void QixCanvas::paintEvent(QPaintEvent* event)
 {
     Q_UNUSED(event);
@@ -278,6 +336,14 @@ void QixCanvas::drawPlayfield(QPainter& painter, const QRect& fieldRect)
     const double cellH = static_cast<double>(fieldRect.height()) / gridH;
     const auto& theme = ColorPalette::get(m_paletteId);
 
+    if (m_artEnabled) {
+        ensureArtImage();
+    }
+
+    const bool hasArt = m_artEnabled && !m_artImage.isNull();
+    const int artW = hasArt ? m_artImage.width() : 0;
+    const int artH = hasArt ? m_artImage.height() : 0;
+
     // Outer and interior cells
     for (std::int32_t y {0}; y < gridH; ++y) {
         for (std::int32_t x {0}; x < gridW; ++x) {
@@ -287,9 +353,25 @@ void QixCanvas::drawPlayfield(QPainter& painter, const QRect& fieldRect)
             if (state == CellState::Border) {
                 painter.fillRect(r, toQColor(theme.playfieldBorder));
             } else if (state == CellState::ClaimedSlow) {
-                painter.fillRect(r, toQColor(theme.claimedSlow));
+                if (hasArt) {
+                    const int srcX = static_cast<int>((static_cast<double>(x) / gridW) * artW);
+                    const int srcY = static_cast<int>((static_cast<double>(y) / gridH) * artH);
+                    const int srcX2 = static_cast<int>((static_cast<double>(x + 1) / gridW) * artW);
+                    const int srcY2 = static_cast<int>((static_cast<double>(y + 1) / gridH) * artH);
+                    painter.drawImage(r, m_artImage, QRect(srcX, srcY, std::max(1, srcX2 - srcX), std::max(1, srcY2 - srcY)));
+                } else {
+                    painter.fillRect(r, toQColor(theme.claimedSlow));
+                }
             } else if (state == CellState::ClaimedFast) {
-                painter.fillRect(r, toQColor(theme.claimedFast));
+                if (hasArt) {
+                    const int srcX = static_cast<int>((static_cast<double>(x) / gridW) * artW);
+                    const int srcY = static_cast<int>((static_cast<double>(y) / gridH) * artH);
+                    const int srcX2 = static_cast<int>((static_cast<double>(x + 1) / gridW) * artW);
+                    const int srcY2 = static_cast<int>((static_cast<double>(y + 1) / gridH) * artH);
+                    painter.drawImage(r, m_artMutedImage, QRect(srcX, srcY, std::max(1, srcX2 - srcX), std::max(1, srcY2 - srcY)));
+                } else {
+                    painter.fillRect(r, toQColor(theme.claimedFast));
+                }
             } else if (state == CellState::ActiveStix) {
                 painter.fillRect(r, toQColor(theme.activeStix));
             }
@@ -467,7 +549,23 @@ void QixCanvas::drawOverlays(QPainter& painter)
     }
 
     if (m_view.state == GameState::LevelComplete) {
-        QFont font("Monospace", 24, QFont::Bold);
+        if (m_artEnabled && !m_artImage.isNull()) {
+            const int margin = 20;
+            const int hudHeight = 50;
+            const QRect fieldRect(margin, hudHeight, width() - 2 * margin, height() - hudHeight - margin);
+            painter.drawImage(fieldRect, m_artImage);
+
+            const int bannerH = 160;
+            const int bannerY = fieldRect.center().y() - bannerH / 2;
+            painter.fillRect(fieldRect.left(), bannerY, fieldRect.width(), bannerH, QColor(0, 0, 0, 210));
+
+            painter.setPen(QColor(250, 204, 21));
+            painter.setFont(QFont("Monospace", 14, QFont::Bold));
+            painter.drawText(QRect(fieldRect.left(), bannerY + 12, fieldRect.width(), 24), Qt::AlignCenter,
+                QString("ART UNMASKED: %1").arg(BackgroundArt::getSceneName(m_currentArtScene)));
+        }
+
+        QFont font("Monospace", 22, QFont::Bold);
         painter.setFont(font);
 
         if (m_view.stats.qixTrapped) {

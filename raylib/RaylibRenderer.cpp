@@ -1,4 +1,5 @@
 #include "RaylibRenderer.h"
+#include "BackgroundArt.h"
 #include "HighScoreTable.h"
 #include <algorithm>
 #include <cstdio>
@@ -14,6 +15,10 @@ namespace qix::raylib {
 
 RaylibRenderer::~RaylibRenderer()
 {
+    if (m_artTextureInitialized) {
+        UnloadTexture(m_artTexture);
+        m_artTextureInitialized = false;
+    }
     if (m_targetInitialized) {
         UnloadRenderTexture(m_targetTexture);
         m_targetInitialized = false;
@@ -37,6 +42,54 @@ PaletteId RaylibRenderer::getPalette() const noexcept
 void RaylibRenderer::cyclePalette() noexcept
 {
     m_paletteId = ColorPalette::next(m_paletteId);
+}
+
+void RaylibRenderer::setArtEnabled(bool enabled) noexcept
+{
+    m_artEnabled = enabled;
+}
+
+bool RaylibRenderer::isArtEnabled() const noexcept
+{
+    return m_artEnabled;
+}
+
+void RaylibRenderer::toggleArt() noexcept
+{
+    m_artEnabled = !m_artEnabled;
+}
+
+void RaylibRenderer::setArtScene(int scene) noexcept
+{
+    m_forcedArtScene = scene;
+}
+
+void RaylibRenderer::ensureArtTexture(ArtScene scene) noexcept
+{
+    if (m_artTextureInitialized && m_currentScene == scene) {
+        return;
+    }
+
+    if (m_artTextureInitialized) {
+        UnloadTexture(m_artTexture);
+        m_artTextureInitialized = false;
+    }
+
+    constexpr int ArtW = 320;
+    constexpr int ArtH = 240;
+    std::vector<std::uint8_t> buffer;
+    BackgroundArt::generateRgbaBuffer(scene, ArtW, ArtH, buffer);
+
+    Image img {};
+    img.data = buffer.data();
+    img.width = ArtW;
+    img.height = ArtH;
+    img.mipmaps = 1;
+    img.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+
+    m_artTexture = LoadTextureFromImage(img);
+    m_artTextureInitialized = true;
+    m_currentScene = scene;
 }
 
 bool RaylibRenderer::init(const std::string& title, int width, int height) noexcept
@@ -92,6 +145,14 @@ void RaylibRenderer::render(const GameView& view, std::uint32_t delayMs) noexcep
 
     const auto& theme = ColorPalette::get(m_paletteId);
 
+    const auto activeScene = (m_forcedArtScene >= 0)
+        ? BackgroundArt::fromIndex(m_forcedArtScene)
+        : BackgroundArt::getSceneForLevel(view.stats.level);
+
+    if (m_artEnabled) {
+        ensureArtTexture(activeScene);
+    }
+
     // 1. Clear background
     ClearBackground(toRaylib(theme.background));
 
@@ -106,13 +167,13 @@ void RaylibRenderer::render(const GameView& view, std::uint32_t delayMs) noexcep
         std::max(10.0f, static_cast<float>(screenH) - hudHeight - margin)};
 
     if (view.playfield) {
-        drawPlayfield(*view.playfield, fieldRect);
+        drawPlayfield(*view.playfield, fieldRect, view);
         drawQixRibbons(view.qixRibbons, fieldRect);
         drawEntities(view, fieldRect);
     }
 
     // 4. Overlays
-    drawOverlays(view);
+    drawOverlays(view, fieldRect);
 
     if (m_crtEnabled) {
         EndTextureMode();
@@ -258,8 +319,10 @@ void RaylibRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noex
     }
 }
 
-void RaylibRenderer::drawPlayfield(const Playfield& playfield, const Rectangle& fieldRect) noexcept
+void RaylibRenderer::drawPlayfield(
+    const Playfield& playfield, const Rectangle& fieldRect, const GameView& view) noexcept
 {
+    (void)view;
     const auto gridW = playfield.getWidth();
     const auto gridH = playfield.getHeight();
     if (gridW <= 0 || gridH <= 0) {
@@ -269,6 +332,8 @@ void RaylibRenderer::drawPlayfield(const Playfield& playfield, const Rectangle& 
     const auto& theme = ColorPalette::get(m_paletteId);
     const float cellW = fieldRect.width / static_cast<float>(gridW);
     const float cellH = fieldRect.height / static_cast<float>(gridH);
+    const float texW = m_artTextureInitialized ? static_cast<float>(m_artTexture.width) : 1.0f;
+    const float texH = m_artTextureInitialized ? static_cast<float>(m_artTexture.height) : 1.0f;
 
     for (std::int32_t y {0}; y < gridH; ++y) {
         for (std::int32_t x {0}; x < gridW; ++x) {
@@ -282,10 +347,24 @@ void RaylibRenderer::drawPlayfield(const Playfield& playfield, const Rectangle& 
 
             if (state == CellState::Border) {
                 DrawRectangleRec(cellRect, toRaylib(theme.playfieldBorder));
-            } else if (state == CellState::ClaimedSlow) {
-                DrawRectangleRec(cellRect, toRaylib(theme.claimedSlow));
-            } else if (state == CellState::ClaimedFast) {
-                DrawRectangleRec(cellRect, toRaylib(theme.claimedFast));
+            } else if (state == CellState::ClaimedSlow || state == CellState::ClaimedFast) {
+                if (m_artEnabled && m_artTextureInitialized) {
+                    const Rectangle srcRect {
+                        (static_cast<float>(x) / static_cast<float>(gridW)) * texW,
+                        (static_cast<float>(y) / static_cast<float>(gridH)) * texH,
+                        (1.0f / static_cast<float>(gridW)) * texW,
+                        (1.0f / static_cast<float>(gridH)) * texH
+                    };
+                    if (state == CellState::ClaimedSlow) {
+                        DrawTexturePro(m_artTexture, srcRect, cellRect, {0.0f, 0.0f}, 0.0f, WHITE);
+                    } else {
+                        // Fast draw: cool retro cyan/blue tint
+                        DrawTexturePro(m_artTexture, srcRect, cellRect, {0.0f, 0.0f}, 0.0f, Color {185, 220, 255, 255});
+                    }
+                } else {
+                    DrawRectangleRec(
+                        cellRect, toRaylib(state == CellState::ClaimedSlow ? theme.claimedSlow : theme.claimedFast));
+                }
             } else if (state == CellState::ActiveStix) {
                 DrawRectangleRec(cellRect, toRaylib(theme.activeStix));
             }
@@ -402,7 +481,7 @@ void RaylibRenderer::drawEntities(const GameView& view, const Rectangle& fieldRe
     DrawPoly(markerPos, 4, 7.0f, 45.0f, markerColor);
 }
 
-void RaylibRenderer::drawOverlays(const GameView& view) noexcept
+void RaylibRenderer::drawOverlays(const GameView& view, const Rectangle& fieldRect) noexcept
 {
     if (view.state == GameState::Playing || view.state == GameState::Ready) {
         return;
@@ -418,8 +497,18 @@ void RaylibRenderer::drawOverlays(const GameView& view) noexcept
     const int screenW = GetScreenWidth();
     const int screenH = GetScreenHeight();
 
-    // Semi-transparent blackout
-    DrawRectangle(0, 0, screenW, screenH, Color {0, 0, 0, 200});
+    if (view.state == GameState::LevelComplete && m_artEnabled && m_artTextureInitialized) {
+        // Grand victory curtain reveal: full background art unmasked!
+        const Rectangle fullSrc {
+            0.0f, 0.0f, static_cast<float>(m_artTexture.width), static_cast<float>(m_artTexture.height)};
+        DrawTexturePro(m_artTexture, fullSrc, fieldRect, {0.0f, 0.0f}, 0.0f, Color {255, 255, 255, 230});
+        DrawRectangleLinesEx(fieldRect, 3.0f, Color {250, 204, 21, 255});
+        // Soft backdrop behind victory text
+        DrawRectangle(0, screenH / 2 - 95, screenW, 190, Color {0, 0, 0, 190});
+    } else {
+        // Semi-transparent blackout
+        DrawRectangle(0, 0, screenW, screenH, Color {0, 0, 0, 200});
+    }
 
     if (view.state == GameState::Attract) {
         if (view.attractStage == AttractStage::TitleScores) {
@@ -431,6 +520,12 @@ void RaylibRenderer::drawOverlays(const GameView& view) noexcept
     }
 
     if (view.state == GameState::LevelComplete) {
+        if (m_artEnabled && m_artTextureInitialized) {
+            const std::string sceneBanner = std::string("ART UNMASKED: ") + BackgroundArt::getSceneName(m_currentScene);
+            const int fontS = 18;
+            const int ws = MeasureText(sceneBanner.c_str(), fontS);
+            DrawText(sceneBanner.c_str(), (screenW - ws) / 2, screenH / 2 - 80, fontS, Color {255, 215, 0, 255});
+        }
         if (view.stats.qixTrapped) {
             const char* title = view.stats.spiralBonus ? "*** SPIRAL QIX TRAP! ***" : "*** QIX TRAPPED! ***";
             const int fontTitle = 28;

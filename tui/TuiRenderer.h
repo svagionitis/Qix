@@ -1,4 +1,5 @@
 #pragma once
+#include "BackgroundArt.h"
 #include "ColorPalette.h"
 #include "IQixGame.h"
 #include <cstdint>
@@ -26,6 +27,7 @@ enum class TuiAction : std::uint8_t {
     ToggleBraille,
     ToggleTruecolor,
     CyclePalette,
+    ToggleArt,
     Resize,
     CharInput,
     Backspace
@@ -99,6 +101,21 @@ public:
     /// @brief Cycle to next color palette theme.
     void cyclePalette() noexcept;
 
+    /// @brief Enable or disable background art reveal mode.
+    /// @param[in] enabled True to reveal background artwork under claimed territory.
+    void setArtEnabled(bool enabled) noexcept;
+
+    /// @brief Check whether background art reveal mode is currently active.
+    /// @return True if background art reveal is enabled.
+    [[nodiscard]] bool isArtEnabled() const noexcept;
+
+    /// @brief Toggle background art reveal mode on/off.
+    void toggleArt() noexcept;
+
+    /// @brief Set active background art scene (-1 for automatic progression with game level).
+    /// @param[in] scene Scene index or -1 for auto.
+    void setArtScene(int scene) noexcept;
+
     /// @brief Enable or disable flicker-free differential screen updates.
     /// @param[in] enabled True to emit only modified lines, false for full redraws.
     void setDifferentialUpdates(bool enabled) noexcept;
@@ -130,6 +147,8 @@ private:
     bool m_truecolor {true};
     bool m_differentialUpdates {true};
     PaletteId m_paletteId {PaletteId::Classic};
+    bool m_artEnabled {true};
+    int m_customArtScene {-1};
     char m_typedChar {0};
     std::uint32_t m_colorCycle {0};
     TerminalSize m_lastTermSize {0, 0};

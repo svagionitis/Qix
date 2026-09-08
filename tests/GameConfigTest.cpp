@@ -117,3 +117,33 @@ TEST(GameConfigTest, ParsePaletteFlags)
     EXPECT_EQ(qix::GameConfig::parsePaletteFlag(3, argv), qix::PaletteId::Amber);
     EXPECT_EQ(qix::GameConfig::parsePaletteFlag(0, nullptr), qix::PaletteId::Classic);
 }
+
+TEST(GameConfigTest, ParseArtFlags)
+{
+    EXPECT_TRUE(qix::GameConfig::parseArtFlag(std::vector<std::string> {"--art"}));
+    EXPECT_TRUE(qix::GameConfig::parseArtFlag(std::vector<std::string> {"--bg-art"}));
+    EXPECT_TRUE(qix::GameConfig::parseArtFlag(std::vector<std::string> {"--reveal"}));
+    EXPECT_FALSE(qix::GameConfig::parseArtFlag(std::vector<std::string> {"--no-art"}));
+    EXPECT_FALSE(qix::GameConfig::parseArtFlag(std::vector<std::string> {"--no-bg-art"}));
+    EXPECT_FALSE(qix::GameConfig::parseArtFlag(std::vector<std::string> {"--no-reveal"}));
+
+    // Default fallback
+    EXPECT_TRUE(qix::GameConfig::parseArtFlag(std::vector<std::string> {}, true));
+    EXPECT_FALSE(qix::GameConfig::parseArtFlag(std::vector<std::string> {}, false));
+
+    // Argc/argv parsing
+    char arg0[] = "qix";
+    char arg1[] = "--no-art";
+    char* argv[] = {arg0, arg1, nullptr};
+    EXPECT_FALSE(qix::GameConfig::parseArtFlag(2, argv, true));
+}
+
+TEST(GameConfigTest, ParseArtSceneFlags)
+{
+    EXPECT_EQ(qix::GameConfig::parseArtSceneFlag(std::vector<std::string> {"--art-scene=2"}), 2);
+    EXPECT_EQ(qix::GameConfig::parseArtSceneFlag(std::vector<std::string> {"--scene=1"}), 1);
+    EXPECT_EQ(qix::GameConfig::parseArtSceneFlag(std::vector<std::string> {"--art-scene", "3"}), 3);
+    EXPECT_EQ(qix::GameConfig::parseArtSceneFlag(std::vector<std::string> {"--scene", "0"}), 0);
+    EXPECT_EQ(qix::GameConfig::parseArtSceneFlag(std::vector<std::string> {}, -1), -1);
+}
+

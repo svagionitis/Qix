@@ -54,6 +54,18 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
   - Mathematical 2D cross-product winding analysis detecting multi-turn spiral stix geometry ($\ge 270^\circ$ curl or $\ge 4$ turns).
   - Enormous jackpot scoring: **+25,000 pts** for standard trap ($\le 10\%$), **+50,000 pts** for Super Trap ($\le 5\%$), additional **+25,000 pts** for Spiral Bonus, and 2x multiplier for Slow Draw (up to **+150,000 pts** in a single move).
   - Triumphant audio fanfare pitch-shift and celebratory gold/cyan overlay banners across all 4 frontends.
+- **Background Art Reveal Mode (`BackgroundArt`)**:
+  - Authentic arcade territory unmasking mechanic (inspired by *Volfied* and *Gals Panic*) integrated across all 4 client frontends.
+  - Claimed territories act as a high-resolution aperture revealing procedural artwork underneath:
+    - *Slow Draw (2x score)*: Reveals artwork at 100% vibrant, native saturation.
+    - *Fast Draw (1x score)*: Reveals artwork with a muted cool-cyan tint so cut styles remain visually distinct.
+  - Four deterministic, high-resolution mathematical shaders generated on-the-fly with zero external image or asset files:
+    - `Cyberpunk Skyline`: Neon night sky gradient, glowing skyscraper silhouettes, illuminated windows, and sweeping searchlights.
+    - `Synthwave Sunset`: Radiant segmented Outrun sun, vibrant sky bands, and a 3D perspective wireframe horizon grid.
+    - `Cosmic Nebula`: Deep starfields, multi-octave plasma clouds, and a banded gas giant with tilted planetary rings.
+    - `Laser Mandala`: Intricate 8-fold and 16-fold kaleidoscopic cybernetic laser geometry.
+  - *Victory Curtain Call*: Achieving $\ge 75\%$ capture or trapping the Qix reveals the artwork at 100% full-screen glory across the entire playfield with an `"ART UNMASKED: <Scene Name>"` victory banner.
+  - Runtime toggle (`V` / `F5`) across all clients and launch-time configuration (`--art`, `--bg-art`, `--no-art`, `--art-scene <0..3>`).
 - **Quad Frontends**:
   - **Terminal Client (`qix_tui`)**: Lightweight console client with high-resolution Unicode Braille ($2 \times 4$ sub-pixel) rendering, 24-bit Truecolor (RGB) dynamic neon stick ribbons, modern arcade HUD cards and box-drawing borders (`┌─┬─┐`, `│ │ │`, `└─┴─┘`), real-time territory progress bar with 1/8th fractional blocks (`▏`..`█`), classic ASCII mode, flicker-free differential screen updates (cutting stdout bandwidth by >95%), and non-blocking key polling across Linux (`termios`) and Windows (`conio.h`).
   - **Desktop Qt Client (`qix_qt`)**: Modern hardware-accelerated Qt client rendering neon color-cycling stick helix ribbons, glowing sparks, and real-time territory fills.
@@ -92,6 +104,7 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
 │   ├── CollisionDetector.h/.cpp# Discrete point and segment collision auditor
 │   ├── TerritoryFill.h / .cpp  # Breadth-First Search flood-fill territory engine
 │   ├── ArcadeAudio.h / .cpp    # Procedural 44.1 kHz chiptune sound synthesis engine
+│   ├── BackgroundArt.h / .cpp  # Procedural mathematical artwork shaders (4 arcade scenes)
 │   ├── ColorPalette.h / .cpp   # Retro arcade, synthwave, and phosphor CRT color palettes
 │   ├── DemoBot.h / .cpp        # Autonomous AI agent for arcade Attract Mode demo
 │   ├── GameConfig.h / .cpp     # Unified CLI argument parser and runtime options
@@ -239,6 +252,7 @@ You can select the ruleset mode at launch via CLI:
 | **Disengage Draw / Border** | `X` (Return to border nav) | Release draw key | Release draw key | Release draw key |
 | **Adjust Speed (Pacing)** | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) |
 | **Cycle Color Palette** | `P` | `P` / `F4` / Theme Menu | `F4` | `F4` |
+| **Toggle Art Reveal** | `V` | `V` / `F5` / View Menu | `V` / `F5` | `V` / `F5` |
 | **Toggle Audio Mute** | N/A | `M` / `F3` / Audio Menu | `M` / `F3` | `M` / `F3` |
 | **Toggle CRT Filter** | N/A | `C` / `F2` / View Menu | `C` / `F2` | `C` / `F2` |
 | **Toggle Braille / ASCII** | `B` | N/A | N/A | N/A |
@@ -256,19 +270,23 @@ Just like the original 1981 *Qix* arcade cabinet equipped with dedicated Slow an
 - **Draw Mode Lock**: The drawing mode is locked upon entering empty territory. Attempting to switch between Slow and Fast draw mid-stroke is rejected.
 - **Terminal Disengage (`qix_tui`)**: Because terminal emulators do not emit key release events, `Space` and `F` engage Slow and Fast draw, while `X` disengages back to border navigation. Completing a cut automatically resets the draw mode.
 
-All client frontends support configurable startup speed, game mode, CRT filter, color palette theme, procedural audio, and attract showcase via CLI flags:
+All client frontends support configurable startup speed, game mode, CRT filter, color palette theme, procedural audio, attract showcase, and background art reveal via CLI flags:
 ```bash
 ./build/bin/qix_raylib --delay 100 --classic             # Raylib client in Classic mode
 ./build/bin/qix_raylib --palette synthwave              # Raylib client with Cyberpunk / Synthwave theme
+./build/bin/qix_raylib --art-scene 1                    # Raylib client pinned to Synthwave Sunset scene
 ./build/bin/qix_raylib --demo                           # Launch directly into arcade Attract / Demo mode
 ./build/bin/qix_sdl --delay 100 --crt --audio           # SDL2 client with CRT filter & procedural sound
 ./build/bin/qix_sdl --palette amber                     # SDL2 client with Amber CRT monitor theme
+./build/bin/qix_sdl --no-art                            # SDL2 client with background art reveal disabled
 ./build/bin/qix_sdl --attract                           # SDL2 client starting in Attract mode
 ./build/bin/qix_qt --mode classic -c --audio            # Qt client in Classic mode with CRT & audio
 ./build/bin/qix_qt --palette green                      # Qt client with Matrix Phosphor Green theme
+./build/bin/qix_qt --art-scene 2                        # Qt client pinned to Cosmic Nebula scene
 ./build/bin/qix_tui                                     # Terminal client: auto-detects terminal size to fill screen
 ./build/bin/qix_tui --demo                              # Terminal client in Attract demo mode
 ./build/bin/qix_tui --palette synthwave                 # Terminal client with Synthwave Truecolor palette
+./build/bin/qix_tui --art-scene 0                       # Terminal client with Cyberpunk Skyline art
 ./build/bin/qix_tui --braille                           # Terminal client with 2x4 Braille sub-pixel rendering (default)
 ./build/bin/qix_tui --ascii                             # Terminal client with classic ASCII downsampling
 ./build/bin/qix_tui --no-truecolor                      # Terminal client with standard 16-color ANSI (disables RGB)
@@ -334,7 +352,7 @@ ctest --test-dir build -C Release --output-on-failure
 ```
 Result:
 ```
-100% tests passed, 0 tests failed out of 97 (5.56 sec)
+100% tests passed, 0 tests failed out of 107 (6.69 sec)
 ```
 
 ### 6. Run Performance Benchmarks

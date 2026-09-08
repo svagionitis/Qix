@@ -196,4 +196,75 @@ bool GameConfig::parseAttractFlag(int argc, char* const argv[], bool defaultAttr
     return parseAttractFlag(args, defaultAttract);
 }
 
+bool GameConfig::parseArtFlag(const std::vector<std::string>& args, bool defaultArt) noexcept
+{
+    bool art {defaultArt};
+
+    for (const auto& rawArg : args) {
+        const auto arg = toLower(rawArg);
+        if (arg == "--art" || arg == "--bg-art" || arg == "--reveal") {
+            art = true;
+        } else if (arg == "--no-art" || arg == "--no-bg-art" || arg == "--no-reveal") {
+            art = false;
+        }
+    }
+
+    return art;
+}
+
+bool GameConfig::parseArtFlag(int argc, char* const argv[], bool defaultArt) noexcept
+{
+    std::vector<std::string> args {};
+    if (argc > 1 && argv != nullptr) {
+        args.reserve(static_cast<std::size_t>(argc - 1));
+        for (int i {1}; i < argc; ++i) {
+            if (argv[i] != nullptr) {
+                args.emplace_back(argv[i]);
+            }
+        }
+    }
+    return parseArtFlag(args, defaultArt);
+}
+
+int GameConfig::parseArtSceneFlag(const std::vector<std::string>& args, int defaultScene) noexcept
+{
+    int scene {defaultScene};
+
+    for (std::size_t i {0}; i < args.size(); ++i) {
+        const auto arg = toLower(args[i]);
+        if (arg.rfind("--art-scene=", 0) == 0) {
+            try {
+                scene = std::stoi(arg.substr(12));
+            } catch (...) {
+            }
+        } else if (arg.rfind("--scene=", 0) == 0) {
+            try {
+                scene = std::stoi(arg.substr(8));
+            } catch (...) {
+            }
+        } else if ((arg == "--art-scene" || arg == "--scene") && i + 1 < args.size()) {
+            try {
+                scene = std::stoi(args[++i]);
+            } catch (...) {
+            }
+        }
+    }
+
+    return scene;
+}
+
+int GameConfig::parseArtSceneFlag(int argc, char* const argv[], int defaultScene) noexcept
+{
+    std::vector<std::string> args {};
+    if (argc > 1 && argv != nullptr) {
+        args.reserve(static_cast<std::size_t>(argc - 1));
+        for (int i {1}; i < argc; ++i) {
+            if (argv[i] != nullptr) {
+                args.emplace_back(argv[i]);
+            }
+        }
+    }
+    return parseArtSceneFlag(args, defaultScene);
+}
+
 } // namespace qix

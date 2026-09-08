@@ -14,15 +14,18 @@ namespace qix::sdl {
 /// @brief Desktop SDL2 application controller coordinating event routing, simulation pacing, and rendering.
 class SdlApp {
 public:
-    /// @brief Construct SdlApp with a game instance, initial simulation delay, CRT filter state, audio state, and
-    /// palette.
+    /// @brief Construct SdlApp with a game instance, initial simulation delay, CRT filter state, audio state,
+    /// palette, and background art reveal settings.
     /// @param[in] game Unique pointer to IQixGame engine instance.
     /// @param[in] delayMs Initial tick delay in milliseconds.
     /// @param[in] crtEnabled Whether CRT scanlines & phosphor glow filter is initially active.
     /// @param[in] audioEnabled Whether procedural chiptune audio is initially active (default: false).
     /// @param[in] palette Initial visual color palette theme (default: PaletteId::Classic).
+    /// @param[in] artEnabled Whether background art reveal mode is active (default: true).
+    /// @param[in] artScene Initial art scene index or -1 for level-based automatic progression (default: -1).
     explicit SdlApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs = SpeedConfig::DefaultDelayMs,
-        bool crtEnabled = false, bool audioEnabled = false, PaletteId palette = PaletteId::Classic) noexcept;
+        bool crtEnabled = false, bool audioEnabled = false, PaletteId palette = PaletteId::Classic,
+        bool artEnabled = true, int artScene = -1) noexcept;
     ~SdlApp();
 
     // Non-copyable
@@ -89,6 +92,21 @@ public:
 
     /// @brief Cycle to next color palette theme.
     void cyclePalette() noexcept;
+
+    /// @brief Enable or disable background art reveal mode.
+    /// @param[in] enabled True to reveal background artwork under claimed territory.
+    void setArtEnabled(bool enabled) noexcept;
+
+    /// @brief Check whether background art reveal mode is currently active.
+    /// @return True if background art reveal is enabled.
+    [[nodiscard]] bool isArtEnabled() const noexcept;
+
+    /// @brief Toggle background art reveal mode on/off at runtime.
+    void toggleArt() noexcept;
+
+    /// @brief Set active background art scene (-1 for automatic progression with game level).
+    /// @param[in] scene Scene index or -1 for auto.
+    void setArtScene(int scene) noexcept;
 
 private:
     std::unique_ptr<IQixGame> m_game;

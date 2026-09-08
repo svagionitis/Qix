@@ -59,7 +59,7 @@ private:
 namespace qix::qt {
 
 MainWindow::MainWindow(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bool crtEnabled, bool audioEnabled,
-    PaletteId palette, QWidget* parent)
+    PaletteId palette, bool artEnabled, int artScene, QWidget* parent)
     : QMainWindow {parent}
     , m_game {std::move(game)}
     , m_delayMs {SpeedConfig::clampDelay(delayMs)}
@@ -71,9 +71,11 @@ MainWindow::MainWindow(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bo
     m_canvas->setDelayMs(m_delayMs);
     m_canvas->setCrtEnabled(crtEnabled);
     m_canvas->setPalette(palette);
+    m_canvas->setArtEnabled(artEnabled);
+    m_canvas->setArtScene(artScene);
     setCentralWidget(m_canvas);
 
-    // Menu Bar with View -> CRT Filter, Sound, and Theme
+    // Menu Bar with View -> CRT Filter, Sound, Art Reveal, and Theme
     auto* viewMenu = menuBar()->addMenu(tr("&View"));
     m_crtAction = viewMenu->addAction(tr("&CRT Filter (Scanlines && Glow)"), this, &MainWindow::toggleCrt);
     m_crtAction->setCheckable(true);
@@ -84,6 +86,11 @@ MainWindow::MainWindow(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bo
     m_audioAction->setCheckable(true);
     m_audioAction->setChecked(audioEnabled);
     m_audioAction->setShortcut(QKeySequence(Qt::Key_F3));
+
+    m_artAction = viewMenu->addAction(tr("Background &Art Reveal (V / F5)"), this, &MainWindow::toggleArt);
+    m_artAction->setCheckable(true);
+    m_artAction->setChecked(artEnabled);
+    m_artAction->setShortcut(QKeySequence(Qt::Key_F5));
 
     auto* themeMenu = viewMenu->addMenu(tr("&Theme"));
     auto* themeGroup = new QActionGroup(this);
@@ -273,6 +280,38 @@ void MainWindow::cyclePalette() noexcept
     setPalette(nextId);
 }
 
+void MainWindow::setArtEnabled(bool enabled) noexcept
+{
+    if (m_canvas != nullptr) {
+        m_canvas->setArtEnabled(enabled);
+    }
+    if (m_artAction != nullptr) {
+        m_artAction->setChecked(enabled);
+    }
+}
+
+bool MainWindow::isArtEnabled() const noexcept
+{
+    return (m_canvas != nullptr) ? m_canvas->isArtEnabled() : true;
+}
+
+void MainWindow::toggleArt() noexcept
+{
+    if (m_canvas != nullptr) {
+        m_canvas->toggleArt();
+        if (m_artAction != nullptr) {
+            m_artAction->setChecked(m_canvas->isArtEnabled());
+        }
+    }
+}
+
+void MainWindow::setArtScene(int scene) noexcept
+{
+    if (m_canvas != nullptr) {
+        m_canvas->setArtScene(scene);
+    }
+}
+
 void MainWindow::onTick()
 {
     if (!m_game) {
@@ -411,6 +450,10 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
     case Qt::Key_P:
     case Qt::Key_F4:
         cyclePalette();
+        break;
+    case Qt::Key_V:
+    case Qt::Key_F5:
+        toggleArt();
         break;
     case Qt::Key_Escape:
         close();

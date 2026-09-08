@@ -1,4 +1,5 @@
 #pragma once
+#include "BackgroundArt.h"
 #include "ColorPalette.h"
 #include "IQixGame.h"
 #include <cstdint>
@@ -62,19 +63,41 @@ public:
     /// @brief Cycle to next color palette theme.
     void cyclePalette() noexcept;
 
+    /// @brief Enable or disable background art reveal mode.
+    /// @param[in] enabled True to reveal background artwork in claimed cells.
+    void setArtEnabled(bool enabled) noexcept;
+
+    /// @brief Check whether background art reveal mode is enabled.
+    /// @return True if art reveal mode is active.
+    [[nodiscard]] bool isArtEnabled() const noexcept;
+
+    /// @brief Toggle background art reveal mode on/off at runtime.
+    void toggleArt() noexcept;
+
+    /// @brief Force a specific artwork scene, or -1 for auto level-based.
+    /// @param[in] scene Scene index (0..3) or -1 for auto.
+    void setArtScene(int scene) noexcept;
+
 private:
     bool m_initialized {false};
     bool m_crtEnabled {false};
+    bool m_artEnabled {true};
+    int m_forcedArtScene {-1};
     PaletteId m_paletteId {PaletteId::Classic};
     RenderTexture2D m_targetTexture {};
     bool m_targetInitialized {false};
+    Texture2D m_artTexture {};
+    bool m_artTextureInitialized {false};
+    ArtScene m_currentScene {ArtScene::Count};
     std::uint32_t m_colorCycle {0};
 
+    void ensureArtTexture(ArtScene scene) noexcept;
+
     void drawHud(const GameStats& stats, std::uint32_t delayMs) noexcept;
-    void drawPlayfield(const Playfield& playfield, const Rectangle& fieldRect) noexcept;
+    void drawPlayfield(const Playfield& playfield, const Rectangle& fieldRect, const GameView& view) noexcept;
     void drawQixRibbons(const std::vector<std::deque<LineSegment>>& ribbons, const Rectangle& fieldRect) noexcept;
     void drawEntities(const GameView& view, const Rectangle& fieldRect) noexcept;
-    void drawOverlays(const GameView& view) noexcept;
+    void drawOverlays(const GameView& view, const Rectangle& fieldRect) noexcept;
     void drawNameEntry(const NameEntryState& entry, const GameStats& stats) noexcept;
     void drawHallOfFame(const HighScoreTable* table, bool isGameOver, bool isAttract = false) noexcept;
     void drawDemoBanners() noexcept;

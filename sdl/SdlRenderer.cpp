@@ -88,6 +88,51 @@ void SdlRenderer::cyclePalette() noexcept
     m_paletteId = ColorPalette::next(m_paletteId);
 }
 
+void SdlRenderer::setArtEnabled(bool enabled) noexcept
+{
+    m_artEnabled = enabled;
+}
+
+bool SdlRenderer::isArtEnabled() const noexcept
+{
+    return m_artEnabled;
+}
+
+void SdlRenderer::toggleArt() noexcept
+{
+    m_artEnabled = !m_artEnabled;
+}
+
+void SdlRenderer::setArtScene(int scene) noexcept
+{
+    m_forcedArtScene = scene;
+}
+
+void SdlRenderer::ensureArtTexture(ArtScene scene) noexcept
+{
+    if (m_artTexture && m_currentScene == scene) {
+        return;
+    }
+
+    constexpr int ArtW = 320;
+    constexpr int ArtH = 240;
+    std::vector<std::uint8_t> buffer;
+    BackgroundArt::generateRgbaBuffer(scene, ArtW, ArtH, buffer);
+
+    SDL_Surface* surf = SDL_CreateRGBSurfaceWithFormatFrom(
+        buffer.data(), ArtW, ArtH, 32, ArtW * 4, SDL_PIXELFORMAT_RGBA32);
+    if (surf != nullptr) {
+        SDL_Texture* tex = SDL_CreateTextureFromSurface(m_renderer.get(), surf);
+        SDL_FreeSurface(surf);
+        if (tex != nullptr) {
+            m_artTexture.reset(tex);
+            m_artWidth = ArtW;
+            m_artHeight = ArtH;
+            m_currentScene = scene;
+        }
+    }
+}
+
 void SdlRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
 {
     if (!m_renderer) {
@@ -97,6 +142,14 @@ void SdlRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     const int screenW = getWidth();
     const int screenH = getHeight();
     const auto& theme = ColorPalette::get(m_paletteId);
+
+    const auto activeScene = (m_forcedArtScene >= 0)
+        ? BackgroundArt::fromIndex(m_forcedArtScene)
+        : BackgroundArt::getSceneForLevel(view.stats.level);
+
+    if (m_artEnabled) {
+        ensureArtTexture(activeScene);
+    }
 
     if (m_crtEnabled) {
         if (!m_sceneTexture || m_textureWidth != screenW || m_textureHeight != screenH) {
@@ -129,13 +182,13 @@ void SdlRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
         margin, hudHeight, std::max(10, screenW - 2 * margin), std::max(10, screenH - hudHeight - margin)};
 
     if (view.playfield) {
-        drawPlayfield(*view.playfield, fieldRect);
+        drawPlayfield(*view.playfield, fieldRect, view);
         drawQixRibbons(view.qixRibbons, fieldRect);
         drawEntities(view, fieldRect);
     }
 
     // 4. Overlays
-    drawOverlays(view);
+    drawOverlays(view, fieldRect);
 
     // 5. CRT Post-processing Filter (Scanlines, Phosphor Bloom & Vignette)
     if (m_crtEnabled && m_sceneTexture) {
@@ -301,8 +354,10 @@ void SdlRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noexcep
     }
 }
 
-void SdlRenderer::drawPlayfield(const Playfield& playfield, const SDL_Rect& fieldRect) noexcept
+void SdlRenderer::drawPlayfield(
+    const Playfield& playfield, const SDL_Rect& fieldRect, const GameView& view) noexcept
 {
+    (void)view;
     const auto gridW = playfield.getWidth();
     const auto gridH = playfield.getHeight();
     if (gridW <= 0 || gridH <= 0) {
@@ -327,14 +382,26 @@ void SdlRenderer::drawPlayfield(const Playfield& playfield, const SDL_Rect& fiel
                 SDL_SetRenderDrawColor(m_renderer.get(), theme.playfieldBorder.r, theme.playfieldBorder.g,
                     theme.playfieldBorder.b, theme.playfieldBorder.a);
                 SDL_RenderFillRect(m_renderer.get(), &cellRect);
-            } else if (state == CellState::ClaimedSlow) {
-                SDL_SetRenderDrawColor(m_renderer.get(), theme.claimedSlow.r, theme.claimedSlow.g, theme.claimedSlow.b,
-                    theme.claimedSlow.a);
-                SDL_RenderFillRect(m_renderer.get(), &cellRect);
-            } else if (state == CellState::ClaimedFast) {
-                SDL_SetRenderDrawColor(m_renderer.get(), theme.claimedFast.r, theme.claimedFast.g, theme.claimedFast.b,
-                    theme.claimedFast.a);
-                SDL_RenderFillRect(m_renderer.get(), &cellRect);
+            } else if (state == CellState::ClaimedSlow || state == CellState::ClaimedFast) {
+                if (m_artEnabled && m_artTexture) {
+                    const SDL_Rect srcRect {
+                        static_cast<int>((static_cast<double>(x) / gridW) * m_artWidth),
+                        static_cast<int>((static_cast<double>(y) / gridH) * m_artHeight),
+                        std::max(1, static_cast<int>(std::ceil((1.0 / gridW) * m_artWidth))),
+                        std::max(1, static_cast<int>(std::ceil((1.0 / gridH) * m_artHeight)))
+                    };
+                    if (state == CellState::ClaimedSlow) {
+                        SDL_SetTextureColorMod(m_artTexture.get(), 255, 255, 255);
+                    } else {
+                        // Fast draw: cool cyan/blue tint
+                        SDL_SetTextureColorMod(m_artTexture.get(), 180, 220, 255);
+                    }
+                    SDL_RenderCopy(m_renderer.get(), m_artTexture.get(), &srcRect, &cellRect);
+                } else {
+                    const auto& c = (state == CellState::ClaimedSlow) ? theme.claimedSlow : theme.claimedFast;
+                    SDL_SetRenderDrawColor(m_renderer.get(), c.r, c.g, c.b, c.a);
+                    SDL_RenderFillRect(m_renderer.get(), &cellRect);
+                }
             } else if (state == CellState::ActiveStix) {
                 SDL_SetRenderDrawColor(
                     m_renderer.get(), theme.activeStix.r, theme.activeStix.g, theme.activeStix.b, theme.activeStix.a);
@@ -449,7 +516,7 @@ void SdlRenderer::drawEntities(const GameView& view, const SDL_Rect& fieldRect) 
     drawFilledDiamond(mx, my, 7, markerColor);
 }
 
-void SdlRenderer::drawOverlays(const GameView& view) noexcept
+void SdlRenderer::drawOverlays(const GameView& view, const SDL_Rect& fieldRect) noexcept
 {
     if (view.state == GameState::Playing || view.state == GameState::Ready) {
         return;
@@ -465,10 +532,25 @@ void SdlRenderer::drawOverlays(const GameView& view) noexcept
     const int screenW = getWidth();
     const int screenH = getHeight();
 
-    // Semi-transparent blackout
-    SDL_Rect fullScreen {0, 0, screenW, screenH};
-    SDL_SetRenderDrawColor(m_renderer.get(), 0, 0, 0, 200);
-    SDL_RenderFillRect(m_renderer.get(), &fullScreen);
+    if (view.state == GameState::LevelComplete && m_artEnabled && m_artTexture) {
+        // Grand victory curtain reveal: full background art unmasked!
+        SDL_SetTextureColorMod(m_artTexture.get(), 255, 255, 255);
+        SDL_RenderCopy(m_renderer.get(), m_artTexture.get(), nullptr, &fieldRect);
+        SDL_SetRenderDrawColor(m_renderer.get(), 250, 204, 21, 255);
+        SDL_RenderDrawRect(m_renderer.get(), &fieldRect);
+
+        // Soft banner backdrop behind text
+        SDL_SetRenderDrawBlendMode(m_renderer.get(), SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(m_renderer.get(), 0, 0, 0, 190);
+        SDL_Rect bannerBox {0, screenH / 2 - 95, screenW, 190};
+        SDL_RenderFillRect(m_renderer.get(), &bannerBox);
+    } else {
+        // Semi-transparent blackout
+        SDL_Rect fullScreen {0, 0, screenW, screenH};
+        SDL_SetRenderDrawBlendMode(m_renderer.get(), SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(m_renderer.get(), 0, 0, 0, 200);
+        SDL_RenderFillRect(m_renderer.get(), &fullScreen);
+    }
 
     if (view.state == GameState::Attract) {
         if (view.attractStage == AttractStage::TitleScores) {
@@ -480,6 +562,11 @@ void SdlRenderer::drawOverlays(const GameView& view) noexcept
     }
 
     if (view.state == GameState::LevelComplete) {
+        if (m_artEnabled && m_artTexture) {
+            const std::string sceneBanner = std::string("ART UNMASKED: ") + BackgroundArt::getSceneName(m_currentScene);
+            const int xs = std::max(20, (screenW - static_cast<int>(sceneBanner.length()) * 8 * 1) / 2);
+            BitmapFont::drawText(m_renderer.get(), sceneBanner, xs, screenH / 2 - 80, 1, SDL_Color {255, 215, 0, 255});
+        }
         if (view.stats.qixTrapped) {
             const std::string title = view.stats.spiralBonus ? "*** SPIRAL QIX TRAP! ***" : "*** QIX TRAPPED! ***";
             const int scale = 2;

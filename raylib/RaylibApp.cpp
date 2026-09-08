@@ -16,12 +16,14 @@ static void raylibAudioCallback(void* bufferData, unsigned int frames) noexcept
 }
 
 RaylibApp::RaylibApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bool crtEnabled, bool audioEnabled,
-    PaletteId palette) noexcept
+    PaletteId palette, bool artEnabled, int artScene) noexcept
     : m_game {std::move(game)}
     , m_delayMs {SpeedConfig::clampDelay(delayMs)}
 {
     m_renderer.setCrtEnabled(crtEnabled);
     m_renderer.setPalette(palette);
+    m_renderer.setArtEnabled(artEnabled);
+    m_renderer.setArtScene(artScene);
     m_audio.setMuted(!audioEnabled);
 }
 
@@ -136,6 +138,26 @@ void RaylibApp::cyclePalette() noexcept
     m_renderer.cyclePalette();
 }
 
+void RaylibApp::setArtEnabled(bool enabled) noexcept
+{
+    m_renderer.setArtEnabled(enabled);
+}
+
+bool RaylibApp::isArtEnabled() const noexcept
+{
+    return m_renderer.isArtEnabled();
+}
+
+void RaylibApp::toggleArt() noexcept
+{
+    m_renderer.toggleArt();
+}
+
+void RaylibApp::setArtScene(int scene) noexcept
+{
+    m_renderer.setArtScene(scene);
+}
+
 void RaylibApp::processInput() noexcept
 {
     const auto view = m_game ? m_game->getView() : GameView {};
@@ -156,10 +178,9 @@ void RaylibApp::processInput() noexcept
     }
 
     if (view.state == GameState::LevelComplete) {
-        if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
+        if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER)) {
             if (m_game) {
                 m_game->nextLevel();
-                m_delayMs = m_game->getCurrentDelayMs();
             }
             return;
         }
@@ -219,34 +240,38 @@ void RaylibApp::processInput() noexcept
         }
     }
 
-    // Direction input
+    // Direction controls
+    Direction dir {Direction::None};
     if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
-        m_currentCmd.direction = Direction::Up;
+        dir = Direction::Up;
     } else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
-        m_currentCmd.direction = Direction::Down;
+        dir = Direction::Down;
     } else if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
-        m_currentCmd.direction = Direction::Left;
+        dir = Direction::Left;
     } else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
-        m_currentCmd.direction = Direction::Right;
+        dir = Direction::Right;
     }
 
-    // Draw mode input
+    // Two-button arcade draw mode controls
+    DrawMode mode {DrawMode::None};
     if (IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) {
-        m_currentCmd.drawMode = DrawMode::Slow;
+        mode = DrawMode::Slow;
     } else if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT) || IsKeyDown(KEY_F)) {
-        m_currentCmd.drawMode = DrawMode::Fast;
-    } else {
-        m_currentCmd.drawMode = DrawMode::None;
+        mode = DrawMode::Fast;
     }
 
-    // Runtime speed adjustment
-    if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT) || IsKeyPressed(KEY_LEFT_BRACKET)) {
-        speedDown();
-    } else if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD) || IsKeyPressed(KEY_RIGHT_BRACKET)) {
+    m_currentCmd.direction = dir;
+    m_currentCmd.drawMode = mode;
+
+    // Speed pacing runtime controls
+    if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD) || IsKeyPressed(KEY_RIGHT_BRACKET)) {
         speedUp();
     }
+    if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT) || IsKeyPressed(KEY_LEFT_BRACKET)) {
+        speedDown();
+    }
 
-    // Reset game session
+    // Session reset
     if (IsKeyPressed(KEY_R)) {
         if (m_game) {
             m_game->reset();
@@ -266,6 +291,11 @@ void RaylibApp::processInput() noexcept
     // Cycle arcade color palette theme
     if (IsKeyPressed(KEY_F4)) {
         cyclePalette();
+    }
+
+    // Toggle background art reveal mode
+    if (IsKeyPressed(KEY_V) || IsKeyPressed(KEY_F5)) {
+        toggleArt();
     }
 }
 

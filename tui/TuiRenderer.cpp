@@ -651,6 +651,33 @@ void TuiRenderer::cyclePalette() noexcept
     setPalette(ColorPalette::next(m_paletteId));
 }
 
+void TuiRenderer::setArtEnabled(bool enabled) noexcept
+{
+    if (m_artEnabled != enabled) {
+        m_artEnabled = enabled;
+        invalidateScreen();
+    }
+}
+
+bool TuiRenderer::isArtEnabled() const noexcept
+{
+    return m_artEnabled;
+}
+
+void TuiRenderer::toggleArt() noexcept
+{
+    m_artEnabled = !m_artEnabled;
+    invalidateScreen();
+}
+
+void TuiRenderer::setArtScene(int scene) noexcept
+{
+    if (m_customArtScene != scene) {
+        m_customArtScene = scene;
+        invalidateScreen();
+    }
+}
+
 void TuiRenderer::setDifferentialUpdates(bool enabled) noexcept
 {
     m_differentialUpdates = enabled;
@@ -783,13 +810,23 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     }
 
     // 3. Controls Legend
-    if (view.state == GameState::Attract) {
+    if (view.state == GameState::LevelComplete) {
+        const auto artScene = (m_customArtScene >= 0)
+            ? BackgroundArt::fromIndex(m_customArtScene)
+            : BackgroundArt::getSceneForLevel(view.stats.level);
+        if (m_artEnabled) {
+            frame += "  \033[1;33m*** ART UNMASKED: " + std::string(BackgroundArt::getSceneName(artScene))
+                   + " ***   \033[1;32mPRESS [SPACE/ENTER] FOR NEXT LEVEL\033[0m\n";
+        } else {
+            frame += "  \033[1;32m*** LEVEL COMPLETE ***   PRESS [SPACE/ENTER] FOR NEXT LEVEL\033[0m\n";
+        }
+    } else if (view.state == GameState::Attract) {
         frame += "  \033[1;33m*** ARCADE DEMO MODE ***   \033[1;32mINSERT COIN - PRESS ANY KEY TO PLAY\033[0m\n";
-    } else if (m_lastTermSize.cols >= 105) {
-        frame += "\033[2mControls: [WASD/Arrows] Move | [Space] Slow | [F] Fast | [X] Border | [P/F4] Theme | [B] "
+    } else if (m_lastTermSize.cols >= 115) {
+        frame += "\033[2mControls: [WASD/Arrows] Move | [Space] Slow | [F] Fast | [V/F5] Art | [X] Border | [P/F4] Theme | [B] "
                  "Braille/ASCII | [T] RGB | [-/+] Speed | [R] Reset | [Q] Quit\033[0m\n";
     } else {
-        frame += "\033[2mControls: [WASD] Move | [Space/F] Draw | [X] Border | [P/F4] Theme | [B] Mode | [T] RGB | "
+        frame += "\033[2mControls: [WASD] Move | [Space/F] Draw | [V] Art | [P/F4] Theme | [B] Mode | [T] RGB | "
                  "[R] Reset | [Q] Quit\033[0m\n";
     }
 
@@ -807,20 +844,41 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
     std::vector<BrailleCell> grid(static_cast<std::size_t>(cols * rows));
     const auto& theme = ColorPalette::get(m_paletteId);
     const auto ansiColors = getThemeAnsi(m_paletteId);
+    const auto artScene = (m_customArtScene >= 0)
+        ? BackgroundArt::fromIndex(m_customArtScene)
+        : BackgroundArt::getSceneForLevel(view.stats.level);
 
     // 1. Plot Playfield Cells (Borders, Claimed Areas, Active Stix)
     for (std::int32_t y {0}; y < height; ++y) {
         for (std::int32_t x {0}; x < width; ++x) {
             const auto state = view.playfield->getCell(x, y);
-            if (state == CellState::Empty) {
-                continue;
-            }
-
             const int cx = x / 2;
             const int cy = y / 4;
             auto& cell = grid[static_cast<std::size_t>(cy * cols + cx)];
             const std::uint8_t dot = kDotMask[y % 4][x % 2];
-            cell.dots |= dot;
+
+            if (view.state == GameState::LevelComplete && m_artEnabled) {
+                cell.dots |= dot;
+                if (cell.priority < 1) {
+                    cell.priority = 1;
+                    if (m_truecolor) {
+                        cell.isRgb = true;
+                        const float u = static_cast<float>(static_cast<double>(x) + 0.5) / static_cast<float>(width);
+                        const float v = static_cast<float>(static_cast<double>(y) + 0.5) / static_cast<float>(height);
+                        const auto artPixel = BackgroundArt::samplePixel(artScene, u, v);
+                        cell.r = artPixel.r;
+                        cell.g = artPixel.g;
+                        cell.b = artPixel.b;
+                    } else {
+                        cell.isRgb = false;
+                        cell.ansiColor = ansiColors.claimedSlow;
+                    }
+                }
+            } else if (state == CellState::Empty) {
+                continue;
+            } else {
+                cell.dots |= dot;
+            }
 
             if (state == CellState::Border) {
                 if (cell.priority < 2) {
@@ -853,9 +911,18 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
                     cell.priority = 1;
                     if (m_truecolor) {
                         cell.isRgb = true;
-                        cell.r = theme.claimedSlow.r;
-                        cell.g = theme.claimedSlow.g;
-                        cell.b = theme.claimedSlow.b;
+                        if (m_artEnabled) {
+                            const float u = static_cast<float>(static_cast<double>(x) + 0.5) / static_cast<float>(width);
+                            const float v = static_cast<float>(static_cast<double>(y) + 0.5) / static_cast<float>(height);
+                            const auto artPixel = BackgroundArt::samplePixel(artScene, u, v);
+                            cell.r = artPixel.r;
+                            cell.g = artPixel.g;
+                            cell.b = artPixel.b;
+                        } else {
+                            cell.r = theme.claimedSlow.r;
+                            cell.g = theme.claimedSlow.g;
+                            cell.b = theme.claimedSlow.b;
+                        }
                     } else {
                         cell.isRgb = false;
                         cell.ansiColor = ansiColors.claimedSlow;
@@ -866,9 +933,18 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
                     cell.priority = 1;
                     if (m_truecolor) {
                         cell.isRgb = true;
-                        cell.r = theme.claimedFast.r;
-                        cell.g = theme.claimedFast.g;
-                        cell.b = theme.claimedFast.b;
+                        if (m_artEnabled) {
+                            const float u = static_cast<float>(static_cast<double>(x) + 0.5) / static_cast<float>(width);
+                            const float v = static_cast<float>(static_cast<double>(y) + 0.5) / static_cast<float>(height);
+                            const auto artPixel = BackgroundArt::samplePixel(artScene, u, v);
+                            cell.r = static_cast<std::uint8_t>(artPixel.r / 3);
+                            cell.g = static_cast<std::uint8_t>(std::min(255, artPixel.g * 2 / 3 + 30));
+                            cell.b = static_cast<std::uint8_t>(std::min(255, artPixel.b * 4 / 5 + 60));
+                        } else {
+                            cell.r = theme.claimedFast.r;
+                            cell.g = theme.claimedFast.g;
+                            cell.b = theme.claimedFast.b;
+                        }
                     } else {
                         cell.isRgb = false;
                         cell.ansiColor = ansiColors.claimedFast;
@@ -1126,6 +1202,9 @@ void TuiRenderer::renderAsciiPlayfield(std::string& frame, const GameView& view)
 
     const auto& theme = ColorPalette::get(m_paletteId);
     const auto ansi = getThemeAnsi(m_paletteId);
+    const auto artScene = (m_customArtScene >= 0)
+        ? BackgroundArt::fromIndex(m_customArtScene)
+        : BackgroundArt::getSceneForLevel(view.stats.level);
     const std::string borderCol = m_truecolor ? appendTruecolorStr(theme.hudBorder) : ansi.border;
     const std::string titleCol = m_truecolor ? appendTruecolorStr(theme.textAccent) : "\033[1;36m";
     const std::string titleBadge = std::string(" QIX · ASCII · ") + theme.name + " ";
@@ -1288,18 +1367,48 @@ void TuiRenderer::renderAsciiPlayfield(std::string& frame, const GameView& view)
                     frame += ansi.border;
                     frame += "#\033[0m";
                 }
+            } else if (view.state == GameState::LevelComplete && m_artEnabled && state == CellState::Empty) {
+                if (m_truecolor) {
+                    const float u = static_cast<float>(static_cast<double>(x) + 0.5) / static_cast<float>(width);
+                    const float v = static_cast<float>(static_cast<double>(y) + 0.5) / static_cast<float>(height);
+                    const auto artPixel = BackgroundArt::samplePixel(artScene, u, v);
+                    appendTruecolor(frame, artPixel.r, artPixel.g, artPixel.b);
+                    frame += "\xe2\x96\x88\033[0m"; // solid block █
+                } else {
+                    frame += ansi.claimedSlow;
+                    frame += ".\033[0m";
+                }
             } else if (state == CellState::ClaimedSlow) {
                 if (m_truecolor) {
-                    appendTruecolor(frame, theme.claimedSlow.r, theme.claimedSlow.g, theme.claimedSlow.b);
-                    frame += ".\033[0m";
+                    if (m_artEnabled) {
+                        const float u = static_cast<float>(static_cast<double>(x) + 0.5) / static_cast<float>(width);
+                        const float v = static_cast<float>(static_cast<double>(y) + 0.5) / static_cast<float>(height);
+                        const auto artPixel = BackgroundArt::samplePixel(artScene, u, v);
+                        appendTruecolor(frame, artPixel.r, artPixel.g, artPixel.b);
+                        frame += "\xe2\x96\x88\033[0m";
+                    } else {
+                        appendTruecolor(frame, theme.claimedSlow.r, theme.claimedSlow.g, theme.claimedSlow.b);
+                        frame += ".\033[0m";
+                    }
                 } else {
                     frame += ansi.claimedSlow;
                     frame += ".\033[0m";
                 }
             } else if (state == CellState::ClaimedFast) {
                 if (m_truecolor) {
-                    appendTruecolor(frame, theme.claimedFast.r, theme.claimedFast.g, theme.claimedFast.b);
-                    frame += ",\033[0m";
+                    if (m_artEnabled) {
+                        const float u = static_cast<float>(static_cast<double>(x) + 0.5) / static_cast<float>(width);
+                        const float v = static_cast<float>(static_cast<double>(y) + 0.5) / static_cast<float>(height);
+                        const auto artPixel = BackgroundArt::samplePixel(artScene, u, v);
+                        const auto r = static_cast<std::uint8_t>(artPixel.r / 3);
+                        const auto g = static_cast<std::uint8_t>(std::min(255, artPixel.g * 2 / 3 + 30));
+                        const auto b = static_cast<std::uint8_t>(std::min(255, artPixel.b * 4 / 5 + 60));
+                        appendTruecolor(frame, r, g, b);
+                        frame += "\xe2\x96\x92\033[0m"; // medium shade ▒
+                    } else {
+                        appendTruecolor(frame, theme.claimedFast.r, theme.claimedFast.g, theme.claimedFast.b);
+                        frame += ",\033[0m";
+                    }
                 } else {
                     frame += ansi.claimedFast;
                     frame += ",\033[0m";
@@ -1368,6 +1477,8 @@ PlayerCommand TuiRenderer::processInput(std::string_view bytes, TuiAction& actio
                     const auto param = m_inputQueue.substr(i + 2, j - (i + 2));
                     if (param == "14" || param == "11" || param == "1;4P" || param == "1;*P") {
                         action = TuiAction::CyclePalette;
+                    } else if (param == "15" || param == "1;5P" || param == "1;*Q") {
+                        action = TuiAction::ToggleArt;
                     }
                     break;
                 }
@@ -1474,6 +1585,10 @@ PlayerCommand TuiRenderer::processInput(std::string_view bytes, TuiAction& actio
         case 'P':
             action = TuiAction::CyclePalette;
             break;
+        case 'v':
+        case 'V':
+            action = TuiAction::ToggleArt;
+            break;
         case '\n':
         case '\r':
             action = TuiAction::Confirm;
@@ -1523,6 +1638,9 @@ PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
                 break;
             case 62: // F4
                 readBuf += "\033OS";
+                break;
+            case 63: // F5
+                readBuf += "\033[15~";
                 break;
             default:
                 break;

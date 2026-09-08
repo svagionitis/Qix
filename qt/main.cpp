@@ -13,6 +13,8 @@ int main(int argc, char* argv[])
     const auto audioEnabled = qix::GameConfig::parseAudioFlag(argc, argv, false);
     const auto palette = qix::GameConfig::parsePaletteFlag(argc, argv);
     const auto attractMode = qix::GameConfig::parseAttractFlag(argc, argv);
+    const auto artEnabled = qix::GameConfig::parseArtFlag(argc, argv, true);
+    const auto artScene = qix::GameConfig::parseArtSceneFlag(argc, argv, -1);
 
     QApplication app(argc, argv);
 
@@ -20,7 +22,7 @@ int main(int argc, char* argv[])
     if (attractMode) {
         game->startAttractMode();
     }
-    qix::qt::MainWindow window(std::move(game), delayMs, crtEnabled, audioEnabled, palette);
+    qix::qt::MainWindow window(std::move(game), delayMs, crtEnabled, audioEnabled, palette, artEnabled, artScene);
     window.show();
 
     return app.exec();

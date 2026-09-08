@@ -21,7 +21,8 @@ public:
     /// @param[in] audioEnabled Whether procedural chiptune audio is initially active (default: false).
     /// @param[in] palette Initial visual color palette theme (default: PaletteId::Classic).
     explicit RaylibApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs = SpeedConfig::DefaultDelayMs,
-        bool crtEnabled = false, bool audioEnabled = false, PaletteId palette = PaletteId::Classic) noexcept;
+        bool crtEnabled = false, bool audioEnabled = false, PaletteId palette = PaletteId::Classic,
+        bool artEnabled = true, int artScene = -1) noexcept;
     ~RaylibApp();
 
     // Non-copyable
@@ -89,6 +90,21 @@ public:
 
     /// @brief Cycle to next color palette theme.
     void cyclePalette() noexcept;
+
+    /// @brief Enable or disable background art reveal mode.
+    /// @param[in] enabled True to enable art reveal mode.
+    void setArtEnabled(bool enabled) noexcept;
+
+    /// @brief Check whether background art reveal mode is enabled.
+    /// @return True if art reveal mode is active.
+    [[nodiscard]] bool isArtEnabled() const noexcept;
+
+    /// @brief Toggle background art reveal mode on/off at runtime.
+    void toggleArt() noexcept;
+
+    /// @brief Force a specific artwork scene, or -1 for auto level-based.
+    /// @param[in] scene Scene index (0..3) or -1 for auto.
+    void setArtScene(int scene) noexcept;
 
     /// @brief Access internal audio synthesizer.
     /// @return Reference to ArcadeAudio.

@@ -86,6 +86,32 @@ public:
     /// @param[in] defaultAttract Fallback value if flag is absent (default: false).
     /// @return True if attract mode should start immediately, false otherwise.
     [[nodiscard]] static bool parseAttractFlag(const std::vector<std::string>& args, bool defaultAttract = false) noexcept;
+
+    /// @brief Parse background art reveal mode flag (--art, --bg-art, --reveal, --no-art, --no-bg-art).
+    /// @param[in] argc Argument count.
+    /// @param[in] argv Argument array.
+    /// @param[in] defaultArt Fallback value if flag is absent (default: true).
+    /// @return True if background art reveal mode is enabled, false otherwise.
+    [[nodiscard]] static bool parseArtFlag(int argc, char* const argv[], bool defaultArt = true) noexcept;
+
+    /// @brief Parse background art reveal mode flag from a vector of argument strings.
+    /// @param[in] args Vector of command line argument strings.
+    /// @param[in] defaultArt Fallback value if flag is absent (default: true).
+    /// @return True if background art reveal mode is enabled, false otherwise.
+    [[nodiscard]] static bool parseArtFlag(const std::vector<std::string>& args, bool defaultArt = true) noexcept;
+
+    /// @brief Parse background art scene index (--art-scene=<0..3>, --scene <0..3>).
+    /// @param[in] argc Argument count.
+    /// @param[in] argv Argument array.
+    /// @param[in] defaultScene Fallback scene index if flag is absent (default: -1 for auto level-based).
+    /// @return Scene index (0..3) or -1 for auto level-based cycling.
+    [[nodiscard]] static int parseArtSceneFlag(int argc, char* const argv[], int defaultScene = -1) noexcept;
+
+    /// @brief Parse background art scene index from a vector of argument strings.
+    /// @param[in] args Vector of command line argument strings.
+    /// @param[in] defaultScene Fallback scene index if flag is absent (default: -1 for auto level-based).
+    /// @return Scene index (0..3) or -1 for auto level-based cycling.
+    [[nodiscard]] static int parseArtSceneFlag(const std::vector<std::string>& args, int defaultScene = -1) noexcept;
 };
 
 } // namespace qix
