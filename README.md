@@ -17,10 +17,33 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
 - **Sub-Nanosecond Collision Auditing**: Fast swept point-segment collision detection running in **5.2 ns/audit** ($>190$ million checks/sec).
 - **Authentic Arcade Mechanics**:
   - **Marker (Player)**: Safe border navigation and Stix drawing (Slow vs. Fast draw).
+  - **Authentic Half-Speed Slow Draw Pacing**: Drawing in Slow mode advances at half speed (advancing every 2nd simulation tick) while awarding 2x points (200 pts/cell vs. 100 pts/cell), authentically doubling danger and tension against the approaching Qix and Fuse.
   - **The Qix**: Kinematic bouncing stick entity with multi-segment trailing ribbons and border bounce reflection.
   - **Sparx**: Clockwise and counter-clockwise perimeter patrollers.
   - **Fuse**: Anti-stall hazard that ignites along the trail when the player stops moving while drawing.
   - **Victory Condition**: Capturing $\ge 75\%$ of the total playable area.
+- **Procedural Chiptune Sound Engine (`ArcadeAudio`)**:
+  - Real-time procedural 44.1 kHz 16-bit mono PCM audio synthesis with zero external audio assets or sample files.
+  - Authentic multi-waveform chiptune sound generator:
+    - *The Qix Hum*: Dual detuned pulse-width modulation (PWM) oscillators with subtle frequency drift capturing the ominous presence of the roaming Qix.
+    - *Drawing Chirp*: High-frequency square-wave chirp emitted while extending an active Stix trail.
+    - *Fuse Sizzle*: 16-bit Galois Linear-Feedback Shift Register (LFSR) filtered pseudo-random white noise simulating the burning fuse creeping along the trail.
+    - *Sparx Siren*: Frequency-modulated (FM) alarm warble warning of perimeter patrol hazards.
+    - *Victory Fanfare*: Ascending multi-tone arpeggio chord progression (with automatic 1.5x pitch escalation upon triggering a Qix Trap or Spiral Bonus).
+    - *Death Jingle*: Descending chromatic 8-bit defeat sequence.
+  - Native integration across graphical frontends: Raylib (`AudioStream` via `LoadAudioStream`), SDL2 audio callback device, and Qt (`QAudioSink`).
+  - Runtime mute toggle (`M` / `F3`) and launch-time configuration (`--audio`, `--sound`, `-s`, `--no-audio`, `--no-sound`).
+- **Arcade Palette Theme Switcher (`ColorPalette`)**:
+  - Four curated color schemes selectable at runtime across all frontends:
+    - `Classic 1981 Arcade`: Faithful recreation of the original arcade machine (cyan borders, red slow draw fills, blue fast draw fills, dynamic multicolored neon stick ribbons).
+    - `Cyberpunk Neon / Synthwave`: High-energy hot magenta, electric cyan, deep purple, and neon accents.
+    - `Amber Phosphor CRT`: Warm amber monochrome arcade monitor simulation.
+    - `Matrix Phosphor Green`: Iconic green phosphor terminal glow.
+  - Runtime theme cycling (`P` / `F4`) and launch-time configuration via `--palette <classic|synthwave|amber|green>` or `-p <name>`.
+- **Hardware-Accelerated CRT Monitor Simulation**:
+  - Real-time retro CRT display filter featuring horizontal scanlines, aperture grille lines, barrel vignette corner shading, and phosphor glow bloom.
+  - Native hardware rendering across Desktop Raylib (additive blend mode `BLEND_ADDITIVE`), Desktop Qt (`QPainter` composition and radial vignette gradient), and Desktop SDL2 (`SDL_SetRenderDrawBlendMode`).
+  - Runtime toggle (`C` / `F2`) and startup flag (`--crt` / `-c` / `--no-crt`).
 - **Attract Mode & Automated Gameplay Demo**:
   - Autonomous AI controller (`DemoBot`) executing real-time strategic Stix cuts, demonstrating Fast and Slow draw, evading Qix and Sparx, and racking up points.
   - Authentic 3-stage arcade showcase: Title & High Scores $\to$ How-To-Play Instructions Card $\to$ Live Gameplay Demo with blinking retro banners.
@@ -32,7 +55,7 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
   - Enormous jackpot scoring: **+25,000 pts** for standard trap ($\le 10\%$), **+50,000 pts** for Super Trap ($\le 5\%$), additional **+25,000 pts** for Spiral Bonus, and 2x multiplier for Slow Draw (up to **+150,000 pts** in a single move).
   - Triumphant audio fanfare pitch-shift and celebratory gold/cyan overlay banners across all 4 frontends.
 - **Quad Frontends**:
-  - **Terminal Client (`qix_tui`)**: Lightweight console client with high-resolution Unicode Braille ($2 \times 4$ sub-pixel) rendering, 24-bit Truecolor (RGB) dynamic neon stick ribbons, modern arcade HUD cards and box-drawing borders (`┌─┬─┐`, `│ │ │`, `└─┴─┘`), real-time territory progress bar with 1/8th fractional blocks (`▏`..`█`), classic ASCII mode, and non-blocking key polling across Linux (`termios`) and Windows (`conio.h`).
+  - **Terminal Client (`qix_tui`)**: Lightweight console client with high-resolution Unicode Braille ($2 \times 4$ sub-pixel) rendering, 24-bit Truecolor (RGB) dynamic neon stick ribbons, modern arcade HUD cards and box-drawing borders (`┌─┬─┐`, `│ │ │`, `└─┴─┘`), real-time territory progress bar with 1/8th fractional blocks (`▏`..`█`), classic ASCII mode, flicker-free differential screen updates (cutting stdout bandwidth by >95%), and non-blocking key polling across Linux (`termios`) and Windows (`conio.h`).
   - **Desktop Qt Client (`qix_qt`)**: Modern hardware-accelerated Qt client rendering neon color-cycling stick helix ribbons, glowing sparks, and real-time territory fills.
   - **Desktop SDL2 Client (`qix_sdl`)**: Direct 2D hardware-accelerated SDL2 client with embedded retro arcade font, alpha blending, and zero external font asset requirements.
   - **Desktop Raylib Client (`qix_raylib`)**: Pure hardware-accelerated 2D vector client featuring additive blending (`BLEND_ADDITIVE`) for intense arcade monitor phosphor glow.
@@ -68,6 +91,12 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
 │   ├── Fuse.h / .cpp           # Anti-stall trail burning hazard
 │   ├── CollisionDetector.h/.cpp# Discrete point and segment collision auditor
 │   ├── TerritoryFill.h / .cpp  # Breadth-First Search flood-fill territory engine
+│   ├── ArcadeAudio.h / .cpp    # Procedural 44.1 kHz chiptune sound synthesis engine
+│   ├── ColorPalette.h / .cpp   # Retro arcade, synthwave, and phosphor CRT color palettes
+│   ├── DemoBot.h / .cpp        # Autonomous AI agent for arcade Attract Mode demo
+│   ├── GameConfig.h / .cpp     # Unified CLI argument parser and runtime options
+│   ├── HighScoreTable.h / .cpp # Persistent high score hall of fame and serialization
+│   ├── SpeedConfig.h / .cpp    # Simulation tick pacing and level delay escalation
 │   ├── IQixGame.h              # Pure virtual game engine interface & GameView
 │   └── QixGame.h / .cpp        # Concrete game engine and state machine
 ├── tui/
@@ -96,7 +125,13 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
 │   ├── MarkerTest.cpp          # Navigation and drawing tests
 │   ├── TerritoryFillTest.cpp   # Flood fill partitioning and percentage tests
 │   ├── CollisionTest.cpp       # Collision event tests
-│   └── GameEngineTest.cpp      # Game lifecycle and victory tests
+│   ├── GameEngineTest.cpp      # Game lifecycle and victory tests
+│   ├── ArcadeAudioTest.cpp     # Audio synthesis, buffer generation, and envelope tests
+│   ├── ColorPaletteTest.cpp    # Theme lookup, color cycling, and palette serialization tests
+│   ├── GameConfigTest.cpp      # CLI argument parsing and configuration flag tests
+│   ├── HighScoreTableTest.cpp  # Hall of Fame ranking, persistence, and initials validation
+│   ├── SpeedConfigTest.cpp     # Tick delay calculation and pacing escalation tests
+│   └── TuiInputTest.cpp        # Terminal input escape sequences and buffer parsing tests
 └── benchmarks/
     ├── CMakeLists.txt          # qix_benchmarks executable target
     └── main.cpp                # Nanosecond performance benchmarks
@@ -203,6 +238,8 @@ You can select the ruleset mode at launch via CLI:
 | **Fast Draw (1x Points)** | Hold `F` + Direction | Hold `Shift` or `F` + Dir | Hold `Shift` or `F` + Dir | Hold `Shift` or `F` + Dir |
 | **Disengage Draw / Border** | `X` (Return to border nav) | Release draw key | Release draw key | Release draw key |
 | **Adjust Speed (Pacing)** | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) |
+| **Cycle Color Palette** | `P` | `P` / `F4` / Theme Menu | `F4` | `F4` |
+| **Toggle Audio Mute** | N/A | `M` / `F3` / Audio Menu | `M` / `F3` | `M` / `F3` |
 | **Toggle CRT Filter** | N/A | `C` / `F2` / View Menu | `C` / `F2` | `C` / `F2` |
 | **Toggle Braille / ASCII** | `B` | N/A | N/A | N/A |
 | **Toggle Truecolor (RGB)** | `T` | N/A | N/A | N/A |
@@ -219,21 +256,25 @@ Just like the original 1981 *Qix* arcade cabinet equipped with dedicated Slow an
 - **Draw Mode Lock**: The drawing mode is locked upon entering empty territory. Attempting to switch between Slow and Fast draw mid-stroke is rejected.
 - **Terminal Disengage (`qix_tui`)**: Because terminal emulators do not emit key release events, `Space` and `F` engage Slow and Fast draw, while `X` disengages back to border navigation. Completing a cut automatically resets the draw mode.
 
-All client frontends support configurable startup speed, game mode, CRT filter, and attract showcase via CLI flags:
+All client frontends support configurable startup speed, game mode, CRT filter, color palette theme, procedural audio, and attract showcase via CLI flags:
 ```bash
-./build/bin/qix_raylib --delay 100 --classic # Raylib client in Classic mode
-./build/bin/qix_raylib --demo                # Launch directly into arcade Attract / Demo mode
-./build/bin/qix_sdl --delay 100 --crt        # SDL2 client with CRT scanlines & phosphor glow
-./build/bin/qix_sdl --attract                # SDL2 client starting in Attract mode
-./build/bin/qix_qt --mode classic -c         # Qt client in Classic mode with CRT filter
-./build/bin/qix_tui                        # Terminal client: auto-detects terminal size to fill screen
-./build/bin/qix_tui --demo                   # Terminal client in Attract demo mode
-./build/bin/qix_tui --braille                # Terminal client with 2x4 Braille sub-pixel rendering (default)
-./build/bin/qix_tui --ascii                  # Terminal client with classic ASCII downsampling
-./build/bin/qix_tui --no-truecolor           # Terminal client with standard 16-color ANSI (disables RGB)
-./build/bin/qix_tui --no-diff                # Disable flicker-free differential updates (forces full redraws)
-./build/bin/qix_tui --width 80 --height 40   # Custom playfield dimensions override
-./build/bin/qix_tui --mode modern            # Terminal client in Modern mode
+./build/bin/qix_raylib --delay 100 --classic             # Raylib client in Classic mode
+./build/bin/qix_raylib --palette synthwave              # Raylib client with Cyberpunk / Synthwave theme
+./build/bin/qix_raylib --demo                           # Launch directly into arcade Attract / Demo mode
+./build/bin/qix_sdl --delay 100 --crt --audio           # SDL2 client with CRT filter & procedural sound
+./build/bin/qix_sdl --palette amber                     # SDL2 client with Amber CRT monitor theme
+./build/bin/qix_sdl --attract                           # SDL2 client starting in Attract mode
+./build/bin/qix_qt --mode classic -c --audio            # Qt client in Classic mode with CRT & audio
+./build/bin/qix_qt --palette green                      # Qt client with Matrix Phosphor Green theme
+./build/bin/qix_tui                                     # Terminal client: auto-detects terminal size to fill screen
+./build/bin/qix_tui --demo                              # Terminal client in Attract demo mode
+./build/bin/qix_tui --palette synthwave                 # Terminal client with Synthwave Truecolor palette
+./build/bin/qix_tui --braille                           # Terminal client with 2x4 Braille sub-pixel rendering (default)
+./build/bin/qix_tui --ascii                             # Terminal client with classic ASCII downsampling
+./build/bin/qix_tui --no-truecolor                      # Terminal client with standard 16-color ANSI (disables RGB)
+./build/bin/qix_tui --no-diff                           # Disable flicker-free differential updates (forces full redraws)
+./build/bin/qix_tui --width 80 --height 40              # Custom playfield dimensions override
+./build/bin/qix_tui --mode modern                       # Terminal client in Modern mode
 ```
 
 ### Scoring & Territory Rules
@@ -289,14 +330,14 @@ All client frontends support configurable startup speed, game mode, CRT filter, 
 
 ### 5. Run Automated Tests
 ```bash
-ctest --test-dir build --output-on-failure
+ctest --test-dir build -C Release --output-on-failure
 ```
 Result:
 ```
-100% tests passed, 0 tests failed out of 15 (0.02 sec)
+100% tests passed, 0 tests failed out of 97 (5.56 sec)
 ```
 
-### 4. Run Performance Benchmarks
+### 6. Run Performance Benchmarks
 ```bash
 ./build/bin/qix_benchmarks
 ```
@@ -313,7 +354,7 @@ Benchmark Results:
 ====================================================
 ```
 
-### 5. Check Code Formatting
+### 7. Check Code Formatting
 ```bash
 # Verify compliance (WebKit style)
 cmake --build build --target format-check
