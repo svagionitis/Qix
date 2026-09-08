@@ -127,6 +127,62 @@ namespace {
         std::uint8_t priority {0};
     };
 
+    void appendProgressBar(
+        std::string& frame, double claimed, std::uint16_t target, int termCols, bool truecolor) noexcept
+    {
+        static constexpr const char* kFracs[8] = {
+            "",
+            "\xe2\x96\x8f", // 1/8 ▏
+            "\xe2\x96\x8e", // 2/8 ▎
+            "\xe2\x96\x8d", // 3/8 ▍
+            "\xe2\x96\x8c", // 4/8 ▌
+            "\xe2\x96\x8b", // 5/8 ▋
+            "\xe2\x96\x8a", // 6/8 ▊
+            "\xe2\x96\x89" // 7/8 ▉
+        };
+
+        const int barWidth = std::clamp(termCols - 45, 16, 40);
+        const int totalEighths = static_cast<int>(std::round((claimed / 100.0) * barWidth * 8.0));
+        const int fullChars = totalEighths / 8;
+        const int fracIdx = totalEighths % 8;
+        const int targetChar = static_cast<int>(std::round((static_cast<double>(target) / 100.0) * barWidth));
+
+        const std::string fillCol = truecolor
+            ? ((claimed < static_cast<double>(target)) ? "\033[38;2;0;220;240m" : "\033[38;2;255;215;0m")
+            : ((claimed < static_cast<double>(target)) ? "\033[1;36m" : "\033[1;33m");
+        const std::string emptyCol = truecolor ? "\033[38;2;60;70;90m" : "\033[2;37m";
+        const std::string targetCol = truecolor ? "\033[38;2;255;90;90m" : "\033[1;31m";
+
+        frame += "Territory: [";
+        for (int i = 0; i < barWidth; ++i) {
+            if (i < fullChars) {
+                frame += fillCol;
+                frame += "\xe2\x96\x88"; // █
+            } else if (i == fullChars && fracIdx > 0) {
+                frame += fillCol;
+                frame += kFracs[fracIdx];
+            } else if (i == targetChar && i >= fullChars) {
+                frame += targetCol;
+                frame += "\xe2\x94\x82"; // │
+            } else {
+                frame += emptyCol;
+                frame += "\xe2\x96\x91"; // ░
+            }
+        }
+        frame += "\033[0m] ";
+
+        char pctBuf[80];
+        if (claimed < static_cast<double>(target)) {
+            std::snprintf(pctBuf, sizeof(pctBuf), "\033[1;36m%4.1f%%\033[0m / %u%% Target", claimed, target);
+        } else {
+            const int bonus = static_cast<int>(claimed) - static_cast<int>(target);
+            std::snprintf(pctBuf, sizeof(pctBuf), "\033[1;33m%4.1f%%\033[0m / %u%% \033[1;32m(MET! +%d%% Bonus)\033[0m",
+                claimed, target, bonus);
+        }
+        frame += pctBuf;
+        frame += "\n";
+    }
+
 } // namespace
 
 #ifndef _WIN32
@@ -234,8 +290,8 @@ TerminalSize TuiRenderer::queryTerminalSize() noexcept
 std::pair<std::int32_t, std::int32_t> TuiRenderer::computePlayfieldDimensions(bool /*brailleMode*/) noexcept
 {
     const auto term = queryTerminalSize();
-    // Vertical overhead: HUD (2) + top border (1) + bottom border (1) + controls (1) + margin (1) = 6 lines
-    const int charRows = std::max(10, term.rows - 6);
+    // Vertical overhead: HUD (3) + top border (1) + bottom border (1) + controls (1) + margin (1) = 7 lines
+    const int charRows = std::max(10, term.rows - 7);
     // Horizontal overhead: left border (1) + right border (1) + side margin (2) = 4 chars
     const int charCols = std::max(20, term.cols - 4);
 
@@ -302,24 +358,6 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     // Move cursor to top-left
     std::string frame = "\033[H";
 
-    // 1. HUD Header
-    frame += "\033[1;36m=== QIX C++17 ARCADE ENGINE ===\033[0m\n";
-    frame += "Score: \033[1;33m" + std::to_string(view.stats.score) + "\033[0m | ";
-    frame += "High: \033[1;33m" + std::to_string(view.stats.highScore) + "\033[0m | ";
-    frame += "Claimed: \033[1;32m" + std::to_string(view.stats.claimedPercent) + "% / "
-        + std::to_string(view.stats.targetPercent) + "%\033[0m | ";
-    frame += "Lives: \033[1;31m" + std::to_string(view.stats.lives) + "\033[0m | ";
-    frame += "Level: \033[1;35m" + std::to_string(view.stats.level) + "\033[0m | ";
-    if (view.stats.multiplier > 1) {
-        frame += "Mult: \033[1;33m" + std::to_string(view.stats.multiplier) + "x\033[0m | ";
-    }
-    const auto secondsRemaining = (view.stats.timeRemainingMs + 999U) / 1000U;
-    const std::string timeColor = (view.stats.timeUp || secondsRemaining <= 10U)
-        ? "\033[1;31m"
-        : ((secondsRemaining <= 20U) ? "\033[1;33m" : "\033[1;32m");
-    frame += "Time: " + timeColor + std::to_string(secondsRemaining) + "s\033[0m | ";
-    frame += "Delay: \033[1;36m" + std::to_string(delayMs) + "ms\033[0m | ";
-
     std::string stateStr = "READY";
     if (view.state == GameState::Playing) {
         stateStr = "PLAYING";
@@ -341,7 +379,32 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     if (m_truecolor) {
         modeStr += " [RGB]";
     }
-    frame += "State: " + stateStr + " | Mode: \033[1;36m" + modeStr + "\033[0m\n";
+
+    // 1. HUD Header - Line 1: Title, Mode, and State
+    frame
+        += "\033[1;36m=== QIX C++17 ARCADE ===\033[0m | Mode: \033[1;36m" + modeStr + "\033[0m | [" + stateStr + "]\n";
+
+    // HUD Header - Line 2: Gameplay Stats
+    frame += "Score: \033[1;33m" + std::to_string(view.stats.score) + "\033[0m | ";
+    frame += "High: \033[1;33m" + std::to_string(view.stats.highScore) + "\033[0m | ";
+    frame += "Lives: \033[1;31m" + std::to_string(view.stats.lives) + "\033[0m | ";
+    frame += "Level: \033[1;35m" + std::to_string(view.stats.level) + "\033[0m | ";
+    if (view.stats.multiplier > 1) {
+        frame += "Mult: \033[1;33m" + std::to_string(view.stats.multiplier) + "x\033[0m | ";
+    }
+    const auto secondsRemaining = (view.stats.timeRemainingMs + 999U) / 1000U;
+    const std::string timeColor = (view.stats.timeUp || secondsRemaining <= 10U)
+        ? "\033[1;31m"
+        : ((secondsRemaining <= 20U) ? "\033[1;33m" : "\033[1;32m");
+    frame += "Time: " + timeColor + std::to_string(secondsRemaining) + "s\033[0m | ";
+    frame += "Delay: \033[1;36m" + std::to_string(delayMs) + "ms\033[0m\n";
+
+    // HUD Header - Line 3: Real-Time Unicode Territory Progress Bar
+    const double claimedPercent = (view.playfield && view.playfield->getInteriorCount() > 0)
+        ? (static_cast<double>(view.playfield->getClaimedCount()) * 100.0
+            / static_cast<double>(view.playfield->getInteriorCount()))
+        : static_cast<double>(view.stats.claimedPercent);
+    appendProgressBar(frame, claimedPercent, view.stats.targetPercent, m_lastTermSize.cols, m_truecolor);
 
     if (view.state == GameState::NameEntry) {
         renderNameEntry(frame, view.nameEntry, view.stats);
@@ -642,21 +705,23 @@ void TuiRenderer::renderAsciiPlayfield(std::string& frame, const GameView& view)
 
     const auto term = queryTerminalSize();
     const int maxCols = std::max(20, term.cols - 4);
-    const int maxRows = std::max(10, term.rows - 6);
+    const int maxRows = std::max(10, term.rows - 7);
 
     const std::int32_t stepX = std::max(1, (width + maxCols - 1) / maxCols);
     const std::int32_t stepY = std::max(1, (height + maxRows - 1) / maxRows);
     const std::int32_t cols = (width + stepX - 1) / stepX;
 
+    const std::string borderCol = m_truecolor ? "\033[38;2;40;90;230m" : "\033[1;34m";
+
     // Top border
-    frame += "\033[1;34m┌";
+    frame += borderCol + "┌";
     for (std::int32_t cx {0}; cx < cols; ++cx) {
         frame += "─";
     }
     frame += "┐\033[0m\n";
 
     for (std::int32_t y {0}; y < height; y += stepY) {
-        frame += "\033[1;34m│\033[0m";
+        frame += borderCol + "│\033[0m";
         for (std::int32_t x {0}; x < width; x += stepX) {
             Point p {x, y};
 
@@ -751,11 +816,11 @@ void TuiRenderer::renderAsciiPlayfield(std::string& frame, const GameView& view)
                 frame += " ";
             }
         }
-        frame += "\033[1;34m│\033[0m\n";
+        frame += borderCol + "│\033[0m\n";
     }
 
     // Bottom border
-    frame += "\033[1;34m└";
+    frame += borderCol + "└";
     for (std::int32_t cx {0}; cx < cols; ++cx) {
         frame += "─";
     }

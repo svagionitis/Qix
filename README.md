@@ -22,7 +22,7 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
   - **Fuse**: Anti-stall hazard that ignites along the trail when the player stops moving while drawing.
   - **Victory Condition**: Capturing $\ge 75\%$ of the total playable area.
 - **Quad Frontends**:
-  - **Terminal Client (`qix_tui`)**: Lightweight console client with high-resolution Unicode Braille ($2 \times 4$ sub-pixel) rendering, Bresenham ribbon vector lines, classic ASCII downsampling mode, ANSI color formatting, and non-blocking key polling across Linux (`termios`) and Windows console (`conio.h`).
+  - **Terminal Client (`qix_tui`)**: Lightweight console client with high-resolution Unicode Braille ($2 \times 4$ sub-pixel) rendering, 24-bit Truecolor (RGB) dynamic neon stick ribbons, real-time Unicode territory progress bar with 1/8th fractional blocks (`▏`..`█`), classic ASCII downsampling mode, ANSI color formatting, and non-blocking key polling across Linux (`termios`) and Windows console (`conio.h`).
   - **Desktop Qt Client (`qix_qt`)**: Modern hardware-accelerated Qt client rendering neon color-cycling stick helix ribbons, glowing sparks, and real-time territory fills.
   - **Desktop SDL2 Client (`qix_sdl`)**: Direct 2D hardware-accelerated SDL2 client with embedded retro arcade font, alpha blending, and zero external font asset requirements.
   - **Desktop Raylib Client (`qix_raylib`)**: Pure hardware-accelerated 2D vector client featuring additive blending (`BLEND_ADDITIVE`) for intense arcade monitor phosphor glow.
