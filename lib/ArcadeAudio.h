@@ -89,6 +89,7 @@ private:
 
         bool triggerFanfare {false};
         bool triggerDeath {false};
+        bool qixTrapped {false};
     } m_params {};
 
     // Oscillator Phases & Internal Voice States (audio thread only)

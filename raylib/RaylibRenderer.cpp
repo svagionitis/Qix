@@ -431,31 +431,55 @@ void RaylibRenderer::drawOverlays(const GameView& view) noexcept
     }
 
     if (view.state == GameState::LevelComplete) {
-        const char* text1 = view.stats.splitBonus ? "QIX SPLIT BONUS!" : "LEVEL COMPLETE!";
-        const int font1 = 28;
-        const int w1 = MeasureText(text1, font1);
-        DrawText(text1, (screenW - w1) / 2, screenH / 2 - 35, font1,
-            view.stats.splitBonus ? Color {250, 204, 21, 255} : Color {74, 222, 128, 255});
+        if (view.stats.qixTrapped) {
+            const char* title = view.stats.spiralBonus ? "*** SPIRAL QIX TRAP! ***" : "*** QIX TRAPPED! ***";
+            const int fontTitle = 28;
+            const int wt = MeasureText(title, fontTitle);
+            DrawText(title, (screenW - wt) / 2, screenH / 2 - 55, fontTitle, Color {250, 204, 21, 255});
 
-        if (!view.stats.splitBonus && view.stats.thresholdBonus > 0) {
-            const auto overshoot = (view.stats.claimedPercent > view.stats.targetPercent)
-                ? (view.stats.claimedPercent - view.stats.targetPercent)
-                : 0U;
-            const std::string bonusText = "+" + std::to_string(view.stats.thresholdBonus) + " THRESHOLD BONUS (+"
-                + std::to_string(overshoot) + "%)";
+            const std::string detailText = "QIX CONFINED TO " + std::to_string(view.stats.qixRemainingPercent)
+                + "% OF THE FIELD!";
+            const int fontD = 20;
+            const int wd = MeasureText(detailText.c_str(), fontD);
+            DrawText(detailText.c_str(), (screenW - wd) / 2, screenH / 2 - 25, fontD, Color {56, 189, 248, 255});
+
+            const std::string bonusText = "+" + std::to_string(view.stats.trapBonus) + " TRAP BONUS!"
+                + (view.stats.thresholdBonus > 0 ? (" (+" + std::to_string(view.stats.thresholdBonus) + " OVERSHOOT)") : "");
             const int fontB = 20;
             const int wb = MeasureText(bonusText.c_str(), fontB);
-            DrawText(bonusText.c_str(), (screenW - wb) / 2, screenH / 2, fontB, Color {250, 204, 21, 255});
-        }
+            DrawText(bonusText.c_str(), (screenW - wb) / 2, screenH / 2 + 2, fontB, Color {250, 204, 21, 255});
 
-        const std::string text2 = view.stats.splitBonus
-            ? ("Multiplier Increased to " + std::to_string(view.stats.multiplier) + "X! Press [Space]")
-            : "Press [Space] for Next Level";
-        const int font2 = 18;
-        const int w2 = MeasureText(text2.c_str(), font2);
-        const int y2
-            = (!view.stats.splitBonus && view.stats.thresholdBonus > 0) ? (screenH / 2 + 28) : (screenH / 2 + 15);
-        DrawText(text2.c_str(), (screenW - w2) / 2, y2, font2, Color {243, 244, 246, 255});
+            const char* prompt = "Press [Space] for Next Level";
+            const int fontP = 18;
+            const int wp = MeasureText(prompt, fontP);
+            DrawText(prompt, (screenW - wp) / 2, screenH / 2 + 32, fontP, Color {243, 244, 246, 255});
+        } else {
+            const char* text1 = view.stats.splitBonus ? "QIX SPLIT BONUS!" : "LEVEL COMPLETE!";
+            const int font1 = 28;
+            const int w1 = MeasureText(text1, font1);
+            DrawText(text1, (screenW - w1) / 2, screenH / 2 - 35, font1,
+                view.stats.splitBonus ? Color {250, 204, 21, 255} : Color {74, 222, 128, 255});
+
+            if (!view.stats.splitBonus && view.stats.thresholdBonus > 0) {
+                const auto overshoot = (view.stats.claimedPercent > view.stats.targetPercent)
+                    ? (view.stats.claimedPercent - view.stats.targetPercent)
+                    : 0U;
+                const std::string bonusText = "+" + std::to_string(view.stats.thresholdBonus) + " THRESHOLD BONUS (+"
+                    + std::to_string(overshoot) + "%)";
+                const int fontB = 20;
+                const int wb = MeasureText(bonusText.c_str(), fontB);
+                DrawText(bonusText.c_str(), (screenW - wb) / 2, screenH / 2, fontB, Color {250, 204, 21, 255});
+            }
+
+            const std::string text2 = view.stats.splitBonus
+                ? ("Multiplier Increased to " + std::to_string(view.stats.multiplier) + "X! Press [Space]")
+                : "Press [Space] for Next Level";
+            const int font2 = 18;
+            const int w2 = MeasureText(text2.c_str(), font2);
+            const int y2
+                = (!view.stats.splitBonus && view.stats.thresholdBonus > 0) ? (screenH / 2 + 28) : (screenH / 2 + 15);
+            DrawText(text2.c_str(), (screenW - w2) / 2, y2, font2, Color {243, 244, 246, 255});
+        }
     } else if (view.state == GameState::NameEntry) {
         drawNameEntry(view.nameEntry, view.stats);
     } else if (view.state == GameState::HallOfFame) {

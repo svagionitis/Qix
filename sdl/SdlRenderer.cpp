@@ -480,32 +480,57 @@ void SdlRenderer::drawOverlays(const GameView& view) noexcept
     }
 
     if (view.state == GameState::LevelComplete) {
-        const std::string line1 = view.stats.splitBonus ? "QIX SPLIT BONUS!" : "LEVEL COMPLETE!";
-        const int scale = 2;
-        const int x1 = std::max(20, (screenW - static_cast<int>(line1.length()) * 8 * scale) / 2);
-        const int y1 = screenH / 2 - 35;
-        const SDL_Color titleCol
-            = view.stats.splitBonus ? SDL_Color {250, 204, 21, 255} : SDL_Color {74, 222, 128, 255};
-        BitmapFont::drawText(m_renderer.get(), line1, x1, y1, scale, titleCol);
+        if (view.stats.qixTrapped) {
+            const std::string title = view.stats.spiralBonus ? "*** SPIRAL QIX TRAP! ***" : "*** QIX TRAPPED! ***";
+            const int scale = 2;
+            const int x1 = std::max(20, (screenW - static_cast<int>(title.length()) * 8 * scale) / 2);
+            const int y1 = screenH / 2 - 50;
+            BitmapFont::drawText(m_renderer.get(), title, x1, y1, scale, SDL_Color {250, 204, 21, 255});
 
-        if (!view.stats.splitBonus && view.stats.thresholdBonus > 0) {
-            const auto overshoot = (view.stats.claimedPercent > view.stats.targetPercent)
-                ? (view.stats.claimedPercent - view.stats.targetPercent)
-                : 0U;
-            const std::string bonusLine = "+" + std::to_string(view.stats.thresholdBonus) + " THRESHOLD BONUS (+"
-                + std::to_string(overshoot) + "%)";
+            const std::string detailLine = "QIX CONFINED TO " + std::to_string(view.stats.qixRemainingPercent)
+                + "% OF FIELD!";
+            const int xd = std::max(20, (screenW - static_cast<int>(detailLine.length()) * 8 * 1) / 2);
+            const int yd = screenH / 2 - 20;
+            BitmapFont::drawText(m_renderer.get(), detailLine, xd, yd, 1, SDL_Color {56, 189, 248, 255});
+
+            const std::string bonusLine = "+" + std::to_string(view.stats.trapBonus) + " TRAP BONUS!"
+                + (view.stats.thresholdBonus > 0 ? (" (+" + std::to_string(view.stats.thresholdBonus) + " OVERSHOOT)") : "");
             const int xb = std::max(20, (screenW - static_cast<int>(bonusLine.length()) * 8 * 1) / 2);
-            const int yb = screenH / 2;
+            const int yb = screenH / 2 + 5;
             BitmapFont::drawText(m_renderer.get(), bonusLine, xb, yb, 1, SDL_Color {250, 204, 21, 255});
-        }
 
-        const std::string line2 = view.stats.splitBonus
-            ? ("Multiplier: " + std::to_string(view.stats.multiplier) + "X! Press [Space]")
-            : "Press [Space] for Next Level";
-        const int x2 = std::max(20, (screenW - static_cast<int>(line2.length()) * 8 * 1) / 2);
-        const int y2
-            = (!view.stats.splitBonus && view.stats.thresholdBonus > 0) ? (screenH / 2 + 25) : (screenH / 2 + 15);
-        BitmapFont::drawText(m_renderer.get(), line2, x2, y2, 1, SDL_Color {243, 244, 246, 255});
+            const std::string line2 = "Press [Space] for Next Level";
+            const int x2 = std::max(20, (screenW - static_cast<int>(line2.length()) * 8 * 1) / 2);
+            const int y2 = screenH / 2 + 30;
+            BitmapFont::drawText(m_renderer.get(), line2, x2, y2, 1, SDL_Color {243, 244, 246, 255});
+        } else {
+            const std::string line1 = view.stats.splitBonus ? "QIX SPLIT BONUS!" : "LEVEL COMPLETE!";
+            const int scale = 2;
+            const int x1 = std::max(20, (screenW - static_cast<int>(line1.length()) * 8 * scale) / 2);
+            const int y1 = screenH / 2 - 35;
+            const SDL_Color titleCol
+                = view.stats.splitBonus ? SDL_Color {250, 204, 21, 255} : SDL_Color {74, 222, 128, 255};
+            BitmapFont::drawText(m_renderer.get(), line1, x1, y1, scale, titleCol);
+
+            if (!view.stats.splitBonus && view.stats.thresholdBonus > 0) {
+                const auto overshoot = (view.stats.claimedPercent > view.stats.targetPercent)
+                    ? (view.stats.claimedPercent - view.stats.targetPercent)
+                    : 0U;
+                const std::string bonusLine = "+" + std::to_string(view.stats.thresholdBonus) + " THRESHOLD BONUS (+"
+                    + std::to_string(overshoot) + "%)";
+                const int xb = std::max(20, (screenW - static_cast<int>(bonusLine.length()) * 8 * 1) / 2);
+                const int yb = screenH / 2;
+                BitmapFont::drawText(m_renderer.get(), bonusLine, xb, yb, 1, SDL_Color {250, 204, 21, 255});
+            }
+
+            const std::string line2 = view.stats.splitBonus
+                ? ("Multiplier: " + std::to_string(view.stats.multiplier) + "X! Press [Space]")
+                : "Press [Space] for Next Level";
+            const int x2 = std::max(20, (screenW - static_cast<int>(line2.length()) * 8 * 1) / 2);
+            const int y2
+                = (!view.stats.splitBonus && view.stats.thresholdBonus > 0) ? (screenH / 2 + 25) : (screenH / 2 + 15);
+            BitmapFont::drawText(m_renderer.get(), line2, x2, y2, 1, SDL_Color {243, 244, 246, 255});
+        }
     } else if (view.state == GameState::NameEntry) {
         drawNameEntry(view.nameEntry, view.stats);
     } else if (view.state == GameState::HallOfFame) {

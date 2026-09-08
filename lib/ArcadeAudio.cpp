@@ -70,6 +70,7 @@ void ArcadeAudio::update(const GameView& view, std::uint32_t /*deltaMs*/) noexce
     m_voice.prevGameState = view.state;
     m_voice.prevLives = view.stats.lives;
     m_voice.prevLevel = view.stats.level;
+    m_params.qixTrapped = view.stats.qixTrapped;
 
     // 1. Qix Hum Parameters
     if (view.state == GameState::Playing && !view.qixRibbons.empty() && !view.qixRibbons[0].empty()) {
@@ -304,22 +305,23 @@ void ArcadeAudio::generateSamples(std::int16_t* output, std::size_t sampleCount)
         if (m_voice.fanfarePlaying) {
             constexpr std::uint32_t kTotalFanfareSamples = static_cast<std::uint32_t>(SampleRate * 1.2);
             constexpr std::uint32_t kNoteDuration = SampleRate / 7U; // ~142ms per note
+            const double trapPitchScale = params.qixTrapped ? 1.5 : 1.0;
 
             if (m_voice.fanfareSampleIndex < kTotalFanfareSamples) {
                 const auto noteIdx = m_voice.fanfareSampleIndex / kNoteDuration;
                 float fanfareSample = 0.0f;
 
                 if (noteIdx == 0) {
-                    m_voice.fanfarePhase1 += kTwoPi * 659.25 * dt; // E5
+                    m_voice.fanfarePhase1 += kTwoPi * 659.25 * trapPitchScale * dt; // E5
                     fanfareSample = (m_voice.fanfarePhase1 < 0.5 * kTwoPi) ? 0.35f : -0.35f;
                 } else if (noteIdx == 1) {
-                    m_voice.fanfarePhase2 += kTwoPi * 830.61 * dt; // G#5
+                    m_voice.fanfarePhase2 += kTwoPi * 830.61 * trapPitchScale * dt; // G#5
                     fanfareSample = (m_voice.fanfarePhase2 < 0.5 * kTwoPi) ? 0.35f : -0.35f;
                 } else if (noteIdx == 2) {
-                    m_voice.fanfarePhase3 += kTwoPi * 987.77 * dt; // B5
+                    m_voice.fanfarePhase3 += kTwoPi * 987.77 * trapPitchScale * dt; // B5
                     fanfareSample = (m_voice.fanfarePhase3 < 0.5 * kTwoPi) ? 0.35f : -0.35f;
                 } else if (noteIdx == 3) {
-                    m_voice.fanfarePhase4 += kTwoPi * 1318.51 * dt; // E6
+                    m_voice.fanfarePhase4 += kTwoPi * 1318.51 * trapPitchScale * dt; // E6
                     fanfareSample = (m_voice.fanfarePhase4 < 0.5 * kTwoPi) ? 0.35f : -0.35f;
                 } else {
                     // Sustained chord of all 4 notes decaying
@@ -328,10 +330,10 @@ void ArcadeAudio::generateSamples(std::int16_t* output, std::size_t sampleCount)
                             / static_cast<double>(kTotalFanfareSamples - 4U * kNoteDuration);
                     const float chordDecay = static_cast<float>(std::clamp(remainingFrac, 0.0, 1.0));
 
-                    m_voice.fanfarePhase1 += kTwoPi * 659.25 * dt;
-                    m_voice.fanfarePhase2 += kTwoPi * 830.61 * dt;
-                    m_voice.fanfarePhase3 += kTwoPi * 987.77 * dt;
-                    m_voice.fanfarePhase4 += kTwoPi * 1318.51 * dt;
+                    m_voice.fanfarePhase1 += kTwoPi * 659.25 * trapPitchScale * dt;
+                    m_voice.fanfarePhase2 += kTwoPi * 830.61 * trapPitchScale * dt;
+                    m_voice.fanfarePhase3 += kTwoPi * 987.77 * trapPitchScale * dt;
+                    m_voice.fanfarePhase4 += kTwoPi * 1318.51 * trapPitchScale * dt;
 
                     const float c1 = (m_voice.fanfarePhase1 < 0.5 * kTwoPi) ? 0.12f : -0.12f;
                     const float c2 = (m_voice.fanfarePhase2 < 0.5 * kTwoPi) ? 0.12f : -0.12f;

@@ -347,7 +347,8 @@ TEST(GameEngineTest, NameEntryInputNavigationAndConfirmation)
         for (std::int32_t i {0}; i < 30; ++i) {
             game.handleInput(qix::PlayerCommand {qix::Direction::None, qix::DrawMode::Slow});
             game.step(16);
-            if (game.getView().state == qix::GameState::NameEntry || game.getView().state == qix::GameState::GameOver) {
+            if (game.getView().state == qix::GameState::Ready || game.getView().state == qix::GameState::NameEntry
+                || game.getView().state == qix::GameState::GameOver) {
                 break;
             }
         }
@@ -505,4 +506,27 @@ TEST(GameEngineTest, AttractModeCycleStages)
         game.step(50);
         EXPECT_EQ(game.getView().state, qix::GameState::Attract);
     }
+}
+
+TEST(GameEngineTest, QixTrapStateDefaultsAndReset)
+{
+    qix::QixGame game {40, 30, 75};
+    const auto& view = game.getView();
+
+    EXPECT_FALSE(view.stats.qixTrapped);
+    EXPECT_FALSE(view.stats.spiralBonus);
+    EXPECT_EQ(view.stats.qixRemainingPercent, 0U);
+    EXPECT_EQ(view.stats.trapBonus, 0U);
+
+    // Advancing level keeps trap stats reset
+    game.nextLevel();
+    EXPECT_FALSE(game.getView().stats.qixTrapped);
+    EXPECT_FALSE(game.getView().stats.spiralBonus);
+    EXPECT_EQ(game.getView().stats.trapBonus, 0U);
+
+    // Reset restores all trap stats to initial clean state
+    game.reset();
+    EXPECT_FALSE(game.getView().stats.qixTrapped);
+    EXPECT_FALSE(game.getView().stats.spiralBonus);
+    EXPECT_EQ(game.getView().stats.trapBonus, 0U);
 }

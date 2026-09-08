@@ -470,7 +470,16 @@ void QixCanvas::drawOverlays(QPainter& painter)
         QFont font("Monospace", 24, QFont::Bold);
         painter.setFont(font);
 
-        if (m_view.stats.splitBonus) {
+        if (m_view.stats.qixTrapped) {
+            painter.setPen(QColor(250, 204, 21));
+            const QString title = m_view.stats.spiralBonus ? "*** SPIRAL QIX TRAP! ***" : "*** QIX TRAPPED! ***";
+            painter.drawText(rect(), Qt::AlignCenter,
+                QString("%1\nQIX CONFINED TO %2% OF FIELD!\n+%3 PTS TRAP BONUS!%4\nPress [Space] for Next Level")
+                    .arg(title)
+                    .arg(m_view.stats.qixRemainingPercent)
+                    .arg(m_view.stats.trapBonus)
+                    .arg(m_view.stats.thresholdBonus > 0 ? QString(" (+%1 OVERSHOOT)").arg(m_view.stats.thresholdBonus) : QString("")));
+        } else if (m_view.stats.splitBonus) {
             painter.setPen(QColor(250, 204, 21));
             painter.drawText(rect(), Qt::AlignCenter,
                 QString("QIX SPLIT BONUS!\nMultiplier: %1X\nPress [Space] for Next Level")

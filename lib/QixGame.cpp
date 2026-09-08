@@ -88,6 +88,10 @@ void QixGame::step(std::uint32_t deltaMs) noexcept
             m_stats.claimedCells = fillRes.totalClaimedSoFar;
             m_stats.claimedPercent = fillRes.claimedPercent;
             m_stats.thresholdBonus = fillRes.thresholdBonus;
+            m_stats.qixTrapped = fillRes.qixTrapped;
+            m_stats.spiralBonus = fillRes.spiralBonus;
+            m_stats.qixRemainingPercent = fillRes.qixRemainingPercent;
+            m_stats.trapBonus = fillRes.trapBonus;
 
             while (m_stats.score >= m_nextExtraLifeScore) {
                 m_marker.incrementLives();
@@ -179,6 +183,10 @@ void QixGame::reset() noexcept
     m_stats.multiplier = 1;
     m_stats.splitBonus = false;
     m_stats.thresholdBonus = 0;
+    m_stats.qixTrapped = false;
+    m_stats.spiralBonus = false;
+    m_stats.qixRemainingPercent = 0;
+    m_stats.trapBonus = 0;
     m_timeRemainingMs = computeLevelTimeMs(1);
     m_stats.totalLevelTimeMs = m_timeRemainingMs;
     m_stats.timeRemainingMs = m_timeRemainingMs;
@@ -200,6 +208,10 @@ void QixGame::nextLevel() noexcept
     m_stats.claimedPercent = 0;
     m_stats.splitBonus = false;
     m_stats.thresholdBonus = 0;
+    m_stats.qixTrapped = false;
+    m_stats.spiralBonus = false;
+    m_stats.qixRemainingPercent = 0;
+    m_stats.trapBonus = 0;
     ++m_stats.level;
     m_timeRemainingMs = computeLevelTimeMs(m_stats.level);
     m_stats.totalLevelTimeMs = m_timeRemainingMs;
@@ -482,6 +494,10 @@ void QixGame::resetDemoPlayfield() noexcept
     m_stats.multiplier = 1;
     m_stats.splitBonus = false;
     m_stats.thresholdBonus = 0;
+    m_stats.qixTrapped = false;
+    m_stats.spiralBonus = false;
+    m_stats.qixRemainingPercent = 0;
+    m_stats.trapBonus = 0;
     m_stats.timeUp = false;
     m_stats.timeRemainingMs = computeLevelTimeMs(1);
     m_demoBot.reset();

@@ -80,6 +80,10 @@ struct GameStats {
     bool isAttractMode {false};
     AttractStage attractStage {AttractStage::TitleScores};
     std::uint32_t attractTimerMs {0};
+    bool qixTrapped {false};
+    bool spiralBonus {false};
+    std::uint16_t qixRemainingPercent {0};
+    std::uint32_t trapBonus {0};
 };
 
 /// @brief Active 3-letter initials entry state for Hall of Fame qualification.

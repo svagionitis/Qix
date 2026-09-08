@@ -26,6 +26,11 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
   - Authentic 3-stage arcade showcase: Title & High Scores $\to$ How-To-Play Instructions Card $\to$ Live Gameplay Demo with blinking retro banners.
   - Automatic 20-second inactivity idle timeout and instant takeover upon any keypress.
   - Direct launch support via `--demo` / `--attract` CLI flags and runtime `F1` shortcut.
+- **The "Qix Trap" & Spiral Bonus**:
+  - Authentic arcade detection for trapping the Qix inside narrow cul-de-sacs or tight pockets ($\le 10\%$ or $\le 5\%$ of the playfield).
+  - Mathematical 2D cross-product winding analysis detecting multi-turn spiral stix geometry ($\ge 270^\circ$ curl or $\ge 4$ turns).
+  - Enormous jackpot scoring: **+25,000 pts** for standard trap ($\le 10\%$), **+50,000 pts** for Super Trap ($\le 5\%$), additional **+25,000 pts** for Spiral Bonus, and 2x multiplier for Slow Draw (up to **+150,000 pts** in a single move).
+  - Triumphant audio fanfare pitch-shift and celebratory gold/cyan overlay banners across all 4 frontends.
 - **Quad Frontends**:
   - **Terminal Client (`qix_tui`)**: Lightweight console client with high-resolution Unicode Braille ($2 \times 4$ sub-pixel) rendering, 24-bit Truecolor (RGB) dynamic neon stick ribbons, modern arcade HUD cards and box-drawing borders (`┌─┬─┐`, `│ │ │`, `└─┴─┘`), real-time territory progress bar with 1/8th fractional blocks (`▏`..`█`), classic ASCII mode, and non-blocking key polling across Linux (`termios`) and Windows (`conio.h`).
   - **Desktop Qt Client (`qix_qt`)**: Modern hardware-accelerated Qt client rendering neon color-cycling stick helix ribbons, glowing sparks, and real-time territory fills.
@@ -238,6 +243,12 @@ All client frontends support configurable startup speed, game mode, CRT filter, 
 - **Qix Split Mechanic**: Starting on Level 2 (where two Qix entities roam), you can complete the level immediately by drawing a Stix that walls off one Qix from the other into separate enclosures.
   - Successfully splitting the Qixes awards an immediate level victory and increments your **permanent score multiplier** (scaling from $1\times$ up to $9\times$).
 - **Threshold Overshoot Bonus**: Reaching or exceeding 75% completes the level. Any territory claimed **beyond** the 75% target awards a classic arcade bonus of **1,000 points per 1% over threshold** (multiplied by the active score multiplier: $\text{Bonus} = (\text{claimed\%} - 75) \times 1,000 \times \text{multiplier}$).
+- **The "Qix Trap" & Spiral Bonus**: Isolating the Qix into a narrow cul-de-sac or small pocket is the holy grail of arcade mastery:
+  - **Standard Qix Trap ($\le 10\%$ field remaining)**: Awards **+25,000 base points** $\times$ active multiplier.
+  - **Super Qix Trap ($\le 5\%$ field remaining)**: Awards **+50,000 base points** $\times$ active multiplier.
+  - **Spiral Bonus**: If the enclosing trail forms a winding spiral ($\ge 270^\circ$ curl or $\ge 4$ turns), an additional **+25,000 base points** is awarded.
+  - **Slow Draw Multiplier**: Drawing the trap with Slow Draw **doubles (2x)** all trap bonus points (up to **150,000 points** in a single capture!).
+  - A successful trap claims the entire remainder of the board ($\ge 90\%$), instantly completing the level and triggering enhanced fanfare.
 - **Extra Life Score Milestones**: Players earn a bonus life every **50,000 points** (e.g. 50k, 100k, 150k, capped at 9 lives). Bonus lives carry over across levels for the remainder of your game session.
 - **Automatic Speed Escalation**: Advancing through levels automatically escalates simulation speed (reducing tick delay by 5ms per level down to 20ms / 50 FPS) and tightens Fuse hesitation tolerance (igniting faster when paused). Players can still adjust baseline speed at runtime using `-` / `+` keys.
 - **Hall of Fame & Initials Entry**: When qualifying for a top-8 score upon game over, players enter their 3-letter initials.

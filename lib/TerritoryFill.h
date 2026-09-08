@@ -15,6 +15,10 @@ struct FillResult {
     std::uint32_t thresholdBonus {0};
     bool thresholdMet {false};
     bool splitOccurred {false};
+    bool qixTrapped {false};
+    bool spiralBonus {false};
+    std::uint16_t qixRemainingPercent {0};
+    std::uint32_t trapBonus {0};
 };
 
 /// @class TerritoryFill
@@ -26,6 +30,12 @@ public:
     /// @param[in] width Maximum playfield width.
     /// @param[in] height Maximum playfield height.
     TerritoryFill(std::int32_t width, std::int32_t height) noexcept;
+
+    /// @brief Detect whether a Stix trail forms a spiral or winding cul-de-sac path.
+    /// @details Analyzes directional turns and consecutive angular winding (270+ degrees in a single rotational direction or >= 4 turns).
+    /// @param[in] trail Ordered sequence of grid points forming the Stix line.
+    /// @return True if the trail exhibits spiral geometry, false otherwise.
+    [[nodiscard]] static bool detectSpiralTrail(const std::vector<Point>& trail) noexcept;
 
     /// @brief Execute territory partitioning upon Stix loop closure.
     /// @param[in,out] field Active playfield to update with new borders and claimed cells.

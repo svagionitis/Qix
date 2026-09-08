@@ -192,3 +192,160 @@ TEST(TerritoryFillTest, ExactThresholdZeroBonus)
     EXPECT_EQ(result.thresholdBonus, 0U);
     EXPECT_EQ(result.pointsAwarded, 48U * 200U * 1U);
 }
+
+TEST(TerritoryFillTest, DetectSpiralTrailGeometry)
+{
+    // Straight line: not a spiral
+    std::vector<qix::Point> straight {};
+    for (std::int32_t y {0}; y < 10; ++y) {
+        straight.push_back(qix::Point {3, y});
+    }
+    EXPECT_FALSE(qix::TerritoryFill::detectSpiralTrail(straight));
+
+    // L-turn: not a spiral
+    std::vector<qix::Point> lTurn {
+        {0, 0}, {1, 0}, {2, 0}, {3, 0},
+        {3, 1}, {3, 2}, {3, 3}
+    };
+    EXPECT_FALSE(qix::TerritoryFill::detectSpiralTrail(lTurn));
+
+    // Zigzag (alternating turns): not a spiral
+    std::vector<qix::Point> zigzag {
+        {0, 0}, {2, 0},
+        {2, 2},
+        {4, 2},
+        {4, 4},
+        {6, 4}
+    };
+    EXPECT_FALSE(qix::TerritoryFill::detectSpiralTrail(zigzag));
+
+    // Clockwise spiral inward: Right -> Down -> Left -> Up -> Right
+    std::vector<qix::Point> spiral {
+        {0, 0}, {5, 0},       // Turn 1: Right to Down
+        {5, 1}, {5, 5},       // Turn 2: Down to Left
+        {4, 5}, {1, 5},       // Turn 3: Left to Up
+        {1, 4}, {1, 2},       // Turn 4: Up to Right
+        {2, 2}, {3, 2}
+    };
+    EXPECT_TRUE(qix::TerritoryFill::detectSpiralTrail(spiral));
+}
+
+TEST(TerritoryFillTest, QixTrapSuperBonusTightPocket)
+{
+    // 10x10 field: 64 playable interior cells
+    qix::Playfield field {10, 10};
+    qix::TerritoryFill fill {10, 10};
+
+    // Seal off top-left corner (1, 1) by cutting from (0, 2) -> (2, 2) -> (2, 0)
+    std::vector<qix::Point> trail {
+        {0, 2}, {1, 2}, {2, 2},
+        {2, 1}, {2, 0}
+    };
+
+    // Qix trapped inside (1, 1)
+    std::vector<qix::Point> qixPositions {qix::Point {1, 1}};
+
+    // Execute with Slow Draw and 1x multiplier
+    // Only 1 interior cell remains for the Qix (1/64 = 1% <= 5% -> Super Trap)
+    const auto result = fill.execute(field, trail, qixPositions, qix::DrawMode::Slow, 75, 1);
+
+    EXPECT_TRUE(result.qixTrapped);
+    EXPECT_LE(result.qixRemainingPercent, 5U);
+    EXPECT_TRUE(result.thresholdMet);
+
+    // Super Trap base = 50,000 pts * 2 (Slow Draw) = 100,000 pts
+    EXPECT_EQ(result.trapBonus, 100000U);
+    EXPECT_GE(result.pointsAwarded, 100000U);
+}
+
+TEST(TerritoryFillTest, QixTrapStandardBonusPocket)
+{
+    // 10x10 field: 64 interior cells
+    qix::Playfield field {10, 10};
+    qix::TerritoryFill fill {10, 10};
+
+    // Enclose a 2x3 pocket on the left: x in [1, 2], y in [1, 3] = 6 cells
+    // 6 / 64 = 9% <= 10% -> Standard Trap
+    // Trail goes around the pocket: (0, 4) -> (3, 4) -> (3, 0)
+    std::vector<qix::Point> trail {
+        {0, 4}, {1, 4}, {2, 4}, {3, 4},
+        {3, 3}, {3, 2}, {3, 1}, {3, 0}
+    };
+
+    std::vector<qix::Point> qixPositions {qix::Point {1, 1}};
+
+    // Execute with Fast Draw and 2x multiplier
+    const auto result = fill.execute(field, trail, qixPositions, qix::DrawMode::Fast, 75, 2);
+
+    EXPECT_TRUE(result.qixTrapped);
+    EXPECT_GT(result.qixRemainingPercent, 5U);
+    EXPECT_LE(result.qixRemainingPercent, 10U);
+    EXPECT_TRUE(result.thresholdMet);
+
+    // Standard Trap base = 25,000 pts * 2 (multiplier) = 50,000 pts
+    EXPECT_EQ(result.trapBonus, 50000U);
+}
+
+TEST(TerritoryFillTest, NonTrapNormalCaptureNoTrapBonus)
+{
+    // 10x10 field: 64 interior cells
+    qix::Playfield field {10, 10};
+    qix::TerritoryFill fill {10, 10};
+
+    // Bisect at x = 3: claims 16 cells, leaves 40 cells for Qix (62% > 10%)
+    std::vector<qix::Point> trail {};
+    for (std::int32_t y {0}; y < 10; ++y) {
+        trail.push_back(qix::Point {3, y});
+    }
+    std::vector<qix::Point> qixPositions {qix::Point {6, 5}};
+
+    const auto result = fill.execute(field, trail, qixPositions, qix::DrawMode::Fast, 75, 1);
+
+    EXPECT_FALSE(result.qixTrapped);
+    EXPECT_FALSE(result.spiralBonus);
+    EXPECT_EQ(result.trapBonus, 0U);
+    EXPECT_GT(result.qixRemainingPercent, 10U);
+}
+
+TEST(TerritoryFillTest, SpiralBonusCombinedWithTrap)
+{
+    // 10x10 field: 64 interior cells
+    qix::Playfield field {10, 10};
+    qix::TerritoryFill fill {10, 10};
+
+    // Construct a 6-turn inward spiral sealing Qix inside an inner pocket at (4, 4)
+    std::vector<qix::Point> trail {};
+    auto addLine = [&trail](std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2) {
+        const auto dx = (x2 > x1) ? 1 : ((x2 < x1) ? -1 : 0);
+        const auto dy = (y2 > y1) ? 1 : ((y2 < y1) ? -1 : 0);
+        auto cx = x1;
+        auto cy = y1;
+        trail.push_back({cx, cy});
+        while (cx != x2 || cy != y2) {
+            cx += dx;
+            cy += dy;
+            trail.push_back({cx, cy});
+        }
+    };
+
+    addLine(0, 7, 7, 7);
+    addLine(7, 6, 7, 2);
+    addLine(6, 2, 2, 2);
+    addLine(2, 3, 2, 5);
+    addLine(3, 5, 5, 5);
+    addLine(5, 4, 5, 3);
+    addLine(4, 3, 3, 3);
+
+    EXPECT_TRUE(qix::TerritoryFill::detectSpiralTrail(trail));
+
+    // Qix trapped inside inner chamber at (4, 4)
+    std::vector<qix::Point> qixPositions {qix::Point {4, 4}};
+
+    const auto result = fill.execute(field, trail, qixPositions, qix::DrawMode::Slow, 75, 1);
+
+    EXPECT_TRUE(result.spiralBonus);
+    EXPECT_TRUE(result.qixTrapped);
+    EXPECT_LE(result.qixRemainingPercent, 5U);
+    EXPECT_GE(result.trapBonus, 100000U);
+}
+

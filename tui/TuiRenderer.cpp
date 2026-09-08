@@ -259,7 +259,15 @@ namespace {
             statusVal = "PLAYING";
             statusCol = truecolor ? appendTruecolorStr(theme.progressBarTarget) : "\033[1;32m";
         } else if (view.state == GameState::LevelComplete) {
-            statusVal = view.stats.splitBonus ? "SPLIT!" : "CLEARED";
+            if (view.stats.spiralBonus) {
+                statusVal = "SPIRAL!";
+            } else if (view.stats.qixTrapped) {
+                statusVal = "TRAPPED!";
+            } else if (view.stats.splitBonus) {
+                statusVal = "SPLIT!";
+            } else {
+                statusVal = "CLEARED";
+            }
             statusCol = truecolor ? appendTruecolorStr(theme.textValue) : "\033[1;33m";
         } else if (view.state == GameState::NameEntry) {
             statusVal = "INITIALS";
