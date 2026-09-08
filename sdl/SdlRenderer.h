@@ -28,6 +28,16 @@ struct SdlRendererDeleter {
     }
 };
 
+/// @brief Custom deleter for SDL_Texture.
+struct SdlTextureDeleter {
+    void operator()(SDL_Texture* texture) const noexcept
+    {
+        if (texture != nullptr) {
+            SDL_DestroyTexture(texture);
+        }
+    }
+};
+
 /// @class SdlRenderer
 /// @brief Hardware-accelerated 2D renderer for Qix playfield, neon ribbons, and HUD using SDL2.
 class SdlRenderer {
@@ -66,9 +76,24 @@ public:
     /// @return Current window height.
     [[nodiscard]] int getHeight() const noexcept;
 
+    /// @brief Enable or disable CRT scanlines & phosphor glow post-processing filter.
+    /// @param[in] enabled True to enable CRT filter, false for crisp modern display.
+    void setCrtEnabled(bool enabled) noexcept;
+
+    /// @brief Check if CRT scanlines & phosphor glow filter is currently active.
+    /// @return True if CRT filter is enabled.
+    [[nodiscard]] bool isCrtEnabled() const noexcept;
+
+    /// @brief Toggle CRT scanlines & phosphor glow filter on/off.
+    void toggleCrt() noexcept;
+
 private:
     std::unique_ptr<SDL_Window, SdlWindowDeleter> m_window {nullptr};
     std::unique_ptr<SDL_Renderer, SdlRendererDeleter> m_renderer {nullptr};
+    std::unique_ptr<SDL_Texture, SdlTextureDeleter> m_sceneTexture {nullptr};
+    int m_textureWidth {0};
+    int m_textureHeight {0};
+    bool m_crtEnabled {false};
     std::uint32_t m_colorCycle {0};
 
     void drawHud(const GameStats& stats, std::uint32_t delayMs) noexcept;
@@ -79,6 +104,7 @@ private:
     void drawNameEntry(const NameEntryState& entry, const GameStats& stats) noexcept;
     void drawHallOfFame(const HighScoreTable* table, bool isGameOver) noexcept;
 
+    void applyCrtFilter(int width, int height) noexcept;
     void drawFilledDiamond(int cx, int cy, int radius, SDL_Color color) noexcept;
     void drawThickLine(int x1, int y1, int x2, int y2, int thickness, SDL_Color color) noexcept;
     [[nodiscard]] static SDL_Color hsvToRgb(int hue, double sat, double val, std::uint8_t alpha) noexcept;

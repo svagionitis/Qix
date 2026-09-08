@@ -7,6 +7,10 @@ namespace qix::raylib {
 
 RaylibRenderer::~RaylibRenderer()
 {
+    if (m_targetInitialized) {
+        UnloadRenderTexture(m_targetTexture);
+        m_targetInitialized = false;
+    }
     if (m_initialized) {
         CloseWindow();
     }
@@ -25,13 +29,43 @@ bool RaylibRenderer::isInitialized() const noexcept
     return m_initialized;
 }
 
+void RaylibRenderer::setCrtEnabled(bool enabled) noexcept
+{
+    m_crtEnabled = enabled;
+}
+
+bool RaylibRenderer::isCrtEnabled() const noexcept
+{
+    return m_crtEnabled;
+}
+
+void RaylibRenderer::toggleCrt() noexcept
+{
+    m_crtEnabled = !m_crtEnabled;
+}
+
 void RaylibRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
 {
     if (!m_initialized) {
         return;
     }
 
-    BeginDrawing();
+    const int screenW = GetScreenWidth();
+    const int screenH = GetScreenHeight();
+
+    if (m_crtEnabled) {
+        if (!m_targetInitialized || m_targetTexture.texture.width != screenW
+            || m_targetTexture.texture.height != screenH) {
+            if (m_targetInitialized) {
+                UnloadRenderTexture(m_targetTexture);
+            }
+            m_targetTexture = LoadRenderTexture(screenW, screenH);
+            m_targetInitialized = true;
+        }
+        BeginTextureMode(m_targetTexture);
+    } else {
+        BeginDrawing();
+    }
 
     // 1. Clear background (#0b0f19)
     ClearBackground(Color {11, 15, 25, 255});
@@ -40,8 +74,6 @@ void RaylibRenderer::render(const GameView& view, std::uint32_t delayMs) noexcep
     drawHud(view.stats, delayMs);
 
     // 3. Render Playfield
-    const int screenW = GetScreenWidth();
-    const int screenH = GetScreenHeight();
     const float hudHeight = 50.0f;
     const float margin = 20.0f;
 
@@ -57,9 +89,67 @@ void RaylibRenderer::render(const GameView& view, std::uint32_t delayMs) noexcep
     // 4. Overlays
     drawOverlays(view);
 
-    EndDrawing();
+    if (m_crtEnabled) {
+        EndTextureMode();
+
+        BeginDrawing();
+        ClearBackground(Color {5, 8, 15, 255});
+        applyCrtFilter(screenW, screenH);
+        EndDrawing();
+    } else {
+        EndDrawing();
+    }
 
     ++m_colorCycle;
+}
+
+void RaylibRenderer::applyCrtFilter(int width, int height) noexcept
+{
+    const auto fW = static_cast<float>(width);
+    const auto fH = static_cast<float>(height);
+
+    // Invert Y coordinate because Raylib/OpenGL render textures are flipped vertically
+    const Rectangle srcRect {0.0f, 0.0f, fW, -fH};
+    const Rectangle destRect {0.0f, 0.0f, fW, fH};
+    const Vector2 origin {0.0f, 0.0f};
+
+    // 1. Base scene render
+    DrawTexturePro(m_targetTexture.texture, srcRect, destRect, origin, 0.0f, WHITE);
+
+    // 2. Additive phosphor bloom pass
+    BeginBlendMode(BLEND_ADDITIVE);
+    const float offsets[4][2] = {{-1.5f, 0.0f}, {1.5f, 0.0f}, {0.0f, -1.5f}, {0.0f, 1.5f}};
+    for (const auto& off : offsets) {
+        const Rectangle bloomDest {off[0], off[1], fW, fH};
+        DrawTexturePro(m_targetTexture.texture, srcRect, bloomDest, origin, 0.0f, Color {255, 255, 255, 60});
+    }
+    const float wideOffsets[4][2] = {{-2.5f, -1.5f}, {2.5f, 1.5f}, {-1.5f, 2.5f}, {1.5f, -2.5f}};
+    for (const auto& off : wideOffsets) {
+        const Rectangle wideDest {off[0], off[1], fW, fH};
+        DrawTexturePro(m_targetTexture.texture, srcRect, wideDest, origin, 0.0f, Color {255, 255, 255, 25});
+    }
+    EndBlendMode();
+
+    // 3. Horizontal raster scanlines
+    for (int y = 0; y < height; y += 2) {
+        DrawRectangle(0, y, width, 1, Color {0, 0, 0, 80});
+    }
+
+    // 4. CRT Vignette & Curved Bezel Shadow
+    for (int b = 0; b < 10; ++b) {
+        const auto alpha = static_cast<unsigned char>((10 - b) * 14);
+        DrawRectangle(0, b, width, 1, Color {0, 0, 0, alpha});
+        DrawRectangle(0, height - 1 - b, width, 1, Color {0, 0, 0, alpha});
+        DrawRectangle(b, 0, 1, height, Color {0, 0, 0, alpha});
+        DrawRectangle(width - 1 - b, 0, 1, height, Color {0, 0, 0, alpha});
+    }
+    for (int c = 0; c < 14; ++c) {
+        const auto alpha = static_cast<unsigned char>((14 - c) * 12);
+        DrawLine(0, c, 14 - c, 0, Color {0, 0, 0, alpha});
+        DrawLine(width - 1 - (14 - c), 0, width - 1, c, Color {0, 0, 0, alpha});
+        DrawLine(0, height - 1 - c, 14 - c, height - 1, Color {0, 0, 0, alpha});
+        DrawLine(width - 1 - (14 - c), height - 1, width - 1, height - 1 - c, Color {0, 0, 0, alpha});
+    }
 }
 
 void RaylibRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noexcept

@@ -64,4 +64,34 @@ const char* GameConfig::toString(GameMode mode) noexcept
     }
 }
 
+bool GameConfig::parseCrtFlag(const std::vector<std::string>& args, bool defaultCrt) noexcept
+{
+    bool crt {defaultCrt};
+
+    for (const auto& rawArg : args) {
+        const auto arg = toLower(rawArg);
+        if (arg == "--crt" || arg == "--scanlines" || arg == "-c") {
+            crt = true;
+        } else if (arg == "--no-crt" || arg == "--no-scanlines") {
+            crt = false;
+        }
+    }
+
+    return crt;
+}
+
+bool GameConfig::parseCrtFlag(int argc, char* const argv[], bool defaultCrt) noexcept
+{
+    std::vector<std::string> args {};
+    if (argc > 1 && argv != nullptr) {
+        args.reserve(static_cast<std::size_t>(argc - 1));
+        for (int i {1}; i < argc; ++i) {
+            if (argv[i] != nullptr) {
+                args.emplace_back(argv[i]);
+            }
+        }
+    }
+    return parseCrtFlag(args, defaultCrt);
+}
+
 } // namespace qix

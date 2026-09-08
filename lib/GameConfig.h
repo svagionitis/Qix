@@ -29,6 +29,20 @@ public:
     /// @param[in] mode GameMode value.
     /// @return String representation ("Classic" or "Modern").
     [[nodiscard]] static const char* toString(GameMode mode) noexcept;
+
+    /// @brief Parse CRT scanlines and phosphor glow flag from command line arguments (--crt, --scanlines, -c,
+    /// --no-crt).
+    /// @param[in] argc Argument count.
+    /// @param[in] argv Argument array.
+    /// @param[in] defaultCrt Fallback value if flag is absent (default: false).
+    /// @return True if CRT filter is enabled, false otherwise.
+    [[nodiscard]] static bool parseCrtFlag(int argc, char* const argv[], bool defaultCrt = false) noexcept;
+
+    /// @brief Parse CRT scanlines and phosphor glow flag from a vector of argument strings.
+    /// @param[in] args Vector of command line argument strings.
+    /// @param[in] defaultCrt Fallback value if flag is absent (default: false).
+    /// @return True if CRT filter is enabled, false otherwise.
+    [[nodiscard]] static bool parseCrtFlag(const std::vector<std::string>& args, bool defaultCrt = false) noexcept;
 };
 
 } // namespace qix

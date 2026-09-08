@@ -13,10 +13,12 @@ namespace qix::sdl {
 /// @brief Desktop SDL2 application controller coordinating event routing, simulation pacing, and rendering.
 class SdlApp {
 public:
-    /// @brief Construct SdlApp with a game instance and initial simulation delay.
+    /// @brief Construct SdlApp with a game instance, initial simulation delay, and CRT filter state.
     /// @param[in] game Unique pointer to IQixGame engine instance.
     /// @param[in] delayMs Initial tick delay in milliseconds.
-    explicit SdlApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs = SpeedConfig::DefaultDelayMs) noexcept;
+    /// @param[in] crtEnabled Whether CRT scanlines & phosphor glow filter is initially active.
+    explicit SdlApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs = SpeedConfig::DefaultDelayMs,
+        bool crtEnabled = false) noexcept;
     ~SdlApp();
 
     // Non-copyable
@@ -50,6 +52,17 @@ public:
 
     /// @brief Decrease game speed by increasing tick delay.
     void speedDown() noexcept;
+
+    /// @brief Enable or disable CRT scanlines & phosphor glow filter.
+    /// @param[in] enabled True to enable CRT filter.
+    void setCrtEnabled(bool enabled) noexcept;
+
+    /// @brief Check whether CRT filter is currently active.
+    /// @return True if CRT filter is enabled.
+    [[nodiscard]] bool isCrtEnabled() const noexcept;
+
+    /// @brief Toggle CRT filter on/off at runtime.
+    void toggleCrt() noexcept;
 
 private:
     std::unique_ptr<IQixGame> m_game;

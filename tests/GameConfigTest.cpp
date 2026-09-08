@@ -51,3 +51,25 @@ TEST(GameConfigTest, ToStringRepresentation)
     EXPECT_STREQ(qix::GameConfig::toString(qix::GameMode::Classic), "Classic");
     EXPECT_STREQ(qix::GameConfig::toString(qix::GameMode::Modern), "Modern");
 }
+
+TEST(GameConfigTest, ParseCrtFlags)
+{
+    EXPECT_FALSE(qix::GameConfig::parseCrtFlag({}));
+    EXPECT_TRUE(qix::GameConfig::parseCrtFlag({}, true));
+
+    EXPECT_TRUE(qix::GameConfig::parseCrtFlag({"--crt"}));
+    EXPECT_TRUE(qix::GameConfig::parseCrtFlag({"--scanlines"}));
+    EXPECT_TRUE(qix::GameConfig::parseCrtFlag({"-c"}));
+    EXPECT_TRUE(qix::GameConfig::parseCrtFlag({"--CRT"}));
+
+    EXPECT_FALSE(qix::GameConfig::parseCrtFlag({"--no-crt"}));
+    EXPECT_FALSE(qix::GameConfig::parseCrtFlag({"--no-scanlines"}));
+    EXPECT_FALSE(qix::GameConfig::parseCrtFlag({"--crt", "--no-crt"}));
+    EXPECT_TRUE(qix::GameConfig::parseCrtFlag({"--no-crt", "--crt"}));
+
+    char arg0[] = "qix_app";
+    char arg1[] = "--crt";
+    char* argv[] = {arg0, arg1, nullptr};
+    EXPECT_TRUE(qix::GameConfig::parseCrtFlag(2, argv));
+    EXPECT_FALSE(qix::GameConfig::parseCrtFlag(0, nullptr));
+}

@@ -1,9 +1,10 @@
 #include "MainWindow.h"
 #include <QKeyEvent>
+#include <QMenuBar>
 
 namespace qix::qt {
 
-MainWindow::MainWindow(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, QWidget* parent)
+MainWindow::MainWindow(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bool crtEnabled, QWidget* parent)
     : QMainWindow {parent}
     , m_game {std::move(game)}
     , m_delayMs {SpeedConfig::clampDelay(delayMs)}
@@ -13,7 +14,15 @@ MainWindow::MainWindow(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, QW
 
     m_canvas = new QixCanvas(this);
     m_canvas->setDelayMs(m_delayMs);
+    m_canvas->setCrtEnabled(crtEnabled);
     setCentralWidget(m_canvas);
+
+    // Menu Bar with View -> CRT Filter
+    auto* viewMenu = menuBar()->addMenu(tr("&View"));
+    m_crtAction = viewMenu->addAction(tr("&CRT Filter (Scanlines && Glow)"), this, &MainWindow::toggleCrt);
+    m_crtAction->setCheckable(true);
+    m_crtAction->setChecked(crtEnabled);
+    m_crtAction->setShortcut(QKeySequence(Qt::Key_F2));
 
     // Dynamic simulation and rendering loop
     connect(&m_timer, &QTimer::timeout, this, &MainWindow::onTick);
@@ -53,6 +62,31 @@ void MainWindow::speedDown() noexcept
         setDelayMs(m_game->getCurrentDelayMs());
     } else {
         setDelayMs(SpeedConfig::speedDown(m_delayMs));
+    }
+}
+
+void MainWindow::setCrtEnabled(bool enabled) noexcept
+{
+    if (m_canvas != nullptr) {
+        m_canvas->setCrtEnabled(enabled);
+    }
+    if (m_crtAction != nullptr) {
+        m_crtAction->setChecked(enabled);
+    }
+}
+
+bool MainWindow::isCrtEnabled() const noexcept
+{
+    return m_canvas != nullptr ? m_canvas->isCrtEnabled() : false;
+}
+
+void MainWindow::toggleCrt() noexcept
+{
+    if (m_canvas != nullptr) {
+        m_canvas->toggleCrt();
+        if (m_crtAction != nullptr) {
+            m_crtAction->setChecked(m_canvas->isCrtEnabled());
+        }
     }
 }
 
@@ -170,6 +204,10 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
         break;
     case Qt::Key_R:
         m_game->reset();
+        break;
+    case Qt::Key_C:
+    case Qt::Key_F2:
+        toggleCrt();
         break;
     case Qt::Key_Escape:
         close();

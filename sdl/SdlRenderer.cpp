@@ -51,6 +51,21 @@ int SdlRenderer::getHeight() const noexcept
     return h;
 }
 
+void SdlRenderer::setCrtEnabled(bool enabled) noexcept
+{
+    m_crtEnabled = enabled;
+}
+
+bool SdlRenderer::isCrtEnabled() const noexcept
+{
+    return m_crtEnabled;
+}
+
+void SdlRenderer::toggleCrt() noexcept
+{
+    m_crtEnabled = !m_crtEnabled;
+}
+
 void SdlRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
 {
     if (!m_renderer) {
@@ -59,6 +74,22 @@ void SdlRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
 
     const int screenW = getWidth();
     const int screenH = getHeight();
+
+    if (m_crtEnabled) {
+        if (!m_sceneTexture || m_textureWidth != screenW || m_textureHeight != screenH) {
+            SDL_Texture* tex = SDL_CreateTexture(
+                m_renderer.get(), SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, screenW, screenH);
+            if (tex != nullptr) {
+                SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+                m_sceneTexture.reset(tex);
+                m_textureWidth = screenW;
+                m_textureHeight = screenH;
+            }
+        }
+        if (m_sceneTexture) {
+            SDL_SetRenderTarget(m_renderer.get(), m_sceneTexture.get());
+        }
+    }
 
     // 1. Clear background (#0b0f19)
     SDL_SetRenderDrawColor(m_renderer.get(), 11, 15, 25, 255);
@@ -82,7 +113,70 @@ void SdlRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     // 4. Overlays
     drawOverlays(view);
 
+    // 5. CRT Post-processing Filter (Scanlines, Phosphor Bloom & Vignette)
+    if (m_crtEnabled && m_sceneTexture) {
+        SDL_SetRenderTarget(m_renderer.get(), nullptr);
+        applyCrtFilter(screenW, screenH);
+    }
+
     ++m_colorCycle;
+}
+
+void SdlRenderer::applyCrtFilter(int width, int height) noexcept
+{
+    // Clear backbuffer
+    SDL_SetRenderDrawColor(m_renderer.get(), 5, 8, 15, 255);
+    SDL_RenderClear(m_renderer.get());
+
+    // 1. Draw base game scene
+    SDL_RenderCopy(m_renderer.get(), m_sceneTexture.get(), nullptr, nullptr);
+
+    // 2. Phosphor Glow / Bloom pass (additive blending with multi-tap spread)
+    SDL_SetTextureBlendMode(m_sceneTexture.get(), SDL_BLENDMODE_ADD);
+    SDL_SetTextureAlphaMod(m_sceneTexture.get(), 60);
+
+    const int bloomOffsets[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+    for (const auto& offset : bloomOffsets) {
+        const SDL_Rect bloomRect {offset[0], offset[1], width, height};
+        SDL_RenderCopy(m_renderer.get(), m_sceneTexture.get(), nullptr, &bloomRect);
+    }
+    // Wider subtle halo
+    SDL_SetTextureAlphaMod(m_sceneTexture.get(), 30);
+    const int wideOffsets[4][2] = {{-2, -1}, {2, 1}, {-1, 2}, {1, -2}};
+    for (const auto& offset : wideOffsets) {
+        const SDL_Rect wideRect {offset[0], offset[1], width, height};
+        SDL_RenderCopy(m_renderer.get(), m_sceneTexture.get(), nullptr, &wideRect);
+    }
+
+    // Restore texture settings
+    SDL_SetTextureBlendMode(m_sceneTexture.get(), SDL_BLENDMODE_BLEND);
+    SDL_SetTextureAlphaMod(m_sceneTexture.get(), 255);
+
+    // 3. CRT Horizontal Scanlines
+    SDL_SetRenderDrawBlendMode(m_renderer.get(), SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(m_renderer.get(), 0, 0, 0, 80);
+    for (int y = 0; y < height; y += 2) {
+        SDL_RenderDrawLine(m_renderer.get(), 0, y, width, y);
+    }
+
+    // 4. Subtle CRT Vignette & Curved Bezel Shadow
+    for (int b = 0; b < 10; ++b) {
+        const auto alpha = static_cast<std::uint8_t>((10 - b) * 14);
+        SDL_SetRenderDrawColor(m_renderer.get(), 0, 0, 0, alpha);
+        SDL_RenderDrawLine(m_renderer.get(), 0, b, width, b);
+        SDL_RenderDrawLine(m_renderer.get(), 0, height - 1 - b, width, height - 1 - b);
+        SDL_RenderDrawLine(m_renderer.get(), b, 0, b, height);
+        SDL_RenderDrawLine(m_renderer.get(), width - 1 - b, 0, width - 1 - b, height);
+    }
+    // Corner rounding bevel
+    for (int c = 0; c < 14; ++c) {
+        const auto alpha = static_cast<std::uint8_t>((14 - c) * 12);
+        SDL_SetRenderDrawColor(m_renderer.get(), 0, 0, 0, alpha);
+        SDL_RenderDrawLine(m_renderer.get(), 0, c, 14 - c, 0);
+        SDL_RenderDrawLine(m_renderer.get(), width - 1 - (14 - c), 0, width - 1, c);
+        SDL_RenderDrawLine(m_renderer.get(), 0, height - 1 - c, 14 - c, height - 1);
+        SDL_RenderDrawLine(m_renderer.get(), width - 1 - (14 - c), height - 1, width - 1, height - 1 - c);
+    }
 }
 
 void SdlRenderer::present() noexcept

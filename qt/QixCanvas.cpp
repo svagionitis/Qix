@@ -28,29 +28,119 @@ void QixCanvas::setDelayMs(std::uint32_t delayMs) noexcept
     update();
 }
 
+void QixCanvas::setCrtEnabled(bool enabled) noexcept
+{
+    m_crtEnabled = enabled;
+    update();
+}
+
+bool QixCanvas::isCrtEnabled() const noexcept
+{
+    return m_crtEnabled;
+}
+
+void QixCanvas::toggleCrt() noexcept
+{
+    m_crtEnabled = !m_crtEnabled;
+    update();
+}
+
 void QixCanvas::paintEvent(QPaintEvent* event)
 {
     Q_UNUSED(event);
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
 
-    // Fill background
-    painter.fillRect(rect(), QColor(11, 15, 25));
-
-    drawHud(painter);
-
-    // Compute playfield rect leaving top margin for HUD
     const int hudHeight = 50;
     const int margin = 20;
     QRect fieldRect(margin, hudHeight, width() - 2 * margin, height() - hudHeight - margin);
 
-    if (m_view.playfield) {
-        drawPlayfield(painter, fieldRect);
-        drawQixRibbons(painter, fieldRect);
-        drawEntities(painter, fieldRect);
-    }
+    if (m_crtEnabled) {
+        QImage sceneImage(size(), QImage::Format_ARGB32_Premultiplied);
+        sceneImage.fill(QColor(11, 15, 25));
 
-    drawOverlays(painter);
+        QPainter imgPainter(&sceneImage);
+        imgPainter.setRenderHint(QPainter::Antialiasing, true);
+
+        drawHud(imgPainter);
+        if (m_view.playfield) {
+            drawPlayfield(imgPainter, fieldRect);
+            drawQixRibbons(imgPainter, fieldRect);
+            drawEntities(imgPainter, fieldRect);
+        }
+        drawOverlays(imgPainter);
+        imgPainter.end();
+
+        applyCrtFilter(painter, sceneImage);
+    } else {
+        // Fill background
+        painter.fillRect(rect(), QColor(11, 15, 25));
+
+        drawHud(painter);
+
+        if (m_view.playfield) {
+            drawPlayfield(painter, fieldRect);
+            drawQixRibbons(painter, fieldRect);
+            drawEntities(painter, fieldRect);
+        }
+
+        drawOverlays(painter);
+    }
+}
+
+void QixCanvas::applyCrtFilter(QPainter& painter, const QImage& sceneImage)
+{
+    // Clear background
+    painter.fillRect(rect(), QColor(5, 8, 15));
+
+    // 1. Draw base game scene
+    painter.drawImage(0, 0, sceneImage);
+
+    // 2. Additive phosphor glow bloom pass
+    painter.save();
+    painter.setCompositionMode(QPainter::CompositionMode_Plus);
+    painter.setOpacity(0.35);
+
+    const int offsets[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+    for (const auto& off : offsets) {
+        painter.drawImage(off[0], off[1], sceneImage);
+    }
+    painter.setOpacity(0.18);
+    const int wideOffsets[4][2] = {{-2, -1}, {2, 1}, {-1, 2}, {1, -2}};
+    for (const auto& off : wideOffsets) {
+        painter.drawImage(off[0], off[1], sceneImage);
+    }
+    painter.restore();
+
+    // 3. CRT Horizontal scanlines
+    painter.save();
+    painter.setPen(QPen(QColor(0, 0, 0, 80), 1));
+    for (int y = 0; y < height(); y += 2) {
+        painter.drawLine(0, y, width(), y);
+    }
+    painter.restore();
+
+    // 4. Curved tube radial vignette & bezel
+    painter.save();
+    const QPointF center(width() / 2.0, height() / 2.0);
+    const qreal radius = std::max(width(), height()) * 0.75;
+    QRadialGradient vignette(center, radius);
+    vignette.setColorAt(0.0, QColor(0, 0, 0, 0));
+    vignette.setColorAt(0.65, QColor(0, 0, 0, 0));
+    vignette.setColorAt(0.85, QColor(0, 0, 0, 90));
+    vignette.setColorAt(1.0, QColor(0, 0, 0, 210));
+    painter.fillRect(rect(), QBrush(vignette));
+
+    // Corner rounding bevel
+    for (int c = 0; c < 14; ++c) {
+        const int alpha = (14 - c) * 12;
+        painter.setPen(QPen(QColor(0, 0, 0, alpha), 1));
+        painter.drawLine(0, c, 14 - c, 0);
+        painter.drawLine(width() - 1 - (14 - c), 0, width() - 1, c);
+        painter.drawLine(0, height() - 1 - c, 14 - c, height() - 1);
+        painter.drawLine(width() - 1 - (14 - c), height() - 1, width() - 1, height() - 1 - c);
+    }
+    painter.restore();
 }
 
 void QixCanvas::drawHud(QPainter& painter)

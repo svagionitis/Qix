@@ -193,6 +193,7 @@ You can select the ruleset mode at launch via CLI:
 | **Fast Draw (1x Points)** | Hold `F` + Direction | Hold `Shift` or `F` + Dir | Hold `Shift` or `F` + Dir | Hold `Shift` or `F` + Dir |
 | **Disengage Draw / Border** | `X` (Return to border nav) | Release draw key | Release draw key | Release draw key |
 | **Adjust Speed (Pacing)** | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) |
+| **Toggle CRT Filter** | N/A | `C` / `F2` / View Menu | `C` / `F2` | `C` / `F2` |
 | **Restart Session** | `R` | `R` | `R` | `R` |
 | **Next Level (on victory)**| Automatic / Step | `Space` or `Return` | `Space` or `Return` | `Space` or `Return` |
 | **Quit Game** | `Q` | `Escape` / Close Window | `Escape` / Close Window | `Escape` / Close Window |
@@ -204,11 +205,11 @@ Just like the original 1981 *Qix* arcade cabinet equipped with dedicated Slow an
 - **Draw Mode Lock**: The drawing mode is locked upon entering empty territory. Attempting to switch between Slow and Fast draw mid-stroke is rejected.
 - **Terminal Disengage (`qix_tui`)**: Because terminal emulators do not emit key release events, `Space` and `F` engage Slow and Fast draw, while `X` disengages back to border navigation. Completing a cut automatically resets the draw mode.
 
-All client frontends support configurable startup speed and game mode via CLI flags:
+All client frontends support configurable startup speed, game mode, and CRT filter via CLI flags:
 ```bash
 ./build/bin/qix_raylib --delay 100 --classic # Raylib client in Classic mode
-./build/bin/qix_sdl --delay 100 --modern     # SDL2 client in Modern mode
-./build/bin/qix_qt --mode classic            # Qt client in Classic mode
+./build/bin/qix_sdl --delay 100 --crt        # SDL2 client with CRT scanlines & phosphor glow
+./build/bin/qix_qt --mode classic -c         # Qt client in Classic mode with CRT filter
 ./build/bin/qix_tui --mode modern            # Terminal client in Modern mode
 ```
 

@@ -3,10 +3,11 @@
 
 namespace qix::sdl {
 
-SdlApp::SdlApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs) noexcept
+SdlApp::SdlApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bool crtEnabled) noexcept
     : m_game {std::move(game)}
     , m_delayMs {SpeedConfig::clampDelay(delayMs)}
 {
+    m_renderer.setCrtEnabled(crtEnabled);
 }
 
 SdlApp::~SdlApp()
@@ -54,6 +55,21 @@ void SdlApp::speedDown() noexcept
     } else {
         setDelayMs(SpeedConfig::speedDown(m_delayMs));
     }
+}
+
+void SdlApp::setCrtEnabled(bool enabled) noexcept
+{
+    m_renderer.setCrtEnabled(enabled);
+}
+
+bool SdlApp::isCrtEnabled() const noexcept
+{
+    return m_renderer.isCrtEnabled();
+}
+
+void SdlApp::toggleCrt() noexcept
+{
+    m_renderer.toggleCrt();
 }
 
 void SdlApp::processEvents(bool& running) noexcept
@@ -172,6 +188,10 @@ void SdlApp::processEvents(bool& running) noexcept
                 if (m_game) {
                     m_game->reset();
                 }
+                break;
+            case SDLK_c:
+            case SDLK_F2:
+                toggleCrt();
                 break;
             case SDLK_ESCAPE:
                 running = false;

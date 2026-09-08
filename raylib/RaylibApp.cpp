@@ -3,10 +3,11 @@
 
 namespace qix::raylib {
 
-RaylibApp::RaylibApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs) noexcept
+RaylibApp::RaylibApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bool crtEnabled) noexcept
     : m_game {std::move(game)}
     , m_delayMs {SpeedConfig::clampDelay(delayMs)}
 {
+    m_renderer.setCrtEnabled(crtEnabled);
 }
 
 bool RaylibApp::init(const std::string& title, int width, int height) noexcept
@@ -42,6 +43,21 @@ void RaylibApp::speedDown() noexcept
     } else {
         setDelayMs(SpeedConfig::speedDown(m_delayMs));
     }
+}
+
+void RaylibApp::setCrtEnabled(bool enabled) noexcept
+{
+    m_renderer.setCrtEnabled(enabled);
+}
+
+bool RaylibApp::isCrtEnabled() const noexcept
+{
+    return m_renderer.isCrtEnabled();
+}
+
+void RaylibApp::toggleCrt() noexcept
+{
+    m_renderer.toggleCrt();
 }
 
 void RaylibApp::processInput() noexcept
@@ -145,6 +161,11 @@ void RaylibApp::processInput() noexcept
         if (m_game) {
             m_game->reset();
         }
+    }
+
+    // Toggle CRT scanlines & phosphor glow filter
+    if (IsKeyPressed(KEY_C) || IsKeyPressed(KEY_F2)) {
+        toggleCrt();
     }
 }
 
