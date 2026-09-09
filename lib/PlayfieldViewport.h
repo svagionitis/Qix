@@ -70,14 +70,16 @@ public:
     /// @param[in] gx Cell horizontal grid index.
     /// @param[in] gy Cell vertical grid index.
     /// @return Integer ViewportPixelRect in screen coordinates.
-    [[nodiscard]] ViewportPixelRect cellToScreenPixel(
+    [[nodiscard]] constexpr ViewportPixelRect cellToScreenPixel(
         std::int32_t gx, std::int32_t gy) const noexcept
     {
-        const double cw = static_cast<double>(m_fieldW) / m_gridW;
-        const double ch = static_cast<double>(m_fieldH) / m_gridH;
+        const double fx {static_cast<double>(m_fieldX)};
+        const double fy {static_cast<double>(m_fieldY)};
+        const double cw {static_cast<double>(m_fieldW) / static_cast<double>(m_gridW)};
+        const double ch {static_cast<double>(m_fieldH) / static_cast<double>(m_gridH)};
         return ViewportPixelRect {
-            static_cast<int>(m_fieldX + gx * cw),
-            static_cast<int>(m_fieldY + gy * ch),
+            static_cast<int>(fx + static_cast<double>(gx) * cw),
+            static_cast<int>(fy + static_cast<double>(gy) * ch),
             static_cast<int>(cw + 0.99),
             static_cast<int>(ch + 0.99)
         };

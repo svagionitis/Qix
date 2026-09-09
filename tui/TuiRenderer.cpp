@@ -70,45 +70,6 @@ namespace {
         std::uint8_t b {0};
     };
 
-    Rgb hsvToRgb(double h, double s, double v) noexcept
-    {
-        h = std::fmod(h, 360.0);
-        if (h < 0.0) {
-            h += 360.0;
-        }
-
-        const double c = v * s;
-        const double x = c * (1.0 - std::abs(std::fmod(h / 60.0, 2.0) - 1.0));
-        const double m = v - c;
-
-        double r1 = 0.0;
-        double g1 = 0.0;
-        double b1 = 0.0;
-
-        if (h < 60.0) {
-            r1 = c;
-            g1 = x;
-        } else if (h < 120.0) {
-            r1 = x;
-            g1 = c;
-        } else if (h < 180.0) {
-            g1 = c;
-            b1 = x;
-        } else if (h < 240.0) {
-            g1 = x;
-            b1 = c;
-        } else if (h < 300.0) {
-            r1 = x;
-            b1 = c;
-        } else {
-            r1 = c;
-            b1 = x;
-        }
-
-        return Rgb {static_cast<std::uint8_t>(std::clamp(std::round((r1 + m) * 255.0), 0.0, 255.0)),
-            static_cast<std::uint8_t>(std::clamp(std::round((g1 + m) * 255.0), 0.0, 255.0)),
-            static_cast<std::uint8_t>(std::clamp(std::round((b1 + m) * 255.0), 0.0, 255.0))};
-    }
 
     void appendTruecolor(std::string& out, std::uint8_t r, std::uint8_t g, std::uint8_t b) noexcept
     {
