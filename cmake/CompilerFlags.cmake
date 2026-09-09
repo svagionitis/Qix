@@ -1,7 +1,7 @@
 # Compiler flags, warnings, security hardening, and sanitizers
 # Supports Linux (GCC/Clang) and Windows (MSVC)
 
-option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
+option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
 option(ENABLE_ASAN "Enable AddressSanitizer (ASan)" OFF)
 option(ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer (UBSan)" OFF)
 option(ENABLE_TSAN "Enable ThreadSanitizer (TSan)" OFF)

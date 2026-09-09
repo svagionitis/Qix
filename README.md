@@ -222,7 +222,7 @@ cmake --build build --config Release --target qix_qt      # Qt Desktop Client
 | `QIX_DEFAULT_CLASSIC_MODE` | `ON` | Default game mode to Classic (1981 arcade perimeter-only rules) |
 | `ENABLE_ASAN` | `OFF` | Compile with AddressSanitizer memory leak check |
 | `ENABLE_UBSAN` | `OFF` | Compile with UndefinedBehaviorSanitizer |
-| `WARNINGS_AS_ERRORS`| `OFF` | Treat compiler warnings as errors (`-Werror` / `/WX`) |
+| `WARNINGS_AS_ERRORS`| `ON`  | Treat compiler warnings as errors (`-Werror` / `/WX`) |
 
 ---
 
