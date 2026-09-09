@@ -337,6 +337,8 @@ void RaylibRenderer::drawPlayfield(
 
     const auto& theme = ColorPalette::get(m_paletteId);
     const PlayfieldViewport vp {fieldRect.x, fieldRect.y, fieldRect.width, fieldRect.height, gridW, gridH};
+    const float cellW = vp.cellWidth();
+    const float cellH = vp.cellHeight();
     const int texW = m_artTextureInitialized ? m_artTexture.width : 1;
     const int texH = m_artTextureInitialized ? m_artTexture.height : 1;
 
@@ -350,9 +352,7 @@ void RaylibRenderer::drawPlayfield(
             const auto vr = vp.cellToScreen(x, y);
             const Rectangle cellRect {vr.x, vr.y, vr.width, vr.height};
 
-            if (state == CellState::Border) {
-                DrawRectangleRec(cellRect, toRaylib(theme.playfieldBorder));
-            } else if (state == CellState::ClaimedSlow || state == CellState::ClaimedFast) {
+            if (state == CellState::ClaimedSlow || state == CellState::ClaimedFast) {
                 if (m_artEnabled && m_artTextureInitialized) {
                     const auto sr = vp.cellToTextureSrc(x, y, texW, texH);
                     const Rectangle srcRect {static_cast<float>(sr.x), static_cast<float>(sr.y),
@@ -367,8 +367,71 @@ void RaylibRenderer::drawPlayfield(
                     DrawRectangleRec(
                         cellRect, toRaylib(state == CellState::ClaimedSlow ? theme.claimedSlow : theme.claimedFast));
                 }
-            } else if (state == CellState::ActiveStix) {
-                DrawRectangleRec(cellRect, toRaylib(theme.activeStix));
+            } else if (state == CellState::Border) {
+                // Fill the half of the border cell facing any claimed neighbor so claimed territory
+                // meets the thin vector line seamlessly without gaps
+                const float cx = fieldRect.x + (static_cast<float>(x) + 0.5f) * cellW;
+                const float cy = fieldRect.y + (static_cast<float>(y) + 0.5f) * cellH;
+
+                auto fillHalf = [&](int dx, int dy, CellState neighborState) {
+                    const auto col
+                        = toRaylib(neighborState == CellState::ClaimedSlow ? theme.claimedSlow : theme.claimedFast);
+                    if (dx > 0) {
+                        DrawRectangleRec(Rectangle {cx, vr.y, cellW * 0.5f + 0.5f, vr.height}, col);
+                    } else if (dx < 0) {
+                        DrawRectangleRec(Rectangle {vr.x, vr.y, cellW * 0.5f + 0.5f, vr.height}, col);
+                    } else if (dy > 0) {
+                        DrawRectangleRec(Rectangle {vr.x, cy, vr.width, cellH * 0.5f + 0.5f}, col);
+                    } else if (dy < 0) {
+                        DrawRectangleRec(Rectangle {vr.x, vr.y, vr.width, cellH * 0.5f + 0.5f}, col);
+                    }
+                };
+
+                if (x + 1 < gridW) {
+                    const auto s = playfield.getCell(x + 1, y);
+                    if (s == CellState::ClaimedSlow || s == CellState::ClaimedFast) {
+                        fillHalf(1, 0, s);
+                    }
+                }
+                if (x > 0) {
+                    const auto s = playfield.getCell(x - 1, y);
+                    if (s == CellState::ClaimedSlow || s == CellState::ClaimedFast) {
+                        fillHalf(-1, 0, s);
+                    }
+                }
+                if (y + 1 < gridH) {
+                    const auto s = playfield.getCell(x, y + 1);
+                    if (s == CellState::ClaimedSlow || s == CellState::ClaimedFast) {
+                        fillHalf(0, 1, s);
+                    }
+                }
+                if (y > 0) {
+                    const auto s = playfield.getCell(x, y - 1);
+                    if (s == CellState::ClaimedSlow || s == CellState::ClaimedFast) {
+                        fillHalf(0, -1, s);
+                    }
+                }
+            }
+        }
+    }
+
+    // Render slender 1.5px vector lines connecting adjacent border cells
+    const auto borderCol = toRaylib(theme.playfieldBorder);
+    for (std::int32_t y {0}; y < gridH; ++y) {
+        for (std::int32_t x {0}; x < gridW; ++x) {
+            if (playfield.getCell(x, y) != CellState::Border) {
+                continue;
+            }
+            const Vector2 c1 {fieldRect.x + (static_cast<float>(x) + 0.5f) * cellW,
+                fieldRect.y + (static_cast<float>(y) + 0.5f) * cellH};
+
+            if (x + 1 < gridW && playfield.getCell(x + 1, y) == CellState::Border) {
+                const Vector2 c2 {fieldRect.x + (static_cast<float>(x + 1) + 0.5f) * cellW, c1.y};
+                DrawLineEx(c1, c2, 1.5f, borderCol);
+            }
+            if (y + 1 < gridH && playfield.getCell(x, y + 1) == CellState::Border) {
+                const Vector2 c2 {c1.x, fieldRect.y + (static_cast<float>(y + 1) + 0.5f) * cellH};
+                DrawLineEx(c1, c2, 1.5f, borderCol);
             }
         }
     }
@@ -422,7 +485,7 @@ void RaylibRenderer::drawEntities(const GameView& view, const Rectangle& fieldRe
                 fieldRect.y + (static_cast<float>(view.stixTrail[i - 1].y) + 0.5f) * cellH};
             const Vector2 p2 {fieldRect.x + (static_cast<float>(view.stixTrail[i].x) + 0.5f) * cellW,
                 fieldRect.y + (static_cast<float>(view.stixTrail[i].y) + 0.5f) * cellH};
-            DrawLineEx(p1, p2, 2.5f, toRaylib(theme.activeStix));
+            DrawLineEx(p1, p2, 1.5f, toRaylib(theme.activeStix));
         }
     }
 

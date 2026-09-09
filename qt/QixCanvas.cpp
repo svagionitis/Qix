@@ -342,6 +342,8 @@ void QixCanvas::drawPlayfield(QPainter& painter, const QRect& fieldRect)
     const auto gridH = m_view.playfield->getHeight();
     const PlayfieldViewport vp {static_cast<float>(fieldRect.x()), static_cast<float>(fieldRect.y()),
         static_cast<float>(fieldRect.width()), static_cast<float>(fieldRect.height()), gridW, gridH};
+    const double cellW = vp.cellWidth();
+    const double cellH = vp.cellHeight();
     const auto& theme = ColorPalette::get(m_paletteId);
 
     if (m_artEnabled) {
@@ -363,9 +365,7 @@ void QixCanvas::drawPlayfield(QPainter& painter, const QRect& fieldRect)
             const auto vr = vp.cellToScreen(x, y);
             const QRectF r(vr.x, vr.y, vr.width, vr.height);
 
-            if (state == CellState::Border) {
-                painter.fillRect(r, toQColor(theme.playfieldBorder));
-            } else if (state == CellState::ClaimedSlow) {
+            if (state == CellState::ClaimedSlow) {
                 if (hasArt) {
                     const auto sr = vp.cellToTextureSrc(x, y, artW, artH);
                     painter.drawImage(r, m_artImage, QRect(sr.x, sr.y, sr.width, sr.height));
@@ -379,11 +379,78 @@ void QixCanvas::drawPlayfield(QPainter& painter, const QRect& fieldRect)
                 } else {
                     painter.fillRect(r, toQColor(theme.claimedFast));
                 }
-            } else if (state == CellState::ActiveStix) {
-                painter.fillRect(r, toQColor(theme.activeStix));
+            } else if (state == CellState::Border) {
+                // Fill the half of the border cell facing any claimed neighbor so claimed territory
+                // meets the thin vector line seamlessly without gaps
+                const double cx = fieldRect.left() + (x + 0.5) * cellW;
+                const double cy = fieldRect.top() + (y + 0.5) * cellH;
+
+                auto fillHalf = [&](int dx, int dy, CellState neighborState) {
+                    const auto col
+                        = toQColor(neighborState == CellState::ClaimedSlow ? theme.claimedSlow : theme.claimedFast);
+                    if (dx > 0) {
+                        painter.fillRect(QRectF(cx, r.top(), r.right() - cx + 0.5, r.height()), col);
+                    } else if (dx < 0) {
+                        painter.fillRect(QRectF(r.left(), r.top(), cx - r.left() + 0.5, r.height()), col);
+                    } else if (dy > 0) {
+                        painter.fillRect(QRectF(r.left(), cy, r.width(), r.bottom() - cy + 0.5), col);
+                    } else if (dy < 0) {
+                        painter.fillRect(QRectF(r.left(), r.top(), r.width(), cy - r.top() + 0.5), col);
+                    }
+                };
+
+                if (x + 1 < gridW) {
+                    const auto s = m_view.playfield->getCell(x + 1, y);
+                    if (s == CellState::ClaimedSlow || s == CellState::ClaimedFast) {
+                        fillHalf(1, 0, s);
+                    }
+                }
+                if (x > 0) {
+                    const auto s = m_view.playfield->getCell(x - 1, y);
+                    if (s == CellState::ClaimedSlow || s == CellState::ClaimedFast) {
+                        fillHalf(-1, 0, s);
+                    }
+                }
+                if (y + 1 < gridH) {
+                    const auto s = m_view.playfield->getCell(x, y + 1);
+                    if (s == CellState::ClaimedSlow || s == CellState::ClaimedFast) {
+                        fillHalf(0, 1, s);
+                    }
+                }
+                if (y > 0) {
+                    const auto s = m_view.playfield->getCell(x, y - 1);
+                    if (s == CellState::ClaimedSlow || s == CellState::ClaimedFast) {
+                        fillHalf(0, -1, s);
+                    }
+                }
             }
         }
     }
+
+    // Render slender 1.5px vector lines connecting adjacent border cells
+    QPainterPath borderPath;
+    for (std::int32_t y {0}; y < gridH; ++y) {
+        for (std::int32_t x {0}; x < gridW; ++x) {
+            if (m_view.playfield->getCell(x, y) != CellState::Border) {
+                continue;
+            }
+            const double c1x = fieldRect.left() + (x + 0.5) * cellW;
+            const double c1y = fieldRect.top() + (y + 0.5) * cellH;
+
+            if (x + 1 < gridW && m_view.playfield->getCell(x + 1, y) == CellState::Border) {
+                const double c2x = fieldRect.left() + (x + 1.5) * cellW;
+                borderPath.moveTo(c1x, c1y);
+                borderPath.lineTo(c2x, c1y);
+            }
+            if (y + 1 < gridH && m_view.playfield->getCell(x, y + 1) == CellState::Border) {
+                const double c2y = fieldRect.top() + (y + 1.5) * cellH;
+                borderPath.moveTo(c1x, c1y);
+                borderPath.lineTo(c1x, c2y);
+            }
+        }
+    }
+    painter.setPen(QPen(toQColor(theme.playfieldBorder), 1.5));
+    painter.drawPath(borderPath);
 }
 
 void QixCanvas::drawQixRibbons(QPainter& painter, const QRect& fieldRect)
@@ -442,7 +509,7 @@ void QixCanvas::drawEntities(QPainter& painter, const QRect& fieldRect)
             const auto pt = m_view.stixTrail[i];
             trailPath.lineTo(fieldRect.left() + (pt.x + 0.5) * cellW, fieldRect.top() + (pt.y + 0.5) * cellH);
         }
-        painter.setPen(QPen(toQColor(theme.activeStix), 2.5));
+        painter.setPen(QPen(toQColor(theme.activeStix), 1.5));
         painter.drawPath(trailPath);
     }
 

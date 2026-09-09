@@ -393,11 +393,7 @@ void SdlRenderer::drawPlayfield(const Playfield& playfield, const SDL_Rect& fiel
             const auto vr = vp.cellToScreenPixel(x, y);
             SDL_Rect cellRect {vr.x, vr.y, vr.width, vr.height};
 
-            if (state == CellState::Border) {
-                SDL_SetRenderDrawColor(m_renderer.get(), theme.playfieldBorder.r, theme.playfieldBorder.g,
-                    theme.playfieldBorder.b, theme.playfieldBorder.a);
-                SDL_RenderFillRect(m_renderer.get(), &cellRect);
-            } else if (state == CellState::ClaimedSlow || state == CellState::ClaimedFast) {
+            if (state == CellState::ClaimedSlow || state == CellState::ClaimedFast) {
                 if (m_artEnabled && m_artTexture) {
                     const auto sr = vp.cellToTextureSrc(x, y, m_artWidth, m_artHeight);
                     const SDL_Rect srcRect {sr.x, sr.y, sr.width, sr.height};
@@ -413,10 +409,76 @@ void SdlRenderer::drawPlayfield(const Playfield& playfield, const SDL_Rect& fiel
                     SDL_SetRenderDrawColor(m_renderer.get(), c.r, c.g, c.b, c.a);
                     SDL_RenderFillRect(m_renderer.get(), &cellRect);
                 }
-            } else if (state == CellState::ActiveStix) {
-                SDL_SetRenderDrawColor(
-                    m_renderer.get(), theme.activeStix.r, theme.activeStix.g, theme.activeStix.b, theme.activeStix.a);
-                SDL_RenderFillRect(m_renderer.get(), &cellRect);
+            } else if (state == CellState::Border) {
+                // Fill the half of the border cell facing any claimed neighbor so claimed territory
+                // meets the thin vector line seamlessly without gaps
+                const double cellW = static_cast<double>(fieldRect.w) / static_cast<double>(gridW);
+                const double cellH = static_cast<double>(fieldRect.h) / static_cast<double>(gridH);
+                const int cx = static_cast<int>(fieldRect.x + (x + 0.5) * cellW);
+                const int cy = static_cast<int>(fieldRect.y + (y + 0.5) * cellH);
+
+                auto fillHalf = [&](int dx, int dy, CellState neighborState) {
+                    const auto& c = (neighborState == CellState::ClaimedSlow) ? theme.claimedSlow : theme.claimedFast;
+                    SDL_SetRenderDrawColor(m_renderer.get(), c.r, c.g, c.b, c.a);
+                    SDL_Rect subRect {};
+                    if (dx > 0) {
+                        subRect = SDL_Rect {cx, vr.y, vr.width - (cx - vr.x), vr.height};
+                    } else if (dx < 0) {
+                        subRect = SDL_Rect {vr.x, vr.y, cx - vr.x + 1, vr.height};
+                    } else if (dy > 0) {
+                        subRect = SDL_Rect {vr.x, cy, vr.width, vr.height - (cy - vr.y)};
+                    } else if (dy < 0) {
+                        subRect = SDL_Rect {vr.x, vr.y, vr.width, cy - vr.y + 1};
+                    }
+                    SDL_RenderFillRect(m_renderer.get(), &subRect);
+                };
+
+                if (x + 1 < gridW) {
+                    const auto s = playfield.getCell(x + 1, y);
+                    if (s == CellState::ClaimedSlow || s == CellState::ClaimedFast) {
+                        fillHalf(1, 0, s);
+                    }
+                }
+                if (x > 0) {
+                    const auto s = playfield.getCell(x - 1, y);
+                    if (s == CellState::ClaimedSlow || s == CellState::ClaimedFast) {
+                        fillHalf(-1, 0, s);
+                    }
+                }
+                if (y + 1 < gridH) {
+                    const auto s = playfield.getCell(x, y + 1);
+                    if (s == CellState::ClaimedSlow || s == CellState::ClaimedFast) {
+                        fillHalf(0, 1, s);
+                    }
+                }
+                if (y > 0) {
+                    const auto s = playfield.getCell(x, y - 1);
+                    if (s == CellState::ClaimedSlow || s == CellState::ClaimedFast) {
+                        fillHalf(0, -1, s);
+                    }
+                }
+            }
+        }
+    }
+
+    // Render slender 1-pixel vector lines connecting adjacent border cells
+    const double cellW = static_cast<double>(fieldRect.w) / static_cast<double>(gridW);
+    const double cellH = static_cast<double>(fieldRect.h) / static_cast<double>(gridH);
+    for (std::int32_t y {0}; y < gridH; ++y) {
+        for (std::int32_t x {0}; x < gridW; ++x) {
+            if (playfield.getCell(x, y) != CellState::Border) {
+                continue;
+            }
+            const int c1x = static_cast<int>(fieldRect.x + (x + 0.5) * cellW);
+            const int c1y = static_cast<int>(fieldRect.y + (y + 0.5) * cellH);
+
+            if (x + 1 < gridW && playfield.getCell(x + 1, y) == CellState::Border) {
+                const int c2x = static_cast<int>(fieldRect.x + (x + 1.5) * cellW);
+                drawThickLine(c1x, c1y, c2x, c1y, 1, toSdl(theme.playfieldBorder));
+            }
+            if (y + 1 < gridH && playfield.getCell(x, y + 1) == CellState::Border) {
+                const int c2y = static_cast<int>(fieldRect.y + (y + 1.5) * cellH);
+                drawThickLine(c1x, c1y, c1x, c2y, 1, toSdl(theme.playfieldBorder));
             }
         }
     }
@@ -468,7 +530,7 @@ void SdlRenderer::drawEntities(const GameView& view, const SDL_Rect& fieldRect) 
             const int y1 = static_cast<int>(fieldRect.y + (view.stixTrail[i - 1].y + 0.5) * cellH);
             const int x2 = static_cast<int>(fieldRect.x + (view.stixTrail[i].x + 0.5) * cellW);
             const int y2 = static_cast<int>(fieldRect.y + (view.stixTrail[i].y + 0.5) * cellH);
-            drawThickLine(x1, y1, x2, y2, 2, toSdl(theme.activeStix));
+            drawThickLine(x1, y1, x2, y2, 1, toSdl(theme.activeStix));
         }
     }
 
