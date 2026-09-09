@@ -108,6 +108,18 @@ public:
     /// @param[in] filepath Source file path (empty for default).
     /// @return True on success, false on failure.
     [[nodiscard]] virtual bool quickLoad(const std::string& filepath = "") noexcept = 0;
+
+    /// @brief Check whether randomized entity spawn locations are enabled.
+    /// @return True if random spawns active.
+    [[nodiscard]] virtual bool isRandomSpawns() const noexcept = 0;
+
+    /// @brief Configure randomized entity spawn behavior.
+    /// @param[in] enabled True to randomize spawns, false for fixed arcade positions.
+    virtual void setRandomSpawns(bool enabled) noexcept = 0;
+
+    /// @brief Seed the entity spawn pseudo-random number generator.
+    /// @param[in] seed PRNG seed.
+    virtual void setSpawnSeed(std::uint32_t seed) noexcept = 0;
 };
 
 } // namespace qix

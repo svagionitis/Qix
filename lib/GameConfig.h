@@ -151,6 +151,20 @@ public:
     /// @param[in] args Vector of arguments.
     /// @return Filepath to replay file, or empty string if playback not requested.
     [[nodiscard]] static std::string parseReplayFlag(const std::vector<std::string>& args) noexcept;
+
+    /// @brief Parse randomized entity spawn flag (--random-spawns, --no-random-spawns).
+    /// @param[in] argc Argument count.
+    /// @param[in] argv Argument array.
+    /// @param[in] defaultVal Fallback value if flag is absent.
+    /// @return True if random entity spawns enabled.
+    [[nodiscard]] static bool parseRandomSpawnsFlag(int argc, char* const argv[], bool defaultVal = false) noexcept;
+
+    /// @brief Parse randomized entity spawn flag from vector of argument strings.
+    /// @param[in] args Vector of arguments.
+    /// @param[in] defaultVal Fallback value if flag is absent.
+    /// @return True if random entity spawns enabled.
+    [[nodiscard]] static bool parseRandomSpawnsFlag(
+        const std::vector<std::string>& args, bool defaultVal = false) noexcept;
 };
 
 } // namespace qix

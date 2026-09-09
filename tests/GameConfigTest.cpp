@@ -146,3 +146,23 @@ TEST(GameConfigTest, ParseArtSceneFlags)
     EXPECT_EQ(qix::GameConfig::parseArtSceneFlag(std::vector<std::string> {"--scene", "0"}), 0);
     EXPECT_EQ(qix::GameConfig::parseArtSceneFlag(std::vector<std::string> {}, -1), -1);
 }
+
+TEST(GameConfigTest, ParseRandomSpawnsFlags)
+{
+    EXPECT_TRUE(qix::GameConfig::parseRandomSpawnsFlag(std::vector<std::string> {"--random-spawns"}));
+    EXPECT_TRUE(qix::GameConfig::parseRandomSpawnsFlag(std::vector<std::string> {"--random-spawn"}));
+    EXPECT_TRUE(qix::GameConfig::parseRandomSpawnsFlag(std::vector<std::string> {"--randomize-spawns"}));
+    EXPECT_FALSE(qix::GameConfig::parseRandomSpawnsFlag(std::vector<std::string> {"--no-random-spawns"}));
+    EXPECT_FALSE(qix::GameConfig::parseRandomSpawnsFlag(std::vector<std::string> {"--no-random-spawn"}));
+    EXPECT_FALSE(qix::GameConfig::parseRandomSpawnsFlag(std::vector<std::string> {"--fixed-spawns"}));
+
+    // Default fallback
+    EXPECT_TRUE(qix::GameConfig::parseRandomSpawnsFlag(std::vector<std::string> {}, true));
+    EXPECT_FALSE(qix::GameConfig::parseRandomSpawnsFlag(std::vector<std::string> {}, false));
+
+    // Argc/argv parsing
+    char arg0[] = "qix";
+    char arg1[] = "--random-spawns";
+    char* argv[] = {arg0, arg1, nullptr};
+    EXPECT_TRUE(qix::GameConfig::parseRandomSpawnsFlag(2, argv, false));
+}

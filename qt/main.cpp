@@ -20,6 +20,7 @@ int main(int argc, char* argv[])
     const auto recordPath = qix::GameConfig::parseRecordFlag(argc, argv);
     const auto replayPath = qix::GameConfig::parseReplayFlag(argc, argv);
     const auto demoDurationMs = qix::GameConfig::parseDemoDurationFlag(argc, argv);
+    const auto randomSpawns = qix::GameConfig::parseRandomSpawnsFlag(argc, argv, mode == qix::GameMode::Modern);
 
     QApplication app(argc, argv);
 
@@ -39,7 +40,7 @@ int main(int argc, char* argv[])
             return 1;
         }
     } else {
-        game = std::make_unique<qix::QixGame>(80, 60, 75, mode, delayMs);
+        game = std::make_unique<qix::QixGame>(80, 60, 75, mode, delayMs, randomSpawns);
         game->setDemoDurationMs(demoDurationMs);
         if (attractMode) {
             game->startAttractMode();

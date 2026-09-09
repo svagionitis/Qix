@@ -530,3 +530,69 @@ TEST(GameEngineTest, QixTrapStateDefaultsAndReset)
     EXPECT_FALSE(game.getView().stats.spiralBonus);
     EXPECT_EQ(game.getView().stats.trapBonus, 0U);
 }
+
+TEST(GameEngineTest, ClassicSpawnsFixedAtExpectedLocations)
+{
+    qix::QixGame game {80, 60, 75, qix::GameMode::Classic};
+    EXPECT_FALSE(game.isRandomSpawns());
+
+    const auto& view = game.getView();
+    ASSERT_EQ(view.sparxPositions.size(), 2U);
+    EXPECT_EQ(view.sparxPositions[0], (qix::Point {1, 0}));
+    EXPECT_EQ(view.sparxPositions[1], (qix::Point {78, 0}));
+
+    ASSERT_EQ(view.qixRibbons.size(), 1U);
+    ASSERT_FALSE(view.qixRibbons[0].empty());
+    const auto head = view.qixRibbons[0].front();
+    EXPECT_EQ(head.start, (qix::Point {35, 30}));
+    EXPECT_EQ(head.end, (qix::Point {45, 30}));
+}
+
+TEST(GameEngineTest, ModernModeEnablesRandomSpawnsWithSafetyGuarantees)
+{
+    qix::QixGame game {80, 60, 75, qix::GameMode::Modern};
+    EXPECT_TRUE(game.isRandomSpawns());
+
+    const auto& view = game.getView();
+    ASSERT_EQ(view.sparxPositions.size(), 2U);
+    const auto markerPos = view.markerPos;
+
+    // Both Sparx must be on valid border cells and at least 25 units away from marker
+    for (const auto& sp : view.sparxPositions) {
+        EXPECT_EQ(view.playfield->getCell(sp.x, sp.y), qix::CellState::Border);
+        const auto dist = std::abs(sp.x - markerPos.x) + std::abs(sp.y - markerPos.y);
+        EXPECT_GE(dist, 25);
+    }
+
+    // Qix must be inside safe playfield interior
+    ASSERT_EQ(view.qixRibbons.size(), 1U);
+    ASSERT_FALSE(view.qixRibbons[0].empty());
+    const auto head = view.qixRibbons[0].front();
+    EXPECT_GE(head.start.x, 1);
+    EXPECT_LT(head.start.x, 79);
+    EXPECT_GE(head.start.y, 1);
+    EXPECT_LT(head.start.y, 59);
+
+    // Over multiple seeded runs, spawns change
+    game.setSpawnSeed(42);
+    game.reset();
+    const auto pos1 = game.getView().sparxPositions[0];
+
+    game.setSpawnSeed(999);
+    game.reset();
+    const auto pos2 = game.getView().sparxPositions[0];
+
+    // Different seeds produce different spawn locations
+    EXPECT_NE(pos1, pos2);
+}
+
+TEST(GameEngineTest, ForceRandomSpawnsInClassicModeViaConstructorOrSetter)
+{
+    qix::QixGame game {80, 60, 75, qix::GameMode::Classic, 50, true};
+    EXPECT_TRUE(game.isRandomSpawns());
+
+    game.setRandomSpawns(false);
+    EXPECT_FALSE(game.isRandomSpawns());
+    game.reset();
+    EXPECT_EQ(game.getView().sparxPositions[0], (qix::Point {1, 0}));
+}

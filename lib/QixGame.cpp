@@ -4,7 +4,7 @@
 namespace qix {
 
 QixGame::QixGame(std::int32_t width, std::int32_t height, std::uint16_t targetPercent, GameMode mode,
-    std::uint32_t baseDelayMs) noexcept
+    std::uint32_t baseDelayMs, std::optional<bool> randomSpawns) noexcept
     : m_playfield {width, height}
     , m_marker {Point {width / 2, height - 1}, 3, mode}
     , m_fuse {25}
@@ -12,6 +12,7 @@ QixGame::QixGame(std::int32_t width, std::int32_t height, std::uint16_t targetPe
     , m_mode {mode}
     , m_baseDelayMs {SpeedConfig::clampDelay(baseDelayMs)}
     , m_currentDelayMs {m_baseDelayMs}
+    , m_randomSpawns {randomSpawns.value_or(mode == GameMode::Modern)}
 {
     m_stats.targetPercent = targetPercent;
     m_stats.totalEmptyCells = m_playfield.getInteriorCount();
@@ -238,24 +239,110 @@ void QixGame::setupEntities() noexcept
 {
     m_qixList.clear();
 
-    // Spawn Qix near center of empty field
-    const auto cx = m_playfield.getWidth() / 2;
-    const auto cy = m_playfield.getHeight() / 2;
-    LineSegment qixLine {Point {cx - 5, cy}, Point {cx + 5, cy}};
-    m_qixList.emplace_back(qixLine, 10);
+    const auto pw = m_playfield.getWidth();
+    const auto ph = m_playfield.getHeight();
 
-    // If level 2 or higher, add a second Qix
-    if (m_stats.level >= 2) {
-        LineSegment qixLine2 {Point {cx, cy - 5}, Point {cx, cy + 5}};
-        m_qixList.emplace_back(qixLine2, 10);
+    if (!m_randomSpawns) {
+        // Spawn Qix near center of empty field
+        const auto cx = pw / 2;
+        const auto cy = ph / 2;
+        LineSegment qixLine {Point {cx - 5, cy}, Point {cx + 5, cy}};
+        m_qixList.emplace_back(qixLine, 10);
+
+        // If level 2 or higher, add a second Qix
+        if (m_stats.level >= 2) {
+            LineSegment qixLine2 {Point {cx, cy - 5}, Point {cx, cy + 5}};
+            m_qixList.emplace_back(qixLine2, 10);
+        }
+
+        m_sparxList.clear();
+        const bool isSuper = (m_stats.level >= 3);
+        // Sparx 1: Clockwise from top-left
+        m_sparxList.emplace_back(Point {1, 0}, true, m_mode, isSuper);
+        // Sparx 2: Counter-clockwise from top-right
+        m_sparxList.emplace_back(Point {pw - 2, 0}, false, m_mode, isSuper);
+    } else {
+        // Modern / Randomized Spawns:
+        // 1. Qix spawn: within safe interior margins
+        const std::int32_t minX = std::max<std::int32_t>(10, pw / 6);
+        const std::int32_t maxX = std::max<std::int32_t>(minX + 5, pw - minX);
+        const std::int32_t minY = std::max<std::int32_t>(8, ph / 6);
+        const std::int32_t maxY = std::max<std::int32_t>(minY + 5, ph - 16);
+
+        std::uniform_int_distribution<std::int32_t> distQX(minX, maxX);
+        std::uniform_int_distribution<std::int32_t> distQY(minY, maxY);
+        std::uniform_int_distribution<int> distBool(0, 1);
+
+        const auto q1x = distQX(m_spawnRng);
+        const auto q1y = distQY(m_spawnRng);
+        const bool q1Vert = (distBool(m_spawnRng) != 0);
+
+        LineSegment qixLine = q1Vert ? LineSegment {Point {q1x, std::max<std::int32_t>(1, q1y - 5)},
+                                  Point {q1x, std::min<std::int32_t>(ph - 2, q1y + 5)}}
+                                     : LineSegment {Point {std::max<std::int32_t>(1, q1x - 5), q1y},
+                                         Point {std::min<std::int32_t>(pw - 2, q1x + 5), q1y}};
+        m_qixList.emplace_back(qixLine, 10);
+
+        if (m_stats.level >= 2) {
+            std::int32_t q2x = distQX(m_spawnRng);
+            std::int32_t q2y = distQY(m_spawnRng);
+            for (int attempts = 0; attempts < 10; ++attempts) {
+                if (std::abs(q2x - q1x) + std::abs(q2y - q1y) >= 15) {
+                    break;
+                }
+                q2x = distQX(m_spawnRng);
+                q2y = distQY(m_spawnRng);
+            }
+            const bool q2Vert = !q1Vert;
+            LineSegment qixLine2 = q2Vert ? LineSegment {Point {q2x, std::max<std::int32_t>(1, q2y - 5)},
+                                       Point {q2x, std::min<std::int32_t>(ph - 2, q2y + 5)}}
+                                          : LineSegment {Point {std::max<std::int32_t>(1, q2x - 5), q2y},
+                                              Point {std::min<std::int32_t>(pw - 2, q2x + 5), q2y}};
+            m_qixList.emplace_back(qixLine2, 10);
+        }
+
+        // 2. Sparx spawn: scan all border cells, enforcing safe distance from marker
+        m_sparxList.clear();
+        const bool isSuper = (m_stats.level >= 3);
+        const auto markerPos = m_marker.getPosition();
+
+        std::vector<Point> safeBorderCells;
+        safeBorderCells.reserve(static_cast<std::size_t>(pw * 2 + ph * 2));
+
+        for (std::int32_t y = 0; y < ph; ++y) {
+            for (std::int32_t x = 0; x < pw; ++x) {
+                if (m_playfield.getCell(x, y) == CellState::Border) {
+                    const auto distToMarker = std::abs(x - markerPos.x) + std::abs(y - markerPos.y);
+                    if (distToMarker >= 25) {
+                        safeBorderCells.emplace_back(Point {x, y});
+                    }
+                }
+            }
+        }
+
+        if (safeBorderCells.empty()) {
+            m_sparxList.emplace_back(Point {1, 0}, true, m_mode, isSuper);
+            m_sparxList.emplace_back(Point {pw - 2, 0}, false, m_mode, isSuper);
+        } else {
+            std::uniform_int_distribution<std::size_t> distIdx(0, safeBorderCells.size() - 1);
+            const auto idx1 = distIdx(m_spawnRng);
+            const auto pos1 = safeBorderCells[idx1];
+            const bool cw1 = (distBool(m_spawnRng) != 0);
+            m_sparxList.emplace_back(pos1, cw1, m_mode, isSuper);
+
+            std::size_t idx2 = distIdx(m_spawnRng);
+            for (int attempts = 0; attempts < 10; ++attempts) {
+                const auto candidate = safeBorderCells[idx2];
+                if (std::abs(candidate.x - pos1.x) + std::abs(candidate.y - pos1.y) >= 15) {
+                    break;
+                }
+                idx2 = distIdx(m_spawnRng);
+            }
+            const auto pos2 = safeBorderCells[idx2];
+            const bool cw2 = (distBool(m_spawnRng) != 0);
+            m_sparxList.emplace_back(pos2, cw2, m_mode, isSuper);
+        }
     }
-
-    m_sparxList.clear();
-    const bool isSuper = (m_stats.level >= 3);
-    // Sparx 1: Clockwise from top-left
-    m_sparxList.emplace_back(Point {1, 0}, true, m_mode, isSuper);
-    // Sparx 2: Counter-clockwise from top-right
-    m_sparxList.emplace_back(Point {m_playfield.getWidth() - 2, 0}, false, m_mode, isSuper);
 
     m_fuse.reset();
     m_fuse.setIdleLimit(computeFuseLimit(m_stats.level));
@@ -761,6 +848,21 @@ bool QixGame::quickLoad(const std::string& filepath) noexcept
 
     updateSnapshot();
     return true;
+}
+
+bool QixGame::isRandomSpawns() const noexcept
+{
+    return m_randomSpawns;
+}
+
+void QixGame::setRandomSpawns(bool enabled) noexcept
+{
+    m_randomSpawns = enabled;
+}
+
+void QixGame::setSpawnSeed(std::uint32_t seed) noexcept
+{
+    m_spawnRng.seed(seed);
 }
 
 } // namespace qix

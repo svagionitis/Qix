@@ -59,6 +59,7 @@ int main(int argc, char* argv[])
 
     const auto attractMode = qix::GameConfig::parseAttractFlag(argc, argv);
     const auto demoDurationMs = qix::GameConfig::parseDemoDurationFlag(argc, argv);
+    const auto randomSpawns = qix::GameConfig::parseRandomSpawnsFlag(argc, argv, mode == qix::GameMode::Modern);
     std::unique_ptr<qix::QixGame> game;
     qix::ReplayPlayer player;
     bool replaying = false;
@@ -77,7 +78,7 @@ int main(int argc, char* argv[])
             return 1;
         }
     } else {
-        game = std::make_unique<qix::QixGame>(width, height, 75, mode, delayMs);
+        game = std::make_unique<qix::QixGame>(width, height, 75, mode, delayMs, randomSpawns);
         game->setDemoDurationMs(demoDurationMs);
         if (attractMode) {
             game->startAttractMode();

@@ -12,6 +12,8 @@
 #include "SpeedConfig.h"
 #include "TerritoryFill.h"
 #include <memory>
+#include <optional>
+#include <random>
 #include <vector>
 
 namespace qix {
@@ -21,14 +23,17 @@ namespace qix {
 /// @details Coordinates the simulation step, physics, collision detection, and score.
 class QixGame final : public IQixGame {
 public:
-    /// @brief Construct game engine with field dimensions, target claim threshold, ruleset mode, and base speed.
+    /// @brief Construct game engine with field dimensions, target claim threshold, ruleset mode, base speed, and
+    /// optional random entity spawns override.
     /// @param[in] width Playfield width in cells (default: 80).
     /// @param[in] height Playfield height in cells (default: 60).
     /// @param[in] targetPercent Victory percentage threshold (default: 75).
     /// @param[in] mode Game ruleset mode (default: DefaultGameMode).
     /// @param[in] baseDelayMs Base tick delay in milliseconds (default: SpeedConfig::DefaultDelayMs).
+    /// @param[in] randomSpawns Optional flag to force random spawns on/off (defaults to mode == Modern).
     explicit QixGame(std::int32_t width = 80, std::int32_t height = 60, std::uint16_t targetPercent = 75,
-        GameMode mode = DefaultGameMode, std::uint32_t baseDelayMs = SpeedConfig::DefaultDelayMs) noexcept;
+        GameMode mode = DefaultGameMode, std::uint32_t baseDelayMs = SpeedConfig::DefaultDelayMs,
+        std::optional<bool> randomSpawns = std::nullopt) noexcept;
 
     ~QixGame() override = default;
 
@@ -54,6 +59,10 @@ public:
 
     [[nodiscard]] bool quickSave(const std::string& filepath = "") const noexcept override;
     [[nodiscard]] bool quickLoad(const std::string& filepath = "") noexcept override;
+
+    [[nodiscard]] bool isRandomSpawns() const noexcept override;
+    void setRandomSpawns(bool enabled) noexcept override;
+    void setSpawnSeed(std::uint32_t seed) noexcept override;
 
     /// @brief Calculate initial level time budget in milliseconds.
     /// @param[in] level Current game level (1-indexed).
@@ -106,6 +115,8 @@ private:
     static constexpr std::uint32_t InstructionsStageDurationMs {6000U};
     static constexpr std::uint32_t DefaultDemoStageDurationMs {90000U};
     std::uint32_t m_demoStageDurationMs {DefaultDemoStageDurationMs};
+    bool m_randomSpawns {false};
+    std::mt19937 m_spawnRng {std::random_device {}()};
 
     void setupEntities() noexcept;
     void updateSnapshot() noexcept;
