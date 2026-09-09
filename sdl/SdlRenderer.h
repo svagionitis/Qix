@@ -144,6 +144,7 @@ private:
     void drawHallOfFame(const HighScoreTable* table, bool isGameOver, bool isAttract = false) noexcept;
     void drawDemoBanners() noexcept;
     void drawInstructionsCard() noexcept;
+    void drawPauseOverlay(const GameStats& stats) noexcept;
 
     void applyCrtFilter(int width, int height) noexcept;
     void drawFilledDiamond(int cx, int cy, int radius, SDL_Color color) noexcept;

@@ -538,6 +538,12 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
         toggleAudio();
         break;
     case Qt::Key_P:
+    case Qt::Key_Pause:
+        if (m_game) {
+            m_game->togglePause();
+            m_canvas->updateView(m_game->getView());
+        }
+        break;
     case Qt::Key_F4:
         cyclePalette();
         break;

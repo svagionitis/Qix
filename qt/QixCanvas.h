@@ -92,6 +92,7 @@ private:
     void drawHallOfFame(QPainter& painter, bool isGameOver, bool isAttract = false);
     void drawDemoBanners(QPainter& painter);
     void drawInstructionsCard(QPainter& painter);
+    void drawPauseOverlay(QPainter& painter);
 
     ParticleSystem m_particles {};
     std::chrono::steady_clock::time_point m_lastFrameTime {std::chrono::steady_clock::now()};

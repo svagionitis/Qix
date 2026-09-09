@@ -575,6 +575,9 @@ void RaylibRenderer::drawParticles(const Rectangle& fieldRect) noexcept
 void RaylibRenderer::drawOverlays(const GameView& view, const Rectangle& fieldRect) noexcept
 {
     if (view.state == GameState::Playing || view.state == GameState::Ready) {
+        if (view.isPaused) {
+            drawPauseOverlay(view.stats);
+        }
         return;
     }
 
@@ -809,6 +812,73 @@ void RaylibRenderer::drawInstructionsCard() noexcept
         const int fontP = 18;
         const int wp = MeasureText(prompt, fontP);
         DrawText(prompt, (screenW - wp) / 2, screenH / 2 + 155, fontP, Color {74, 222, 128, 255});
+    }
+}
+
+void RaylibRenderer::drawPauseOverlay(const GameStats& stats) noexcept
+{
+    const auto pres = GamePresenter::formatPauseOverlay(stats);
+    const int screenW = GetScreenWidth();
+    const int screenH = GetScreenHeight();
+
+    // 1. Semi-transparent backdrop
+    DrawRectangle(0, 0, screenW, screenH, Color {10, 15, 26, 215});
+
+    // 2. Center modal card
+    const int cardW = std::min(640, screenW - 30);
+    const int cardH = std::min(460, screenH - 40);
+    const int cardX = (screenW - cardW) / 2;
+    const int cardY = (screenH - cardH) / 2;
+
+    const Rectangle cardRect {
+        static_cast<float>(cardX), static_cast<float>(cardY), static_cast<float>(cardW), static_cast<float>(cardH)};
+    DrawRectangleRounded(cardRect, 0.05f, 8, Color {15, 23, 42, 235});
+    DrawRectangleLinesEx(cardRect, 2.0f, Color {59, 130, 246, 220});
+
+    // Header Title
+    const int fontTitle = 24;
+    const int wTitle = MeasureText(pres.title.c_str(), fontTitle);
+    DrawText(pres.title.c_str(), cardX + (cardW - wTitle) / 2, cardY + 16, fontTitle, Color {250, 204, 21, 255});
+
+    // Level and Target Info
+    const int fontSub = 16;
+    const int wLevel = MeasureText(pres.levelInfo.c_str(), fontSub);
+    DrawText(pres.levelInfo.c_str(), cardX + (cardW - wLevel) / 2, cardY + 48, fontSub, Color {96, 165, 250, 255});
+
+    const int wTarget = MeasureText(pres.targetInfo.c_str(), fontSub);
+    DrawText(pres.targetInfo.c_str(), cardX + (cardW - wTarget) / 2, cardY + 70, fontSub, Color {52, 211, 153, 255});
+
+    // Horizontal divider
+    DrawLine(cardX + 24, cardY + 96, cardX + cardW - 24, cardY + 96, Color {71, 85, 105, 180});
+
+    // Controls Column
+    DrawText("CONTROLS", cardX + 24, cardY + 106, 16, Color {245, 158, 11, 255});
+    int ctrlY = cardY + 130;
+    for (const auto& c : pres.controls) {
+        DrawText(c.action, cardX + 24, ctrlY, 14, Color {229, 231, 235, 255});
+        DrawText(c.keys, cardX + 175, ctrlY, 14, Color {147, 197, 253, 255});
+        ctrlY += 22;
+    }
+
+    // Scoring Column
+    const int scoreColX = cardX + cardW / 2 + 10;
+    DrawText("SCORING", scoreColX, cardY + 106, 16, Color {245, 158, 11, 255});
+    int scoreY = cardY + 130;
+    for (const auto& s : pres.scoring) {
+        DrawText(s.label, scoreColX, scoreY, 14, Color {253, 224, 71, 255});
+        DrawText(s.points, scoreColX, scoreY + 17, 12, Color {209, 213, 219, 255});
+        scoreY += 36;
+    }
+
+    // Bottom divider & Resume Prompt
+    DrawLine(cardX + 24, cardY + cardH - 45, cardX + cardW - 24, cardY + cardH - 45, Color {71, 85, 105, 180});
+
+    const bool blink = (static_cast<int>(GetTime() * 3.0) % 2 == 0);
+    if (blink) {
+        const int fontP = 16;
+        const int wp = MeasureText(pres.resumePrompt.c_str(), fontP);
+        DrawText(
+            pres.resumePrompt.c_str(), cardX + (cardW - wp) / 2, cardY + cardH - 34, fontP, Color {74, 222, 128, 255});
     }
 }
 

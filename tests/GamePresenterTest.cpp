@@ -171,3 +171,22 @@ TEST(ColorPaletteTest, ComputeRibbonColor)
     EXPECT_EQ(c2.a, 255);
     EXPECT_GT(c2.r, 0);
 }
+
+TEST(GamePresenterTest, PauseOverlayFormatting)
+{
+    GameStats stats {};
+    stats.level = 3;
+    stats.multiplier = 2;
+    stats.targetPercent = 75;
+    stats.claimedPercent = 42;
+
+    const auto pres = GamePresenter::formatPauseOverlay(stats);
+    EXPECT_EQ(pres.title, "GAME PAUSED");
+    EXPECT_NE(pres.levelInfo.find("LEVEL 3"), std::string::npos);
+    EXPECT_NE(pres.levelInfo.find("MULTIPLIER: 2X"), std::string::npos);
+    EXPECT_NE(pres.targetInfo.find("TARGET: 75%"), std::string::npos);
+    EXPECT_NE(pres.targetInfo.find("CLAIMED: 42%"), std::string::npos);
+    EXPECT_EQ(pres.controls.size(), 6U);
+    EXPECT_EQ(pres.scoring.size(), 4U);
+    EXPECT_EQ(pres.resumePrompt, "PRESS [P] TO RESUME");
+}

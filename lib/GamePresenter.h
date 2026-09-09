@@ -51,6 +51,31 @@ struct HudPresentation {
     std::string levelStr;
 };
 
+/// @struct PauseRuleEntry
+/// @brief Formatted key and action pair for controls legend.
+struct PauseRuleEntry {
+    const char* action;
+    const char* keys;
+};
+
+/// @struct PauseScoringEntry
+/// @brief Formatted rule label and point value for scoring breakdown.
+struct PauseScoringEntry {
+    const char* label;
+    const char* points;
+};
+
+/// @struct PauseOverlayPresentation
+/// @brief Formatted view-model for In-Game Pause & Help Overlay modal card.
+struct PauseOverlayPresentation {
+    std::string title;
+    std::string levelInfo;
+    std::string targetInfo;
+    std::array<PauseRuleEntry, 6> controls;
+    std::array<PauseScoringEntry, 4> scoring;
+    std::string resumePrompt;
+};
+
 /// @enum MedalTier
 /// @brief Hall of Fame ranking achievement badge tiers.
 enum class MedalTier : std::uint8_t { Gold = 0, Silver = 1, Bronze = 2, Standard = 3 };
@@ -103,6 +128,11 @@ public:
     /// @param[in] score Player's final score.
     /// @return Formatted record banner string.
     [[nodiscard]] static std::string formatRecordBanner(std::size_t rank, std::uint32_t score) noexcept;
+
+    /// @brief Format in-game pause and help overlay presentation data.
+    /// @param[in] stats Active GameStats snapshot.
+    /// @return Formatted PauseOverlayPresentation struct.
+    [[nodiscard]] static PauseOverlayPresentation formatPauseOverlay(const GameStats& stats) noexcept;
 };
 
 } // namespace qix

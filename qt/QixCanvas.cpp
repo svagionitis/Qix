@@ -655,6 +655,9 @@ void QixCanvas::drawParticles(QPainter& painter, const QRect& fieldRect)
 void QixCanvas::drawOverlays(QPainter& painter)
 {
     if (m_view.state == GameState::Playing || m_view.state == GameState::Ready) {
+        if (m_view.isPaused) {
+            drawPauseOverlay(painter);
+        }
         return;
     }
 
@@ -874,6 +877,89 @@ void QixCanvas::drawInstructionsCard(QPainter& painter)
     painter.setPen(QColor(74, 222, 128));
     painter.setFont(QFont("Monospace", 12, QFont::Bold));
     painter.drawText(QRect(0, h / 2 + 145, w, 25), Qt::AlignCenter, "INSERT COIN - PRESS ANY KEY TO PLAY");
+    painter.restore();
+}
+
+void QixCanvas::drawPauseOverlay(QPainter& painter)
+{
+    const auto pres = GamePresenter::formatPauseOverlay(m_view.stats);
+    const int w = width();
+    const int h = height();
+
+    painter.save();
+    // 1. Semi-transparent backdrop
+    painter.fillRect(rect(), QColor(10, 15, 26, 215));
+
+    // 2. Center card dimensions
+    const int cardW = std::min(640, w - 30);
+    const int cardH = std::min(460, h - 40);
+    const int cardX = (w - cardW) / 2;
+    const int cardY = (h - cardH) / 2;
+    const QRect cardRect(cardX, cardY, cardW, cardH);
+
+    // Card background & neon border
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.setBrush(QColor(15, 23, 42, 235));
+    painter.setPen(QPen(QColor(59, 130, 246, 220), 2));
+    painter.drawRoundedRect(cardRect, 10, 10);
+
+    // Header Title
+    painter.setPen(QColor(250, 204, 21));
+    painter.setFont(QFont("Monospace", 18, QFont::Bold));
+    painter.drawText(QRect(cardX, cardY + 16, cardW, 28), Qt::AlignCenter, QString::fromStdString(pres.title));
+
+    // Level & Multiplier, Target & Claimed status badges
+    painter.setFont(QFont("Monospace", 11, QFont::Bold));
+    painter.setPen(QColor(96, 165, 250));
+    painter.drawText(QRect(cardX, cardY + 48, cardW, 20), Qt::AlignCenter, QString::fromStdString(pres.levelInfo));
+
+    painter.setPen(QColor(52, 211, 153));
+    painter.drawText(QRect(cardX, cardY + 70, cardW, 20), Qt::AlignCenter, QString::fromStdString(pres.targetInfo));
+
+    // Divider line
+    painter.setPen(QPen(QColor(71, 85, 105, 180), 1));
+    painter.drawLine(cardX + 24, cardY + 98, cardX + cardW - 24, cardY + 98);
+
+    // Controls Legend
+    painter.setPen(QColor(245, 158, 11));
+    painter.setFont(QFont("Monospace", 11, QFont::Bold));
+    painter.drawText(QRect(cardX + 24, cardY + 106, cardW / 2 - 24, 20), Qt::AlignLeft, "CONTROLS");
+
+    int ctrlY = cardY + 130;
+    painter.setFont(QFont("Monospace", 9));
+    for (const auto& c : pres.controls) {
+        painter.setPen(QColor(229, 231, 235));
+        painter.drawText(QRect(cardX + 24, ctrlY, 150, 18), Qt::AlignLeft, c.action);
+        painter.setPen(QColor(147, 197, 253));
+        painter.drawText(QRect(cardX + 175, ctrlY, cardW / 2 - 175, 18), Qt::AlignLeft, c.keys);
+        ctrlY += 22;
+    }
+
+    // Scoring Rules
+    painter.setPen(QColor(245, 158, 11));
+    painter.setFont(QFont("Monospace", 11, QFont::Bold));
+    painter.drawText(QRect(cardX + cardW / 2 + 10, cardY + 106, cardW / 2 - 34, 20), Qt::AlignLeft, "SCORING");
+
+    int scoreY = cardY + 130;
+    for (const auto& s : pres.scoring) {
+        painter.setPen(QColor(253, 224, 71));
+        painter.setFont(QFont("Monospace", 9, QFont::Bold));
+        painter.drawText(QRect(cardX + cardW / 2 + 10, scoreY, cardW / 2 - 34, 18), Qt::AlignLeft, s.label);
+        painter.setPen(QColor(209, 213, 219));
+        painter.setFont(QFont("Monospace", 8));
+        painter.drawText(QRect(cardX + cardW / 2 + 10, scoreY + 17, cardW / 2 - 34, 18), Qt::AlignLeft, s.points);
+        scoreY += 36;
+    }
+
+    // Bottom Resume Prompt
+    painter.setPen(QPen(QColor(71, 85, 105, 180), 1));
+    painter.drawLine(cardX + 24, cardY + cardH - 45, cardX + cardW - 24, cardY + cardH - 45);
+
+    painter.setPen(QColor(74, 222, 128));
+    painter.setFont(QFont("Monospace", 12, QFont::Bold));
+    painter.drawText(
+        QRect(cardX, cardY + cardH - 36, cardW, 24), Qt::AlignCenter, QString::fromStdString(pres.resumePrompt));
+
     painter.restore();
 }
 

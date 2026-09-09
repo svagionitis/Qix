@@ -64,6 +64,10 @@ public:
     void setRandomSpawns(bool enabled) noexcept override;
     void setSpawnSeed(std::uint32_t seed) noexcept override;
 
+    [[nodiscard]] bool isPaused() const noexcept override;
+    void setPaused(bool paused) noexcept override;
+    void togglePause() noexcept override;
+
     /// @brief Calculate initial level time budget in milliseconds.
     /// @param[in] level Current game level (1-indexed).
     /// @return Initial countdown duration in milliseconds.
@@ -117,6 +121,7 @@ private:
     std::uint32_t m_demoStageDurationMs {DefaultDemoStageDurationMs};
     bool m_randomSpawns {false};
     std::mt19937 m_spawnRng {std::random_device {}()};
+    bool m_isPaused {false};
 
     void setupEntities() noexcept;
     void updateSnapshot() noexcept;

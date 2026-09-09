@@ -263,7 +263,8 @@ You can select the ruleset mode at launch via CLI:
 | **Adjust Speed (Pacing)** | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) |
 | **QuickSave Session** | `F5` | `F5` / Game Menu | `F5` | `F5` |
 | **QuickLoad Session** | `F9` | `F9` / Game Menu | `F9` | `F9` |
-| **Cycle Color Palette** | `P` | `P` / `F4` / Theme Menu | `F4` | `F4` |
+| **Pause / Help Overlay** | `P` | `P` / `Pause` | `P` / `Pause` | `P` / `Pause` |
+| **Cycle Color Palette** | `F4` | `F4` / Theme Menu | `F4` | `F4` |
 | **Toggle Art Reveal** | `V` | `V` / View Menu | `V` | `V` |
 | **Toggle Audio Mute** | N/A | `M` / `F3` / Audio Menu | `M` / `F3` | `M` / `F3` |
 | **Toggle CRT Filter** | N/A | `C` / `F2` / View Menu | `C` / `F2` | `C` / `F2` |

@@ -104,6 +104,7 @@ private:
     void drawHallOfFame(const HighScoreTable* table, bool isGameOver, bool isAttract = false) noexcept;
     void drawDemoBanners() noexcept;
     void drawInstructionsCard() noexcept;
+    void drawPauseOverlay(const GameStats& stats) noexcept;
 
     void applyCrtFilter(int width, int height) noexcept;
 

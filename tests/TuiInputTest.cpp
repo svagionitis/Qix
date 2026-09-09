@@ -133,12 +133,6 @@ TEST(TuiInputTest, PaletteThemeInputAndCycling)
 
     TuiAction action {TuiAction::None};
 
-    (void)renderer.processInput("p", action);
-    EXPECT_EQ(action, TuiAction::CyclePalette);
-
-    (void)renderer.processInput("P", action);
-    EXPECT_EQ(action, TuiAction::CyclePalette);
-
     // F4 SS3 escape sequence: \033OS
     (void)renderer.processInput("\033OS", action);
     EXPECT_EQ(action, TuiAction::CyclePalette);
@@ -146,6 +140,18 @@ TEST(TuiInputTest, PaletteThemeInputAndCycling)
     // F4 VT220 escape sequence: \033[14~
     (void)renderer.processInput("\033[14~", action);
     EXPECT_EQ(action, TuiAction::CyclePalette);
+}
+
+TEST(TuiInputTest, PauseInputAndToggle)
+{
+    TuiRenderer renderer {};
+    TuiAction action {TuiAction::None};
+
+    (void)renderer.processInput("p", action);
+    EXPECT_EQ(action, TuiAction::TogglePause);
+
+    (void)renderer.processInput("P", action);
+    EXPECT_EQ(action, TuiAction::TogglePause);
 }
 
 TEST(TuiInputTest, ArtRevealInputAndToggle)

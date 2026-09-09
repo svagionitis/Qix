@@ -349,6 +349,13 @@ void RaylibApp::processInput() noexcept
         cyclePalette();
     }
 
+    // Toggle in-game pause & help overlay
+    if (IsKeyPressed(KEY_P) || IsKeyPressed(KEY_PAUSE)) {
+        if (m_game) {
+            m_game->togglePause();
+        }
+    }
+
     // Toggle background art reveal mode
     if (IsKeyPressed(KEY_V)) {
         toggleArt();

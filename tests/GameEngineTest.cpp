@@ -596,3 +596,97 @@ TEST(GameEngineTest, ForceRandomSpawnsInClassicModeViaConstructorOrSetter)
     game.reset();
     EXPECT_EQ(game.getView().sparxPositions[0], (qix::Point {1, 0}));
 }
+
+TEST(GameEngineTest, PauseStateTogglingAndInvariants)
+{
+    qix::QixGame game {80, 60, 75, qix::GameMode::Classic};
+    EXPECT_FALSE(game.isPaused());
+    EXPECT_FALSE(game.getView().isPaused);
+
+    // Toggle pause while in Ready state
+    game.togglePause();
+    EXPECT_TRUE(game.isPaused());
+    EXPECT_TRUE(game.getView().isPaused);
+
+    game.togglePause();
+    EXPECT_FALSE(game.isPaused());
+    EXPECT_FALSE(game.getView().isPaused);
+
+    // Explicit setter
+    game.setPaused(true);
+    EXPECT_TRUE(game.isPaused());
+    EXPECT_TRUE(game.getView().isPaused);
+
+    game.setPaused(false);
+    EXPECT_FALSE(game.isPaused());
+    EXPECT_FALSE(game.getView().isPaused);
+}
+
+TEST(GameEngineTest, SimulationFreezesWhenPaused)
+{
+    qix::QixGame game {80, 60, 75, qix::GameMode::Classic};
+    // Transition to Playing state
+    game.handleInput(qix::PlayerCommand {qix::Direction::Up, qix::DrawMode::Slow});
+    game.step(50);
+    EXPECT_EQ(game.getView().state, qix::GameState::Playing);
+
+    const auto initialTime = game.getView().stats.timeRemainingMs;
+    const auto initialMarker = game.getView().markerPos;
+    const auto initialSparx0 = game.getView().sparxPositions[0];
+    const auto initialQixHead = game.getView().qixRibbons[0].front().start;
+
+    // Pause simulation
+    game.togglePause();
+    EXPECT_TRUE(game.isPaused());
+
+    // Send input and advance ticks while paused
+    game.handleInput(qix::PlayerCommand {qix::Direction::Left, qix::DrawMode::Slow});
+    game.step(1000);
+    game.step(1000);
+
+    const auto& pausedView = game.getView();
+    EXPECT_EQ(pausedView.stats.timeRemainingMs, initialTime);
+    EXPECT_EQ(pausedView.markerPos, initialMarker);
+    EXPECT_EQ(pausedView.sparxPositions[0], initialSparx0);
+    EXPECT_EQ(pausedView.qixRibbons[0].front().start, initialQixHead);
+
+    // Unpause and verify simulation advances normally
+    game.togglePause();
+    EXPECT_FALSE(game.isPaused());
+
+    game.step(1000);
+    EXPECT_LT(game.getView().stats.timeRemainingMs, initialTime);
+}
+
+TEST(GameEngineTest, ResetAndNextLevelClearPause)
+{
+    qix::QixGame game {80, 60, 75, qix::GameMode::Classic};
+    game.togglePause();
+    EXPECT_TRUE(game.isPaused());
+
+    game.reset();
+    EXPECT_FALSE(game.isPaused());
+    EXPECT_FALSE(game.getView().isPaused);
+
+    game.togglePause();
+    EXPECT_TRUE(game.isPaused());
+
+    game.nextLevel();
+    EXPECT_FALSE(game.isPaused());
+    EXPECT_FALSE(game.getView().isPaused);
+}
+
+TEST(GameEngineTest, PauseIgnoredOutsideActivePlay)
+{
+    qix::QixGame game {80, 60, 75, qix::GameMode::Classic};
+    game.startAttractMode();
+    EXPECT_TRUE(game.isAttractMode());
+
+    // Toggling pause in attract mode must have no effect
+    game.togglePause();
+    EXPECT_FALSE(game.isPaused());
+    EXPECT_FALSE(game.getView().isPaused);
+
+    game.setPaused(true);
+    EXPECT_FALSE(game.isPaused());
+}

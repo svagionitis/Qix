@@ -72,6 +72,14 @@ void ArcadeAudio::update(const GameView& view, std::uint32_t /*deltaMs*/) noexce
     m_voice.prevLevel = view.stats.level;
     m_params.qixTrapped = view.stats.qixTrapped;
 
+    if (view.isPaused) {
+        m_params.qixHumActive = false;
+        m_params.drawingActive = false;
+        m_params.fuseActive = false;
+        m_params.sparxActive = false;
+        return;
+    }
+
     // 1. Qix Hum Parameters
     if (view.state == GameState::Playing && !view.qixRibbons.empty() && !view.qixRibbons[0].empty()) {
         m_params.qixHumActive = true;

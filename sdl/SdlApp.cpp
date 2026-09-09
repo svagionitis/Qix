@@ -358,6 +358,12 @@ void SdlApp::processEvents(bool& running) noexcept
             case SDLK_F4:
                 cyclePalette();
                 break;
+            case SDLK_p:
+            case SDLK_PAUSE:
+                if (m_game) {
+                    m_game->togglePause();
+                }
+                break;
             case SDLK_v:
                 toggleArt();
                 break;

@@ -130,4 +130,24 @@ std::string GamePresenter::formatRecordBanner(std::size_t rank, std::uint32_t sc
     return "NEW RECORD! RANK #" + std::to_string(rank) + " - SCORE: " + std::to_string(score);
 }
 
+PauseOverlayPresentation GamePresenter::formatPauseOverlay(const GameStats& stats) noexcept
+{
+    PauseOverlayPresentation pres {};
+    pres.title = "GAME PAUSED";
+    pres.levelInfo
+        = "LEVEL " + std::to_string(stats.level) + "  •  MULTIPLIER: " + std::to_string(stats.multiplier) + "X";
+    pres.targetInfo = "TARGET: " + std::to_string(stats.targetPercent)
+        + "%  •  CLAIMED: " + std::to_string(stats.claimedPercent) + "%";
+    pres.controls = {PauseRuleEntry {"Move Marker", "WASD / Arrows"},
+        PauseRuleEntry {"Slow Draw (2x Pts)", "Hold Space or Ctrl"},
+        PauseRuleEntry {"Fast Draw (1x Pts)", "Hold Shift or F"}, PauseRuleEntry {"Speed Pacing", "- / + (or [ / ])"},
+        PauseRuleEntry {"QuickSave / Load", "F5 / F9"}, PauseRuleEntry {"Theme / CRT / Audio", "F4 / C / M"}};
+    pres.scoring = {PauseScoringEntry {"Slow Draw Claim", "100 pts per 1% area (2x multiplier)"},
+        PauseScoringEntry {"Fast Draw Claim", "50 pts per 1% area (1x multiplier)"},
+        PauseScoringEntry {"Threshold Overshoot", "1,000 pts per 1% beyond target"},
+        PauseScoringEntry {"Qix Confinement Trap", "Up to 50,000 pts bonus"}};
+    pres.resumePrompt = "PRESS [P] TO RESUME";
+    return pres;
+}
+
 } // namespace qix

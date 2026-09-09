@@ -27,6 +27,7 @@ struct GameView {
     const HighScoreTable* highScoreTable {nullptr};
     bool isAttractMode {false};
     AttractStage attractStage {AttractStage::TitleScores};
+    bool isPaused {false};
     std::vector<GameEvent> events {};
 };
 
@@ -120,6 +121,17 @@ public:
     /// @brief Seed the entity spawn pseudo-random number generator.
     /// @param[in] seed PRNG seed.
     virtual void setSpawnSeed(std::uint32_t seed) noexcept = 0;
+
+    /// @brief Check whether simulation is currently paused.
+    /// @return True if paused.
+    [[nodiscard]] virtual bool isPaused() const noexcept = 0;
+
+    /// @brief Set paused state of simulation.
+    /// @param[in] paused True to pause, false to resume.
+    virtual void setPaused(bool paused) noexcept = 0;
+
+    /// @brief Toggle simulation pause state.
+    virtual void togglePause() noexcept = 0;
 };
 
 } // namespace qix

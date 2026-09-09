@@ -631,6 +631,9 @@ void SdlRenderer::drawParticles(const SDL_Rect& fieldRect) noexcept
 void SdlRenderer::drawOverlays(const GameView& view, const SDL_Rect& fieldRect) noexcept
 {
     if (view.state == GameState::Playing || view.state == GameState::Ready) {
+        if (view.isPaused) {
+            drawPauseOverlay(view.stats);
+        }
         return;
     }
 
@@ -875,6 +878,78 @@ void SdlRenderer::drawInstructionsCard() noexcept
         const std::string prompt = "INSERT COIN - PRESS ANY KEY TO PLAY";
         const int xPrompt = std::max(10, (screenW - static_cast<int>(prompt.length()) * 8 * 1) / 2);
         BitmapFont::drawText(m_renderer.get(), prompt, xPrompt, screenH / 2 + 130, 1, SDL_Color {74, 222, 128, 255});
+    }
+}
+
+void SdlRenderer::drawPauseOverlay(const GameStats& stats) noexcept
+{
+    const auto pres = GamePresenter::formatPauseOverlay(stats);
+    const int screenW = getWidth();
+    const int screenH = getHeight();
+
+    // 1. Semi-transparent backdrop
+    SDL_SetRenderDrawBlendMode(m_renderer.get(), SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(m_renderer.get(), 10, 15, 26, 215);
+    SDL_Rect fullScreen {0, 0, screenW, screenH};
+    SDL_RenderFillRect(m_renderer.get(), &fullScreen);
+
+    // 2. Center modal card
+    const int cardW = std::min(600, screenW - 30);
+    const int cardH = std::min(440, screenH - 40);
+    const int cardX = (screenW - cardW) / 2;
+    const int cardY = (screenH - cardH) / 2;
+
+    SDL_SetRenderDrawColor(m_renderer.get(), 15, 23, 42, 235);
+    SDL_Rect cardRect {cardX, cardY, cardW, cardH};
+    SDL_RenderFillRect(m_renderer.get(), &cardRect);
+
+    SDL_SetRenderDrawColor(m_renderer.get(), 59, 130, 246, 220);
+    SDL_RenderDrawRect(m_renderer.get(), &cardRect);
+
+    // Header Title (scale 2)
+    const int xTitle = std::max(10, cardX + (cardW - static_cast<int>(pres.title.length()) * 8 * 2) / 2);
+    BitmapFont::drawText(m_renderer.get(), pres.title, xTitle, cardY + 16, 2, SDL_Color {250, 204, 21, 255});
+
+    // Level and Target Info (scale 1)
+    const int xLevel = std::max(10, cardX + (cardW - static_cast<int>(pres.levelInfo.length()) * 8) / 2);
+    BitmapFont::drawText(m_renderer.get(), pres.levelInfo, xLevel, cardY + 48, 1, SDL_Color {96, 165, 250, 255});
+
+    const int xTarget = std::max(10, cardX + (cardW - static_cast<int>(pres.targetInfo.length()) * 8) / 2);
+    BitmapFont::drawText(m_renderer.get(), pres.targetInfo, xTarget, cardY + 68, 1, SDL_Color {52, 211, 153, 255});
+
+    // Horizontal divider
+    SDL_SetRenderDrawColor(m_renderer.get(), 71, 85, 105, 180);
+    SDL_RenderDrawLine(m_renderer.get(), cardX + 20, cardY + 90, cardX + cardW - 20, cardY + 90);
+
+    // Controls Column
+    BitmapFont::drawText(m_renderer.get(), "CONTROLS", cardX + 24, cardY + 102, 1, SDL_Color {245, 158, 11, 255});
+    int ctrlY = cardY + 124;
+    for (const auto& c : pres.controls) {
+        BitmapFont::drawText(m_renderer.get(), c.action, cardX + 24, ctrlY, 1, SDL_Color {229, 231, 235, 255});
+        BitmapFont::drawText(m_renderer.get(), c.keys, cardX + 160, ctrlY, 1, SDL_Color {147, 197, 253, 255});
+        ctrlY += 20;
+    }
+
+    // Scoring Column
+    const int scoreColX = cardX + cardW / 2 + 10;
+    BitmapFont::drawText(m_renderer.get(), "SCORING", scoreColX, cardY + 102, 1, SDL_Color {245, 158, 11, 255});
+    int scoreY = cardY + 124;
+    for (const auto& s : pres.scoring) {
+        BitmapFont::drawText(m_renderer.get(), s.label, scoreColX, scoreY, 1, SDL_Color {253, 224, 71, 255});
+        BitmapFont::drawText(m_renderer.get(), s.points, scoreColX, scoreY + 14, 1, SDL_Color {209, 213, 219, 255});
+        scoreY += 34;
+    }
+
+    // Bottom divider & Resume Prompt
+    SDL_SetRenderDrawColor(m_renderer.get(), 71, 85, 105, 180);
+    SDL_RenderDrawLine(m_renderer.get(), cardX + 20, cardY + cardH - 40, cardX + cardW - 20, cardY + cardH - 40);
+
+    const std::uint32_t ticks = SDL_GetTicks();
+    const bool blink = PlayfieldViewport::isBlinkOn(ticks, 350);
+    if (blink) {
+        const int xPrompt = std::max(10, cardX + (cardW - static_cast<int>(pres.resumePrompt.length()) * 8) / 2);
+        BitmapFont::drawText(
+            m_renderer.get(), pres.resumePrompt, xPrompt, cardY + cardH - 30, 1, SDL_Color {74, 222, 128, 255});
     }
 }
 

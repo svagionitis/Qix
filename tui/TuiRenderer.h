@@ -30,6 +30,7 @@ enum class TuiAction : std::uint8_t {
     ToggleArt,
     QuickSave,
     QuickLoad,
+    TogglePause,
     Resize,
     CharInput,
     Backspace
@@ -165,6 +166,7 @@ private:
     void renderHallOfFame(
         std::string& frame, const HighScoreTable* table, bool isGameOver, bool isAttract = false) noexcept;
     void renderInstructions(std::string& frame) noexcept;
+    void renderPauseOverlay(std::string& frame, const GameStats& stats) noexcept;
 };
 
 } // namespace qix::tui

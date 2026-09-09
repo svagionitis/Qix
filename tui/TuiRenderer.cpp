@@ -763,6 +763,12 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
         return;
     }
 
+    if (view.isPaused) {
+        renderPauseOverlay(frame, view.stats);
+        presentFrame(frame);
+        return;
+    }
+
     // 2. Playfield Grid (Braille Sub-Pixel or Classic ASCII)
     if (m_brailleMode) {
         renderBraillePlayfield(frame, view);
@@ -1510,7 +1516,7 @@ PlayerCommand TuiRenderer::processInput(std::string_view bytes, TuiAction& actio
             break;
         case 'p':
         case 'P':
-            action = TuiAction::CyclePalette;
+            action = TuiAction::TogglePause;
             break;
         case 'v':
         case 'V':
@@ -1837,6 +1843,58 @@ void TuiRenderer::renderInstructions(std::string& frame) noexcept
 
     frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
     frame += "  " + bCol + "│" + gCol + "           INSERT COIN - PRESS [SPACE] TO PLAY            " + bCol + "│"
+        + reset + "\n";
+    frame += "  " + bCol + "└────────────────────────────────────────────────────────────┘" + reset + "\n";
+}
+
+void TuiRenderer::renderPauseOverlay(std::string& frame, const GameStats& stats) noexcept
+{
+    const auto pres = GamePresenter::formatPauseOverlay(stats);
+    const auto& theme = ColorPalette::get(m_paletteId);
+    const auto ansi = getThemeAnsi(m_paletteId);
+    const std::string bCol = m_truecolor ? appendTruecolorStr(theme.hudBorder) : ansi.border;
+    const std::string cCol = m_truecolor ? appendTruecolorStr(theme.textAccent) : "\033[1;36m";
+    const std::string yCol = m_truecolor ? appendTruecolorStr(theme.textValue) : "\033[1;33m";
+    const std::string gCol = m_truecolor ? "\033[1;38;2;50;240;120m" : "\033[1;32m";
+    const std::string wCol = "\033[1;37m";
+    const std::string dimCol = "\033[0;37m";
+    const std::string reset = "\033[0m";
+
+    frame += "\n";
+    frame += "  " + bCol + "┌────────────────────────────────────────────────────────────┐" + reset + "\n";
+    frame += "  " + bCol + "│" + yCol + "                      ★ GAME PAUSED ★                       " + bCol + "│"
+        + reset + "\n";
+
+    char lvlBuf[64];
+    std::snprintf(lvlBuf, sizeof(lvlBuf), "  %-56s  ", pres.levelInfo.c_str());
+    frame += "  " + bCol + "│" + cCol + lvlBuf + bCol + "│" + reset + "\n";
+
+    char tgtBuf[64];
+    std::snprintf(tgtBuf, sizeof(tgtBuf), "  %-56s  ", pres.targetInfo.c_str());
+    frame += "  " + bCol + "│" + gCol + tgtBuf + bCol + "│" + reset + "\n";
+
+    frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
+    frame += "  " + bCol + "│" + yCol + "  CONTROLS:                                                 " + bCol + "│"
+        + reset + "\n";
+
+    for (const auto& c : pres.controls) {
+        char rowBuf[64];
+        std::snprintf(rowBuf, sizeof(rowBuf), "    %-22s %-33s", c.action, c.keys);
+        frame += "  " + bCol + "│" + wCol + rowBuf + bCol + "│" + reset + "\n";
+    }
+
+    frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
+    frame += "  " + bCol + "│" + yCol + "  SCORING:                                                  " + bCol + "│"
+        + reset + "\n";
+
+    for (const auto& s : pres.scoring) {
+        char rowBuf[64];
+        std::snprintf(rowBuf, sizeof(rowBuf), "    %-22s %-33s", s.label, s.points);
+        frame += "  " + bCol + "│" + dimCol + rowBuf + bCol + "│" + reset + "\n";
+    }
+
+    frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
+    frame += "  " + bCol + "│" + gCol + "                  ★ PRESS [P] TO RESUME ★                   " + bCol + "│"
         + reset + "\n";
     frame += "  " + bCol + "└────────────────────────────────────────────────────────────┘" + reset + "\n";
 }

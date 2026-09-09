@@ -26,6 +26,10 @@ QixGame::QixGame(std::int32_t width, std::int32_t height, std::uint16_t targetPe
 void QixGame::step(std::uint32_t deltaMs) noexcept
 {
     m_events.clear();
+    if (m_isPaused) {
+        updateSnapshot();
+        return;
+    }
     if (m_state == GameState::GameOver || m_state == GameState::LevelComplete || m_state == GameState::NameEntry
         || m_state == GameState::HallOfFame) {
         if (m_state == GameState::GameOver || m_state == GameState::HallOfFame) {
@@ -155,6 +159,10 @@ void QixGame::step(std::uint32_t deltaMs) noexcept
 
 void QixGame::handleInput(PlayerCommand cmd) noexcept
 {
+    if (m_isPaused) {
+        return;
+    }
+
     if (m_state == GameState::Attract) {
         if (cmd.direction != Direction::None || cmd.drawMode != DrawMode::None) {
             exitAttractMode();
@@ -179,6 +187,7 @@ const GameView& QixGame::getView() const noexcept
 
 void QixGame::reset() noexcept
 {
+    m_isPaused = false;
     m_idleTimerMs = 0;
     m_stats.isAttractMode = false;
     m_playfield.initBorders();
@@ -212,6 +221,7 @@ void QixGame::reset() noexcept
 
 void QixGame::nextLevel() noexcept
 {
+    m_isPaused = false;
     m_playfield.initBorders();
     m_marker.resetPosition(Point {m_playfield.getWidth() / 2, m_playfield.getHeight() - 1});
     m_stats.claimedCells = 0;
@@ -383,11 +393,13 @@ void QixGame::updateSnapshot() noexcept
     m_view.highScoreTable = &m_highScoreTable;
     m_view.isAttractMode = (m_state == GameState::Attract);
     m_view.attractStage = m_attractStage;
+    m_view.isPaused = m_isPaused;
     m_view.events = m_events;
 }
 
 void QixGame::handleDeath() noexcept
 {
+    m_isPaused = false;
     m_marker.decrementLives();
     clearActiveStix();
     m_fuse.reset();
@@ -559,6 +571,7 @@ void QixGame::handleNameEntryInput(PlayerCommand cmd) noexcept
 
 void QixGame::startAttractMode() noexcept
 {
+    m_isPaused = false;
     m_state = GameState::Attract;
     m_attractStage = AttractStage::TitleScores;
     m_attractStageTimerMs = 0;
@@ -863,6 +876,35 @@ void QixGame::setRandomSpawns(bool enabled) noexcept
 void QixGame::setSpawnSeed(std::uint32_t seed) noexcept
 {
     m_spawnRng.seed(seed);
+}
+
+bool QixGame::isPaused() const noexcept
+{
+    return m_isPaused;
+}
+
+void QixGame::setPaused(bool paused) noexcept
+{
+    if (paused) {
+        if (m_state == GameState::Playing || m_state == GameState::Ready) {
+            m_isPaused = true;
+            updateSnapshot();
+        }
+    } else {
+        m_isPaused = false;
+        updateSnapshot();
+    }
+}
+
+void QixGame::togglePause() noexcept
+{
+    if (m_isPaused) {
+        m_isPaused = false;
+        updateSnapshot();
+    } else if (m_state == GameState::Playing || m_state == GameState::Ready) {
+        m_isPaused = true;
+        updateSnapshot();
+    }
 }
 
 } // namespace qix
