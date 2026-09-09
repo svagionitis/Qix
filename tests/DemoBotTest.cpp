@@ -76,13 +76,93 @@ TEST(DemoBotTest, SustainedAutonomousSimulation)
     game.step(6500); // Transitions from Instructions to GameplayDemo
     ASSERT_EQ(game.getView().attractStage, AttractStage::GameplayDemo);
 
-    // Run 500 continuous simulation steps
-    for (int i = 0; i < 500; ++i) {
+    // Run 4500 continuous simulation steps (90 seconds at 50Hz)
+    int gameplayDemoSteps = 0;
+
+    int deaths = 0;
+    int cutsCompleted = 0;
+    std::uint32_t lastClaimed = 0;
+    std::uint32_t lastScore = 0;
+
+    for (int i = 0; i < 4500; ++i) {
+        const auto prevLives = game.getView().stats.lives;
         game.step(20);
         const auto& view = game.getView();
-        EXPECT_TRUE(view.markerPos.x >= 0 && view.markerPos.x < 80);
-        EXPECT_TRUE(view.markerPos.y >= 0 && view.markerPos.y < 60);
+        if (view.attractStage == AttractStage::GameplayDemo) {
+            ++gameplayDemoSteps;
+            if (view.stats.lives < prevLives) {
+                ++deaths;
+            }
+            if (view.stats.claimedCells > lastClaimed) {
+                ++cutsCompleted;
+                lastClaimed = view.stats.claimedCells;
+            }
+            lastScore = view.stats.score;
+        }
     }
+    EXPECT_GE(gameplayDemoSteps, 4000);
+    EXPECT_EQ(deaths, 0);
+    EXPECT_GE(cutsCompleted, 10);
+    EXPECT_GT(lastScore, 1000U);
+}
+
+TEST(DemoBotTest, MultiSegmentRibbonDistance)
+{
+    DemoBot bot;
+    GameView view {};
+
+    std::deque<LineSegment> ribbon {};
+    ribbon.push_back(LineSegment {Point {10, 10}, Point {20, 10}});
+    ribbon.push_back(LineSegment {Point {20, 10}, Point {30, 20}});
+    view.qixRibbons.push_back(ribbon);
+
+    // Closest to second segment at (25, 15)
+    EXPECT_NEAR(bot.getQixDistance(view, Point {25, 15}), 0.0f, 0.01f);
+    // Closest to first segment at (15, 15) -> dist is 5
+    EXPECT_NEAR(bot.getQixDistance(view, Point {15, 15}), 5.0f, 0.01f);
+}
+
+TEST(DemoBotTest, MinQixDistanceToTrail)
+{
+    DemoBot bot;
+    GameView view {};
+
+    std::deque<LineSegment> ribbon {};
+    ribbon.push_back(LineSegment {Point {50, 30}, Point {50, 40}});
+    view.qixRibbons.push_back(ribbon);
+
+    std::vector<Point> trail = {{10, 35}, {30, 35}, {45, 35}};
+    // Point (45, 35) is 5 units from segment (50, 30)-(50, 40)
+    EXPECT_NEAR(bot.getMinQixDistanceToTrail(view, trail), 5.0f, 0.01f);
+}
+
+TEST(DemoBotTest, ControlledCutInitiation)
+{
+    Playfield pf(80, 60);
+    pf.initBorders();
+
+    DemoBot bot;
+    GameView view {};
+    view.playfield = &pf;
+    view.mode = GameMode::Classic;
+    view.markerPos = Point {40, 59};
+    view.drawMode = DrawMode::None;
+
+    std::deque<LineSegment> ribbon {};
+    ribbon.push_back(LineSegment {Point {40, 10}, Point {45, 10}});
+    view.qixRibbons.push_back(ribbon);
+
+    view.sparxPositions = {Point {0, 0}, Point {79, 0}};
+
+    bool initiatedCut = false;
+    for (int i = 0; i < 10; ++i) {
+        const auto cmd = bot.update(view);
+        if (cmd.drawMode != DrawMode::None) {
+            initiatedCut = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(initiatedCut);
 }
 
 TEST(DemoBotTest, DemoDurationConfiguration)

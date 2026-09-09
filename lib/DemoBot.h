@@ -48,11 +48,17 @@ public:
     [[nodiscard]] Direction findQuickestSafeExit(
         const GameView& view, Point marker, const std::vector<Point>& trail) const noexcept;
 
-    /// @brief Compute Euclidean distance to nearest Qix entity head.
+    /// @brief Compute Euclidean distance to nearest Qix ribbon segment.
     /// @param[in] view Game view snapshot.
     /// @param[in] p Observation point.
     /// @return Distance in grid units.
     [[nodiscard]] float getQixDistance(const GameView& view, Point p) const noexcept;
+
+    /// @brief Compute minimum Euclidean distance from any segment of Qix ribbons to any point on the Stix trail.
+    /// @param[in] view Game view snapshot.
+    /// @param[in] trail Active Stix trail points.
+    /// @return Minimum distance in grid units.
+    [[nodiscard]] float getMinQixDistanceToTrail(const GameView& view, const std::vector<Point>& trail) const noexcept;
 
 private:
     enum class State : std::uint8_t {

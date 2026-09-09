@@ -5,6 +5,45 @@
 
 namespace qix {
 
+namespace {
+
+    [[nodiscard]] float distSqPointToSegment(Point p, Point a, Point b) noexcept
+    {
+        const float px = static_cast<float>(p.x);
+        const float py = static_cast<float>(p.y);
+        const float ax = static_cast<float>(a.x);
+        const float ay = static_cast<float>(a.y);
+        const float bx = static_cast<float>(b.x);
+        const float by = static_cast<float>(b.y);
+
+        const float abx = bx - ax;
+        const float aby = by - ay;
+        const float apx = px - ax;
+        const float apy = py - ay;
+
+        const float abLenSq = abx * abx + aby * aby;
+        if (abLenSq < 1e-4f) {
+            return apx * apx + apy * apy;
+        }
+
+        const float t = std::clamp((apx * abx + apy * aby) / abLenSq, 0.0f, 1.0f);
+        const float projX = ax + t * abx;
+        const float projY = ay + t * aby;
+
+        const float dx = px - projX;
+        const float dy = py - projY;
+        return dx * dx + dy * dy;
+    }
+
+    [[nodiscard]] float euclideanDist(Point a, Point b) noexcept
+    {
+        const float dx = static_cast<float>(a.x - b.x);
+        const float dy = static_cast<float>(a.y - b.y);
+        return std::sqrt(dx * dx + dy * dy);
+    }
+
+} // namespace
+
 void DemoBot::reset() noexcept
 {
     m_state = State::BorderPatrol;
@@ -102,25 +141,31 @@ std::int32_t DemoBot::getDistanceToBoundary(const Playfield* playfield, Point p,
 float DemoBot::getQixDistance(const GameView& view, Point p) const noexcept
 {
     float minDistanceSq = 1e9f;
+    // Check all segments across all Qix ribbons (full body coverage, not just head)
     for (const auto& ribbon : view.qixRibbons) {
-        if (ribbon.empty()) {
-            continue;
-        }
-        const auto& head = ribbon.front();
-        const float dx1 = static_cast<float>(head.start.x - p.x);
-        const float dy1 = static_cast<float>(head.start.y - p.y);
-        const float d1 = dx1 * dx1 + dy1 * dy1;
-        if (d1 < minDistanceSq) {
-            minDistanceSq = d1;
-        }
-        const float dx2 = static_cast<float>(head.end.x - p.x);
-        const float dy2 = static_cast<float>(head.end.y - p.y);
-        const float d2 = dx2 * dx2 + dy2 * dy2;
-        if (d2 < minDistanceSq) {
-            minDistanceSq = d2;
+        for (const auto& seg : ribbon) {
+            const float dSq = distSqPointToSegment(p, seg.start, seg.end);
+            if (dSq < minDistanceSq) {
+                minDistanceSq = dSq;
+            }
         }
     }
     return (minDistanceSq < 1e8f) ? std::sqrt(minDistanceSq) : 999.0f;
+}
+
+float DemoBot::getMinQixDistanceToTrail(const GameView& view, const std::vector<Point>& trail) const noexcept
+{
+    if (trail.empty()) {
+        return 999.0f;
+    }
+    float minTrailDist = 999.0f;
+    for (const auto& pt : trail) {
+        const float d = getQixDistance(view, pt);
+        if (d < minTrailDist) {
+            minTrailDist = d;
+        }
+    }
+    return minTrailDist;
 }
 
 bool DemoBot::isQixThreatening(const GameView& view, Point p, float dangerRadius) const noexcept
@@ -169,8 +214,8 @@ Direction DemoBot::findQuickestSafeExit(
         }
 
         const float qixDist = getQixDistance(view, nextPt);
-        // Minimize distance to boundary while maximizing distance from Qix
-        const float score = static_cast<float>(dist) * 2.5f - qixDist;
+        // Heavily prioritize shortest distance to close immediately, with Qix distance buffer
+        const float score = static_cast<float>(dist) * 3.0f - qixDist;
         if (score < bestScore) {
             bestScore = score;
             bestDir = dir;
@@ -203,16 +248,27 @@ PlayerCommand DemoBot::update(const GameView& view) noexcept
         m_escapeDir = Direction::None;
         ++m_patrolTicks;
 
-        // Check Sparx proximity on the border (evade if within 6 units)
-        if (isSparxNear(view, marker, 6.0f)) {
-            m_borderDir = oppositeDir(m_borderDir);
-        }
-
         const std::array<Direction, 4> candidates {Direction::Up, Direction::Down, Direction::Left, Direction::Right};
 
-        // Evaluate candidate inward cut directions
+        // Intelligent Sparx evasion on border: check if stepping forward reduces distance to any Sparx
+        for (const auto& sparxPos : view.sparxPositions) {
+            const float d = euclideanDist(marker, sparxPos);
+            if (d <= 8.0f) {
+                const auto nextPt = stepPoint(marker, m_borderDir);
+                const float nextD = euclideanDist(nextPt, sparxPos);
+                if (nextD < d) {
+                    // Moving towards Sparx: reverse direction
+                    m_borderDir = oppositeDir(m_borderDir);
+                    break;
+                }
+            }
+        }
+
+        // Evaluate candidate inward cut directions with strict safety requirements
         Direction bestInward {Direction::None};
         std::int32_t bestOppositeDist {0};
+        std::int32_t bestPerpDist {9999};
+        Direction bestPerpDir {Direction::None};
         float bestCutScore {-1e9f};
 
         for (const auto dir : candidates) {
@@ -222,8 +278,13 @@ PlayerCommand DemoBot::update(const GameView& view) noexcept
             }
 
             const float qixDist = getQixDistance(view, neighbor);
-            // Require safe breathing room from Qix before stepping off border
-            if (qixDist < 14.0f) {
+            // Safe threshold: cut takes ~8-11 steps, so 15.0f ensures Qix cannot intercept
+            if (qixDist < 15.0f) {
+                continue;
+            }
+
+            // Do not leave border if any Sparx is dangerously close (<= 4.5 units)
+            if (isSparxNear(view, marker, 4.5f)) {
                 continue;
             }
 
@@ -232,44 +293,63 @@ PlayerCommand DemoBot::update(const GameView& view) noexcept
                 continue;
             }
 
-            // High score for safe, manageable cuts
+            // Check perpendicular distances across empty space from the inward neighbor
+            Direction pDir1 = (dir == Direction::Up || dir == Direction::Down) ? Direction::Left : Direction::Up;
+            Direction pDir2 = (dir == Direction::Up || dir == Direction::Down) ? Direction::Right : Direction::Down;
+            const auto dP1 = getDistanceToBoundary(pf, neighbor, pDir1, view.mode);
+            const auto dP2 = getDistanceToBoundary(pf, neighbor, pDir2, view.mode);
+            Direction closerPerp = (dP1 < dP2) ? pDir1 : pDir2;
+            std::int32_t minPerpD = std::min(dP1, dP2);
+
             float score = qixDist;
-            if (distOpposite <= 14) {
-                score += 30.0f; // Bonus for narrow straight slices
+            if (minPerpD <= 8) {
+                score += 60.0f; // High priority for compact L-cuts near corners
+            } else if (distOpposite <= 10) {
+                score += 40.0f; // Priority for narrow channel slices
             }
 
             if (score > bestCutScore) {
                 bestCutScore = score;
                 bestInward = dir;
                 bestOppositeDist = distOpposite;
+                bestPerpDist = minPerpD;
+                bestPerpDir = closerPerp;
             }
         }
 
-        // Initiate a cut if patrol duration is sufficient and Sparx is clear
-        if (bestInward != Direction::None && m_patrolTicks >= 8U && !isSparxNear(view, marker, 8.0f)) {
+        // Initiate cut if patrolled long enough and conditions are safe
+        if (bestInward != Direction::None && m_patrolTicks >= 4U && !isSparxNear(view, marker, 4.5f)) {
             m_inwardDir = bestInward;
             m_stepCount = 0;
             m_patrolTicks = 0;
 
             const float qixDist = getQixDistance(view, marker);
-            // Demonstrate Slow Draw (2x score) when Qix is on the far half of the board
-            m_useSlowDraw = (qixDist >= 36.0f);
+            // Only use Slow Draw for tiny cuts when Qix is very far (> 38 units)
+            m_useSlowDraw = (qixDist >= 38.0f && (bestPerpDist <= 5 || bestOppositeDist <= 6));
 
-            if (bestOppositeDist <= 14 && qixDist >= 22.0f) {
-                // Tactical partition: slice straight across to the opposite boundary
+            if (bestPerpDist <= 8 && bestPerpDir != Direction::None) {
+                // Highly safe 2-segment L-cut to adjacent border
+                m_state = State::CuttingInward;
+                m_targetSteps = static_cast<std::uint32_t>(std::clamp(bestPerpDist / 2, 3, 5));
+                m_parallelDir = bestPerpDir;
+                m_returnDir = bestPerpDir; // Completes directly on adjacent border!
+            } else if (bestOppositeDist <= 10 && qixDist >= 20.0f) {
+                // Straight channel partition
                 m_state = State::CuttingStraight;
                 m_targetSteps = static_cast<std::uint32_t>(bestOppositeDist);
             } else {
-                // Adaptive rectangular cut: scale cut depth to distance and Qix proximity
+                // Compact U-cut nibble: depth 3, parallel 4 away from Qix
                 m_state = State::CuttingInward;
-                const std::int32_t maxSafeDepth = (qixDist >= 32.0f) ? 12 : 6;
-                m_targetSteps = static_cast<std::uint32_t>(std::clamp(bestOppositeDist / 3, 4, maxSafeDepth));
+                m_targetSteps = 3U;
 
-                // Determine perpendicular parallel direction
+                Point qixPos {pf->getWidth() / 2, pf->getHeight() / 2};
+                if (!view.qixRibbons.empty() && !view.qixRibbons[0].empty()) {
+                    qixPos = view.qixRibbons[0].front().start;
+                }
                 if (m_inwardDir == Direction::Up || m_inwardDir == Direction::Down) {
-                    m_parallelDir = (marker.x < pf->getWidth() / 2) ? Direction::Right : Direction::Left;
+                    m_parallelDir = (qixPos.x > marker.x) ? Direction::Left : Direction::Right;
                 } else {
-                    m_parallelDir = (marker.y < pf->getHeight() / 2) ? Direction::Down : Direction::Up;
+                    m_parallelDir = (qixPos.y > marker.y) ? Direction::Up : Direction::Down;
                 }
                 m_returnDir = oppositeDir(m_inwardDir);
             }
@@ -281,16 +361,36 @@ PlayerCommand DemoBot::update(const GameView& view) noexcept
         // Normal border patrol navigation along existing boundary
         auto nextPt = stepPoint(marker, m_borderDir);
         if (!isCellBorder(pf, nextPt, view.mode) || m_stuckTicks >= 2) {
-            // Pick an adjacent navigable boundary cell
+            // Pick the adjacent navigable boundary cell that maximizes distance to nearest Sparx
+            Direction bestTurn = Direction::None;
+            float bestSparxDist = -1.0f;
+
             for (const auto dir : candidates) {
                 if (dir != oppositeDir(m_borderDir)) {
                     const auto pt = stepPoint(marker, dir);
                     if (isCellBorder(pf, pt, view.mode)) {
-                        m_borderDir = dir;
-                        nextPt = pt;
-                        break;
+                        float minD = 999.0f;
+                        for (const auto& sparxPos : view.sparxPositions) {
+                            minD = std::min(minD, euclideanDist(pt, sparxPos));
+                        }
+                        if (minD > bestSparxDist) {
+                            bestSparxDist = minD;
+                            bestTurn = dir;
+                        }
                     }
                 }
+            }
+            // Allow 180-degree reverse if dead-end reached
+            if (bestTurn == Direction::None) {
+                const auto revDir = oppositeDir(m_borderDir);
+                const auto revPt = stepPoint(marker, revDir);
+                if (isCellBorder(pf, revPt, view.mode)) {
+                    bestTurn = revDir;
+                }
+            }
+            if (bestTurn != Direction::None) {
+                m_borderDir = bestTurn;
+                nextPt = stepPoint(marker, m_borderDir);
             }
         }
 
@@ -299,11 +399,13 @@ PlayerCommand DemoBot::update(const GameView& view) noexcept
 
     // 2. Actively drawing Stix line
     const auto activeDraw = (view.drawMode != DrawMode::None) ? view.drawMode : DrawMode::Fast;
-    const float qixDist = getQixDistance(view, marker);
+    const float qixMarkerDist = getQixDistance(view, marker);
+    const float qixTrailDist = getMinQixDistanceToTrail(view, view.stixTrail);
 
-    // Emergency evasion: if Qix threatens or bot is stalled, escape to nearest boundary
-    // without backtracking onto our own trail (prevents self-intersection freeze bug)
-    if (qixDist <= 8.5f || m_stuckTicks >= 2) {
+    // Continuous vigilance: if Qix threatens ANY part of our trail or marker, or if stalled,
+    // trigger immediate emergency escape to the closest boundary
+    const float minSafety = std::min(qixMarkerDist, qixTrailDist);
+    if (minSafety <= 8.5f || m_stuckTicks >= 2) {
         const auto safeExit = findQuickestSafeExit(view, marker, view.stixTrail);
         if (safeExit != Direction::None) {
             m_state = State::EmergencyEscape;
@@ -327,7 +429,6 @@ PlayerCommand DemoBot::update(const GameView& view) noexcept
 
     switch (m_state) {
     case State::CuttingStraight: {
-        // Continue advancing straight until touching the opposing boundary
         return PlayerCommand {m_inwardDir, activeDraw};
     }
 
@@ -335,9 +436,14 @@ PlayerCommand DemoBot::update(const GameView& view) noexcept
         ++m_stepCount;
         const auto nextPt = stepPoint(marker, m_inwardDir);
         if (m_stepCount >= m_targetSteps || !isCellEmpty(pf, nextPt)) {
-            m_state = State::CuttingParallel;
+            // Transition directly to return if parallel steps not needed
+            if (m_returnDir == m_parallelDir) {
+                m_state = State::CuttingReturn;
+            } else {
+                m_state = State::CuttingParallel;
+            }
             m_stepCount = 0;
-            m_targetSteps = 8U;
+            m_targetSteps = 5U; // Keep parallel segment short and tight
             return PlayerCommand {m_parallelDir, activeDraw};
         }
         return PlayerCommand {m_inwardDir, activeDraw};
@@ -357,8 +463,8 @@ PlayerCommand DemoBot::update(const GameView& view) noexcept
     case State::CuttingReturn:
     default: {
         const auto nextPt = stepPoint(marker, m_returnDir);
-        // Sparx touchdown avoidance: if a Sparx is hovering right at our closure cell,
-        // side-step along a clear perpendicular direction to enter safely
+        // Sparx touchdown avoidance: if a Sparx is within 3.5 units of closure cell,
+        // detour along perpendicular direction to enter safely
         if (isCellBorder(pf, nextPt, view.mode) && isSparxNear(view, nextPt, 3.5f)) {
             const auto sidePt = stepPoint(marker, m_parallelDir);
             if (isCellEmpty(pf, sidePt)) {
