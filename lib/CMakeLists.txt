@@ -20,6 +20,8 @@ add_library(qix_core STATIC
     IQixGame.h
     Marker.cpp
     Marker.h
+    ParticleSystem.cpp
+    ParticleSystem.h
     Playfield.cpp
     Playfield.h
     PlayfieldViewport.h

@@ -23,6 +23,7 @@ QixGame::QixGame(std::int32_t width, std::int32_t height, std::uint16_t targetPe
 
 void QixGame::step(std::uint32_t deltaMs) noexcept
 {
+    m_events.clear();
     if (m_state == GameState::GameOver || m_state == GameState::LevelComplete || m_state == GameState::NameEntry
         || m_state == GameState::HallOfFame) {
         if (m_state == GameState::GameOver || m_state == GameState::HallOfFame) {
@@ -81,8 +82,19 @@ void QixGame::step(std::uint32_t deltaMs) noexcept
                 qixPositions.push_back(qix.getHead().start);
             }
 
-            const auto fillRes = m_fill.execute(m_playfield, m_marker.getTrail(), qixPositions, m_marker.getDrawMode(),
+            const auto completedTrail = m_marker.getTrail();
+            const auto drawMode = m_marker.getDrawMode();
+            const auto fillRes = m_fill.execute(m_playfield, completedTrail, qixPositions, drawMode,
                 m_stats.targetPercent, m_stats.multiplier);
+
+            if (fillRes.claimedCellsCount > 0) {
+                m_events.push_back(GameEvent {
+                    GameEventType::TerritoryCapture,
+                    currentPos,
+                    completedTrail,
+                    drawMode
+                });
+            }
 
             m_stats.score += fillRes.pointsAwarded;
             m_stats.claimedCells = fillRes.totalClaimedSoFar;
@@ -133,6 +145,12 @@ void QixGame::step(std::uint32_t deltaMs) noexcept
     // 6. Audit Collisions
     const auto collision = CollisionDetector::check(m_marker, m_qixList, m_sparxList, m_fuse);
     if (collision != CollisionEvent::None) {
+        m_events.push_back(GameEvent {
+            GameEventType::MarkerDeath,
+            m_marker.getPosition(),
+            {},
+            m_marker.getDrawMode()
+        });
         handleDeath();
     }
 
@@ -287,6 +305,7 @@ void QixGame::updateSnapshot() noexcept
     m_view.highScoreTable = &m_highScoreTable;
     m_view.isAttractMode = (m_state == GameState::Attract);
     m_view.attractStage = m_attractStage;
+    m_view.events = m_events;
 }
 
 void QixGame::handleDeath() noexcept

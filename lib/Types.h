@@ -105,4 +105,19 @@ struct SparxInfo {
     bool isSuper {false};
 };
 
+/// @brief Discrete game simulation events for visual feedback and particle effects.
+enum class GameEventType : std::uint8_t {
+    None = 0,
+    MarkerDeath,
+    TerritoryCapture
+};
+
+/// @brief Event descriptor dispatched upon notable game state occurrences.
+struct GameEvent {
+    GameEventType type {GameEventType::None};
+    Point position {0, 0};
+    std::vector<Point> capturePerimeter {};
+    DrawMode drawMode {DrawMode::None};
+};
+
 } // namespace qix

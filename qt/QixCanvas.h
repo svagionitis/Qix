@@ -2,6 +2,8 @@
 #include "BackgroundArt.h"
 #include "ColorPalette.h"
 #include "IQixGame.h"
+#include "ParticleSystem.h"
+#include <chrono>
 #include <QImage>
 #include <QWidget>
 
@@ -84,11 +86,15 @@ private:
     void drawPlayfield(QPainter& painter, const QRect& fieldRect);
     void drawQixRibbons(QPainter& painter, const QRect& fieldRect);
     void drawEntities(QPainter& painter, const QRect& fieldRect);
+    void drawParticles(QPainter& painter, const QRect& fieldRect);
     void drawOverlays(QPainter& painter);
     void drawNameEntry(QPainter& painter);
     void drawHallOfFame(QPainter& painter, bool isGameOver, bool isAttract = false);
     void drawDemoBanners(QPainter& painter);
     void drawInstructionsCard(QPainter& painter);
+
+    ParticleSystem m_particles {};
+    std::chrono::steady_clock::time_point m_lastFrameTime {std::chrono::steady_clock::now()};
 };
 
 } // namespace qix::qt

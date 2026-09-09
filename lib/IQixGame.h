@@ -26,6 +26,7 @@ struct GameView {
     const HighScoreTable* highScoreTable {nullptr};
     bool isAttractMode {false};
     AttractStage attractStage {AttractStage::TitleScores};
+    std::vector<GameEvent> events {};
 };
 
 /// @class IQixGame

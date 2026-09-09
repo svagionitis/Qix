@@ -3,6 +3,7 @@
 #include "BitmapFont.h"
 #include "ColorPalette.h"
 #include "IQixGame.h"
+#include "ParticleSystem.h"
 #include <SDL.h>
 #include <cstdint>
 #include <memory>
@@ -137,6 +138,7 @@ private:
     void drawPlayfield(const Playfield& playfield, const SDL_Rect& fieldRect, const GameView& view) noexcept;
     void drawQixRibbons(const std::vector<std::deque<LineSegment>>& ribbons, const SDL_Rect& fieldRect) noexcept;
     void drawEntities(const GameView& view, const SDL_Rect& fieldRect) noexcept;
+    void drawParticles(const SDL_Rect& fieldRect) noexcept;
     void drawOverlays(const GameView& view, const SDL_Rect& fieldRect) noexcept;
     void drawNameEntry(const NameEntryState& entry, const GameStats& stats) noexcept;
     void drawHallOfFame(const HighScoreTable* table, bool isGameOver, bool isAttract = false) noexcept;
@@ -146,6 +148,9 @@ private:
     void applyCrtFilter(int width, int height) noexcept;
     void drawFilledDiamond(int cx, int cy, int radius, SDL_Color color) noexcept;
     void drawThickLine(int x1, int y1, int x2, int y2, int thickness, SDL_Color color) noexcept;
+
+    ParticleSystem m_particles {};
+    std::uint64_t m_lastFrameTicks {0};
 };
 
 } // namespace qix::sdl

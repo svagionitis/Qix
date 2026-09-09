@@ -168,10 +168,26 @@ void RaylibRenderer::render(const GameView& view, std::uint32_t delayMs) noexcep
     const Rectangle fieldRect {margin, hudHeight, std::max(10.0f, static_cast<float>(screenW) - 2.0f * margin),
         std::max(10.0f, static_cast<float>(screenH) - hudHeight - margin)};
 
+    // Event & continuous particle handling
+    for (const auto& evt : view.events) {
+        if (evt.type == GameEventType::MarkerDeath) {
+            m_particles.emitMarkerExplosion(evt.position);
+        } else if (evt.type == GameEventType::TerritoryCapture) {
+            m_particles.emitCaptureFlash(evt.capturePerimeter, evt.drawMode);
+        }
+    }
+
+    const float dt = GetFrameTime();
+    if (view.fusePos.has_value()) {
+        m_particles.emitFuseSparkles(view.fusePos.value(), view.stixTrail, dt);
+    }
+    m_particles.update(dt);
+
     if (view.playfield) {
         drawPlayfield(*view.playfield, fieldRect, view);
         drawQixRibbons(view.qixRibbons, fieldRect);
         drawEntities(view, fieldRect);
+        drawParticles(fieldRect);
     }
 
     // 4. Overlays
@@ -447,6 +463,62 @@ void RaylibRenderer::drawEntities(const GameView& view, const Rectangle& fieldRe
         fieldRect.y + (static_cast<float>(view.markerPos.y) + 0.5f) * cellH};
     const Color markerColor = (view.drawMode != DrawMode::None) ? toRaylib(theme.textValue) : toRaylib(theme.marker);
     DrawPoly(markerPos, 4, 7.0f, 45.0f, markerColor);
+}
+
+void RaylibRenderer::drawParticles(const Rectangle& fieldRect) noexcept
+{
+    if (m_particles.empty()) {
+        return;
+    }
+
+    const float cellW = fieldRect.width / 80.0f;
+    const float cellH = fieldRect.height / 60.0f;
+    const auto* parts = m_particles.data();
+    const std::size_t count = m_particles.size();
+
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto& p = parts[i];
+        const Vector2 pos {
+            fieldRect.x + p.x * cellW,
+            fieldRect.y + p.y * cellH
+        };
+        const Color col = toRaylib(p.currentColor());
+        const float pixelSize = std::max(1.5f, p.size * cellW);
+
+        switch (p.type) {
+        case ParticleType::Spark: {
+            const float speed = std::hypot(p.vx, p.vy);
+            const float trailLen = std::clamp(speed * 0.04f * cellW, 2.0f, 12.0f);
+            const float normVx = (speed > 0.001f) ? (p.vx / speed) : 0.0f;
+            const float normVy = (speed > 0.001f) ? (p.vy / speed) : 0.0f;
+            const Vector2 p2 {pos.x - normVx * trailLen, pos.y - normVy * trailLen};
+            DrawLineEx(pos, p2, std::max(1.5f, pixelSize * 0.6f), col);
+            break;
+        }
+        case ParticleType::GlowShard:
+        case ParticleType::DebrisDiamond: {
+            const float rotDeg = p.rotation * (180.0f / 3.14159265f);
+            DrawPoly(pos, 4, pixelSize, rotDeg, col);
+            break;
+        }
+        case ParticleType::DebrisSquare: {
+            const Rectangle rect {pos.x, pos.y, pixelSize * 1.5f, pixelSize * 1.5f};
+            const Vector2 origin {rect.width * 0.5f, rect.height * 0.5f};
+            const float rotDeg = p.rotation * (180.0f / 3.14159265f);
+            DrawRectanglePro(rect, origin, rotDeg, col);
+            break;
+        }
+        case ParticleType::DebrisLine: {
+            const float halfLen = pixelSize * 1.6f;
+            const float cosR = std::cos(p.rotation);
+            const float sinR = std::sin(p.rotation);
+            const Vector2 p1 {pos.x - cosR * halfLen, pos.y - sinR * halfLen};
+            const Vector2 p2 {pos.x + cosR * halfLen, pos.y + sinR * halfLen};
+            DrawLineEx(p1, p2, 2.0f, col);
+            break;
+        }
+        }
+    }
 }
 
 void RaylibRenderer::drawOverlays(const GameView& view, const Rectangle& fieldRect) noexcept

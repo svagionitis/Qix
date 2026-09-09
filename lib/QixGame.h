@@ -80,6 +80,7 @@ private:
     GameStats m_stats {};
     GameState m_state {GameState::Ready};
     GameView m_view {};
+    std::vector<GameEvent> m_events {};
     PlayerCommand m_pendingCmd {};
     static constexpr std::uint32_t ExtraLifeInterval {50000U};
 

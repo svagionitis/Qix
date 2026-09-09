@@ -183,10 +183,31 @@ void SdlRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     SDL_Rect fieldRect {
         margin, hudHeight, std::max(10, screenW - 2 * margin), std::max(10, screenH - hudHeight - margin)};
 
+    // Particle simulation & event handling
+    for (const auto& evt : view.events) {
+        if (evt.type == GameEventType::MarkerDeath) {
+            m_particles.emitMarkerExplosion(evt.position);
+        } else if (evt.type == GameEventType::TerritoryCapture) {
+            m_particles.emitCaptureFlash(evt.capturePerimeter, evt.drawMode);
+        }
+    }
+
+    const std::uint64_t currentTicks = SDL_GetPerformanceCounter();
+    const float dt = (m_lastFrameTicks == 0)
+        ? 0.016f
+        : static_cast<float>(currentTicks - m_lastFrameTicks) / static_cast<float>(SDL_GetPerformanceFrequency());
+    m_lastFrameTicks = currentTicks;
+
+    if (view.fusePos.has_value()) {
+        m_particles.emitFuseSparkles(view.fusePos.value(), view.stixTrail, dt);
+    }
+    m_particles.update(dt);
+
     if (view.playfield) {
         drawPlayfield(*view.playfield, fieldRect, view);
         drawQixRibbons(view.qixRibbons, fieldRect);
         drawEntities(view, fieldRect);
+        drawParticles(fieldRect);
     }
 
     // 4. Overlays
@@ -494,6 +515,66 @@ void SdlRenderer::drawEntities(const GameView& view, const SDL_Rect& fieldRect) 
 
     const SDL_Color markerColor = (view.drawMode != DrawMode::None) ? toSdl(theme.textValue) : toSdl(theme.marker);
     drawFilledDiamond(mx, my, 7, markerColor);
+}
+
+void SdlRenderer::drawParticles(const SDL_Rect& fieldRect) noexcept
+{
+    if (m_particles.empty()) {
+        return;
+    }
+
+    const float cellW = static_cast<float>(fieldRect.w) / 80.0f;
+    const float cellH = static_cast<float>(fieldRect.h) / 60.0f;
+    const float fx = static_cast<float>(fieldRect.x);
+    const float fy = static_cast<float>(fieldRect.y);
+    const auto* parts = m_particles.data();
+    const std::size_t count = m_particles.size();
+
+    SDL_SetRenderDrawBlendMode(m_renderer.get(), SDL_BLENDMODE_BLEND);
+
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto& p = parts[i];
+        const int px = static_cast<int>(fx + p.x * cellW);
+        const int py = static_cast<int>(fy + p.y * cellH);
+        const auto col = p.currentColor();
+        const SDL_Color sdlCol = toSdl(col);
+        const int rad = std::max(1, static_cast<int>(p.size * cellW));
+
+        switch (p.type) {
+        case ParticleType::Spark: {
+            const float speed = std::hypot(p.vx, p.vy);
+            const float trailLen = std::clamp(speed * 0.04f * cellW, 2.0f, 12.0f);
+            const float normVx = (speed > 0.001f) ? (p.vx / speed) : 0.0f;
+            const float normVy = (speed > 0.001f) ? (p.vy / speed) : 0.0f;
+            const int p2x = static_cast<int>(px - normVx * trailLen);
+            const int p2y = static_cast<int>(py - normVy * trailLen);
+            drawThickLine(px, py, p2x, p2y, std::max(1, rad), sdlCol);
+            break;
+        }
+        case ParticleType::GlowShard:
+        case ParticleType::DebrisDiamond: {
+            drawFilledDiamond(px, py, rad, sdlCol);
+            break;
+        }
+        case ParticleType::DebrisSquare: {
+            SDL_SetRenderDrawColor(m_renderer.get(), sdlCol.r, sdlCol.g, sdlCol.b, sdlCol.a);
+            const SDL_Rect r {px - rad, py - rad, rad * 2 + 1, rad * 2 + 1};
+            SDL_RenderFillRect(m_renderer.get(), &r);
+            break;
+        }
+        case ParticleType::DebrisLine: {
+            const float halfLen = static_cast<float>(rad) * 1.6f;
+            const float cosR = std::cos(p.rotation);
+            const float sinR = std::sin(p.rotation);
+            const int x1 = static_cast<int>(px - cosR * halfLen);
+            const int y1 = static_cast<int>(py - sinR * halfLen);
+            const int x2 = static_cast<int>(px + cosR * halfLen);
+            const int y2 = static_cast<int>(py + sinR * halfLen);
+            drawThickLine(x1, y1, x2, y2, 2, sdlCol);
+            break;
+        }
+        }
+    }
 }
 
 void SdlRenderer::drawOverlays(const GameView& view, const SDL_Rect& fieldRect) noexcept

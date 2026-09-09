@@ -2,6 +2,7 @@
 #include "BackgroundArt.h"
 #include "ColorPalette.h"
 #include "IQixGame.h"
+#include "ParticleSystem.h"
 #include <cstdint>
 #include <deque>
 #include <raylib.h>
@@ -97,6 +98,7 @@ private:
     void drawPlayfield(const Playfield& playfield, const Rectangle& fieldRect, const GameView& view) noexcept;
     void drawQixRibbons(const std::vector<std::deque<LineSegment>>& ribbons, const Rectangle& fieldRect) noexcept;
     void drawEntities(const GameView& view, const Rectangle& fieldRect) noexcept;
+    void drawParticles(const Rectangle& fieldRect) noexcept;
     void drawOverlays(const GameView& view, const Rectangle& fieldRect) noexcept;
     void drawNameEntry(const NameEntryState& entry, const GameStats& stats) noexcept;
     void drawHallOfFame(const HighScoreTable* table, bool isGameOver, bool isAttract = false) noexcept;
@@ -104,6 +106,8 @@ private:
     void drawInstructionsCard() noexcept;
 
     void applyCrtFilter(int width, int height) noexcept;
+
+    ParticleSystem m_particles {};
 };
 
 } // namespace qix::raylib

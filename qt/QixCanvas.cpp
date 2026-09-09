@@ -130,6 +130,24 @@ void QixCanvas::paintEvent(QPaintEvent* event)
     QRect fieldRect(margin, hudHeight, width() - 2 * margin, height() - hudHeight - margin);
     const auto& theme = ColorPalette::get(m_paletteId);
 
+    const auto now = std::chrono::steady_clock::now();
+    const float dt = std::chrono::duration<float>(now - m_lastFrameTime).count();
+    m_lastFrameTime = now;
+
+    // Particle simulation & event processing
+    for (const auto& evt : m_view.events) {
+        if (evt.type == GameEventType::MarkerDeath) {
+            m_particles.emitMarkerExplosion(evt.position);
+        } else if (evt.type == GameEventType::TerritoryCapture) {
+            m_particles.emitCaptureFlash(evt.capturePerimeter, evt.drawMode);
+        }
+    }
+
+    if (m_view.fusePos.has_value()) {
+        m_particles.emitFuseSparkles(m_view.fusePos.value(), m_view.stixTrail, dt);
+    }
+    m_particles.update(dt);
+
     if (m_crtEnabled) {
         QImage sceneImage(size(), QImage::Format_ARGB32_Premultiplied);
         sceneImage.fill(toQColor(theme.background));
@@ -142,6 +160,7 @@ void QixCanvas::paintEvent(QPaintEvent* event)
             drawPlayfield(imgPainter, fieldRect);
             drawQixRibbons(imgPainter, fieldRect);
             drawEntities(imgPainter, fieldRect);
+            drawParticles(imgPainter, fieldRect);
         }
         drawOverlays(imgPainter);
         imgPainter.end();
@@ -157,6 +176,7 @@ void QixCanvas::paintEvent(QPaintEvent* event)
             drawPlayfield(painter, fieldRect);
             drawQixRibbons(painter, fieldRect);
             drawEntities(painter, fieldRect);
+            drawParticles(painter, fieldRect);
         }
 
         drawOverlays(painter);
@@ -495,6 +515,86 @@ void QixCanvas::drawEntities(QPainter& painter, const QRect& fieldRect)
     QPolygonF markerDiamond;
     markerDiamond << QPointF(mx, my - 7) << QPointF(mx + 7, my) << QPointF(mx, my + 7) << QPointF(mx - 7, my);
     painter.drawPolygon(markerDiamond);
+
+    painter.restore();
+}
+
+void QixCanvas::drawParticles(QPainter& painter, const QRect& fieldRect)
+{
+    if (m_particles.empty()) {
+        return;
+    }
+
+    const double cellW = static_cast<double>(fieldRect.width()) / 80.0;
+    const double cellH = static_cast<double>(fieldRect.height()) / 60.0;
+    const auto* parts = m_particles.data();
+    const std::size_t count = m_particles.size();
+
+    painter.save();
+    painter.setRenderHint(QPainter::Antialiasing, true);
+
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto& p = parts[i];
+        const double px = static_cast<double>(fieldRect.left()) + static_cast<double>(p.x) * cellW;
+        const double py = static_cast<double>(fieldRect.top()) + static_cast<double>(p.y) * cellH;
+        const auto col = p.currentColor();
+        const QColor qCol(col.r, col.g, col.b, col.a);
+        const double pixelSize = std::max(1.5, static_cast<double>(p.size) * cellW);
+        const double deg = static_cast<double>(p.rotation) * (180.0 / 3.141592653589793);
+
+        switch (p.type) {
+        case ParticleType::Spark: {
+            const double vx = static_cast<double>(p.vx);
+            const double vy = static_cast<double>(p.vy);
+            const double speed = std::hypot(vx, vy);
+            const double trailLen = std::clamp(speed * 0.04 * cellW, 2.0, 12.0);
+            const double normVx = (speed > 0.001) ? (vx / speed) : 0.0;
+            const double normVy = (speed > 0.001) ? (vy / speed) : 0.0;
+            const double p2x = px - normVx * trailLen;
+            const double p2y = py - normVy * trailLen;
+            painter.setPen(QPen(qCol, std::max(1.5, pixelSize * 0.6)));
+            painter.drawLine(QPointF(px, py), QPointF(p2x, p2y));
+            break;
+        }
+        case ParticleType::GlowShard:
+        case ParticleType::DebrisDiamond: {
+            painter.save();
+            painter.translate(px, py);
+            painter.rotate(deg);
+            painter.setBrush(qCol);
+            painter.setPen(Qt::NoPen);
+            QPolygonF diamond;
+            diamond << QPointF(0.0, -pixelSize)
+                    << QPointF(pixelSize, 0.0)
+                    << QPointF(0.0, pixelSize)
+                    << QPointF(-pixelSize, 0.0);
+            painter.drawPolygon(diamond);
+            painter.restore();
+            break;
+        }
+        case ParticleType::DebrisSquare: {
+            painter.save();
+            painter.translate(px, py);
+            painter.rotate(deg);
+            painter.setBrush(qCol);
+            painter.setPen(Qt::NoPen);
+            const double half = pixelSize * 0.75;
+            painter.drawRect(QRectF(-half, -half, half * 2.0, half * 2.0));
+            painter.restore();
+            break;
+        }
+        case ParticleType::DebrisLine: {
+            painter.save();
+            painter.translate(px, py);
+            painter.rotate(deg);
+            painter.setPen(QPen(qCol, 2.0));
+            const double halfLen = pixelSize * 1.6;
+            painter.drawLine(QPointF(-halfLen, 0.0), QPointF(halfLen, 0.0));
+            painter.restore();
+            break;
+        }
+        }
+    }
 
     painter.restore();
 }
