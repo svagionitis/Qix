@@ -49,6 +49,8 @@ public:
     void startAttractMode() noexcept override;
     void exitAttractMode() noexcept override;
     [[nodiscard]] bool isAttractMode() const noexcept override;
+    void setDemoDurationMs(std::uint32_t durationMs) noexcept override;
+    [[nodiscard]] std::uint32_t getDemoDurationMs() const noexcept override;
 
     [[nodiscard]] bool quickSave(const std::string& filepath = "") const noexcept override;
     [[nodiscard]] bool quickLoad(const std::string& filepath = "") noexcept override;
@@ -102,7 +104,8 @@ private:
     static constexpr std::uint32_t IdleTimeoutMs {20000U};
     static constexpr std::uint32_t TitleStageDurationMs {6000U};
     static constexpr std::uint32_t InstructionsStageDurationMs {6000U};
-    static constexpr std::uint32_t DemoStageDurationMs {22000U};
+    static constexpr std::uint32_t DefaultDemoStageDurationMs {90000U};
+    std::uint32_t m_demoStageDurationMs {DefaultDemoStageDurationMs};
 
     void setupEntities() noexcept;
     void updateSnapshot() noexcept;

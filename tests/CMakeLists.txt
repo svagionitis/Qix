@@ -5,6 +5,7 @@ if(GTest_FOUND)
         ArcadeAudioTest.cpp
         BackgroundArtTest.cpp
         ColorPaletteTest.cpp
+        DemoBotTest.cpp
         PlayfieldTest.cpp
         MarkerTest.cpp
         TerritoryFillTest.cpp

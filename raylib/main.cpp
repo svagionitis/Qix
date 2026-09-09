@@ -19,6 +19,8 @@ int main(int argc, char* argv[])
     const auto recordPath = qix::GameConfig::parseRecordFlag(argc, argv);
     const auto replayPath = qix::GameConfig::parseReplayFlag(argc, argv);
 
+    const auto demoDurationMs = qix::GameConfig::parseDemoDurationFlag(argc, argv);
+
     std::unique_ptr<qix::QixGame> game;
     qix::ReplayPlayer player;
     bool replaying = false;
@@ -28,6 +30,7 @@ int main(int argc, char* argv[])
             const auto& hdr = player.getHeader();
             game = std::make_unique<qix::QixGame>(
                 hdr.playfieldWidth, hdr.playfieldHeight, hdr.targetPercent, hdr.mode, hdr.baseDelayMs);
+            game->setDemoDurationMs(demoDurationMs);
             replaying = true;
         } else {
             std::cerr << "[Qix] Failed to load replay file: " << replayPath << "\n";
@@ -35,6 +38,7 @@ int main(int argc, char* argv[])
         }
     } else {
         game = std::make_unique<qix::QixGame>(80, 60, 75, mode, delayMs);
+        game->setDemoDurationMs(demoDurationMs);
         if (attractMode) {
             game->startAttractMode();
         }

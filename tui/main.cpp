@@ -58,6 +58,7 @@ int main(int argc, char* argv[])
     }
 
     const auto attractMode = qix::GameConfig::parseAttractFlag(argc, argv);
+    const auto demoDurationMs = qix::GameConfig::parseDemoDurationFlag(argc, argv);
     std::unique_ptr<qix::QixGame> game;
     qix::ReplayPlayer player;
     bool replaying = false;
@@ -68,6 +69,7 @@ int main(int argc, char* argv[])
             width = hdr.playfieldWidth;
             height = hdr.playfieldHeight;
             game = std::make_unique<qix::QixGame>(width, height, hdr.targetPercent, hdr.mode, hdr.baseDelayMs);
+            game->setDemoDurationMs(demoDurationMs);
             delayMs = hdr.baseDelayMs;
             replaying = true;
         } else {
@@ -76,6 +78,7 @@ int main(int argc, char* argv[])
         }
     } else {
         game = std::make_unique<qix::QixGame>(width, height, 75, mode, delayMs);
+        game->setDemoDurationMs(demoDurationMs);
         if (attractMode) {
             game->startAttractMode();
         }

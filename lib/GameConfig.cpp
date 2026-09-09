@@ -196,6 +196,59 @@ bool GameConfig::parseAttractFlag(int argc, char* const argv[], bool defaultAttr
     return parseAttractFlag(args, defaultAttract);
 }
 
+std::uint32_t GameConfig::parseDemoDurationFlag(
+    const std::vector<std::string>& args, std::uint32_t defaultSeconds) noexcept
+{
+    std::uint32_t seconds {defaultSeconds};
+
+    for (std::size_t i {0}; i < args.size(); ++i) {
+        const auto arg = toLower(args[i]);
+        if (arg == "--demo-duration" || arg == "--attract-duration") {
+            if (i + 1 < args.size()) {
+                try {
+                    const int val = std::stoi(args[i + 1]);
+                    if (val > 0) {
+                        seconds = static_cast<std::uint32_t>(val);
+                    }
+                } catch (...) {
+                }
+            }
+        } else if (arg.rfind("--demo-duration=", 0) == 0) {
+            try {
+                const int val = std::stoi(arg.substr(16));
+                if (val > 0) {
+                    seconds = static_cast<std::uint32_t>(val);
+                }
+            } catch (...) {
+            }
+        } else if (arg.rfind("--attract-duration=", 0) == 0) {
+            try {
+                const int val = std::stoi(arg.substr(19));
+                if (val > 0) {
+                    seconds = static_cast<std::uint32_t>(val);
+                }
+            } catch (...) {
+            }
+        }
+    }
+
+    return seconds * 1000U;
+}
+
+std::uint32_t GameConfig::parseDemoDurationFlag(int argc, char* const argv[], std::uint32_t defaultSeconds) noexcept
+{
+    std::vector<std::string> args {};
+    if (argc > 1 && argv != nullptr) {
+        args.reserve(static_cast<std::size_t>(argc - 1));
+        for (int i {1}; i < argc; ++i) {
+            if (argv[i] != nullptr) {
+                args.emplace_back(argv[i]);
+            }
+        }
+    }
+    return parseDemoDurationFlag(args, defaultSeconds);
+}
+
 bool GameConfig::parseArtFlag(const std::vector<std::string>& args, bool defaultArt) noexcept
 {
     bool art {defaultArt};

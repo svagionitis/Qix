@@ -44,11 +44,13 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
   - Real-time retro CRT display filter featuring horizontal scanlines, aperture grille lines, barrel vignette corner shading, and phosphor glow bloom.
   - Native hardware rendering across Desktop Raylib (additive blend mode `BLEND_ADDITIVE`), Desktop Qt (`QPainter` composition and radial vignette gradient), and Desktop SDL2 (`SDL_SetRenderDrawBlendMode`).
   - Runtime toggle (`C` / `F2`) and startup flag (`--crt` / `-c` / `--no-crt`).
-- **Attract Mode & Automated Gameplay Demo**:
+- **Attract Mode & Autonomous Gameplay Demo**:
   - Autonomous AI controller (`DemoBot`) executing real-time strategic Stix cuts, demonstrating Fast and Slow draw, evading Qix and Sparx, and racking up points.
+  - Spatial raycasting and adaptive cut planning: executes tactical straight partitions across narrow channels, safe nibble cuts near corners, emergency safe exits avoiding trail self-intersections, and Sparx touchdown detours.
+  - Extended 90-second autonomous gameplay showcase with multi-life continuation upon enemy collision and escalating level progression upon $\ge 75\%$ capture.
   - Authentic 3-stage arcade showcase: Title & High Scores $\to$ How-To-Play Instructions Card $\to$ Live Gameplay Demo with blinking retro banners.
   - Automatic 20-second inactivity idle timeout and instant takeover upon any keypress.
-  - Direct launch support via `--demo` / `--attract` CLI flags and runtime `F1` shortcut.
+  - Direct launch support via `--demo` / `--attract` / `-d` flags and configurable duration via `--demo-duration <sec>` (default: 90s).
 - **The "Qix Trap" & Spiral Bonus**:
   - Authentic arcade detection for trapping the Qix inside narrow cul-de-sacs or tight pockets ($\le 10\%$ or $\le 5\%$ of the playfield).
   - Mathematical 2D cross-product winding analysis detecting multi-turn spiral stix geometry ($\ge 270^\circ$ curl or $\ge 4$ turns).

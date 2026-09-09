@@ -492,6 +492,16 @@ bool QixGame::isAttractMode() const noexcept
     return m_state == GameState::Attract;
 }
 
+void QixGame::setDemoDurationMs(std::uint32_t durationMs) noexcept
+{
+    m_demoStageDurationMs = std::max(durationMs, 5000U);
+}
+
+std::uint32_t QixGame::getDemoDurationMs() const noexcept
+{
+    return m_demoStageDurationMs;
+}
+
 void QixGame::resetDemoPlayfield() noexcept
 {
     m_playfield.initBorders();
@@ -539,7 +549,7 @@ void QixGame::updateAttractCycle(std::uint32_t deltaMs) noexcept
     }
 
     // In GameplayDemo stage:
-    if (m_attractStageTimerMs >= DemoStageDurationMs) {
+    if (m_attractStageTimerMs >= m_demoStageDurationMs) {
         m_attractStage = AttractStage::TitleScores;
         m_attractStageTimerMs = 0;
         updateSnapshot();
@@ -582,6 +592,18 @@ void QixGame::updateAttractCycle(std::uint32_t deltaMs) noexcept
             m_fuse.reset();
 
             if (fillRes.thresholdMet || fillRes.splitOccurred) {
+                // Advance to next level if sufficient demonstration time remains
+                if (m_demoStageDurationMs > m_attractStageTimerMs + 15000U) {
+                    m_stats.level = static_cast<std::uint8_t>(m_stats.level + 1);
+                    m_stats.claimedCells = 0;
+                    m_stats.claimedPercent = 0;
+                    m_playfield.initBorders();
+                    m_marker.resetPosition(Point {m_playfield.getWidth() / 2, m_playfield.getHeight() - 1});
+                    m_demoBot.reset();
+                    setupEntities();
+                    updateSnapshot();
+                    return;
+                }
                 m_attractStage = AttractStage::TitleScores;
                 m_attractStageTimerMs = 0;
                 updateSnapshot();
@@ -604,7 +626,19 @@ void QixGame::updateAttractCycle(std::uint32_t deltaMs) noexcept
     if (collision != CollisionEvent::None) {
         clearActiveStix();
         m_fuse.reset();
-        resetDemoPlayfield();
+        // Multi-life continuation: preserve claimed territory and continue demo
+        if (m_stats.lives > 1) {
+            --m_stats.lives;
+            m_marker.resetPosition(Point {m_playfield.getWidth() / 2, m_playfield.getHeight() - 1});
+            setupEntities();
+            m_demoBot.reset();
+        } else {
+            m_stats.lives = 0;
+            m_attractStage = AttractStage::TitleScores;
+            m_attractStageTimerMs = 0;
+            updateSnapshot();
+            return;
+        }
     }
 
     updateSnapshot();

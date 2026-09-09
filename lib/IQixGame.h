@@ -91,6 +91,14 @@ public:
     /// @return True if in attract mode.
     [[nodiscard]] virtual bool isAttractMode() const noexcept = 0;
 
+    /// @brief Set the duration of the GameplayDemo attract stage in milliseconds.
+    /// @param[in] durationMs Duration in milliseconds.
+    virtual void setDemoDurationMs(std::uint32_t durationMs) noexcept = 0;
+
+    /// @brief Get the duration of the GameplayDemo attract stage in milliseconds.
+    /// @return Duration in milliseconds.
+    [[nodiscard]] virtual std::uint32_t getDemoDurationMs() const noexcept = 0;
+
     /// @brief Save current game state to a save file (default: ~/.qix_saved_game.json).
     /// @param[in] filepath Destination file path (empty for default).
     /// @return True on success, false on failure.

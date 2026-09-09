@@ -88,6 +88,22 @@ public:
     [[nodiscard]] static bool parseAttractFlag(
         const std::vector<std::string>& args, bool defaultAttract = false) noexcept;
 
+    /// @brief Parse demo duration in seconds from command line arguments (--demo-duration <sec>, --attract-duration
+    /// <sec>).
+    /// @param[in] argc Argument count.
+    /// @param[in] argv Argument array.
+    /// @param[in] defaultSeconds Fallback duration in seconds (default: 90).
+    /// @return Configured duration in milliseconds.
+    [[nodiscard]] static std::uint32_t parseDemoDurationFlag(
+        int argc, char* const argv[], std::uint32_t defaultSeconds = 90) noexcept;
+
+    /// @brief Parse demo duration in seconds from a vector of argument strings.
+    /// @param[in] args Vector of command line argument strings.
+    /// @param[in] defaultSeconds Fallback duration in seconds (default: 90).
+    /// @return Configured duration in milliseconds.
+    [[nodiscard]] static std::uint32_t parseDemoDurationFlag(
+        const std::vector<std::string>& args, std::uint32_t defaultSeconds = 90) noexcept;
+
     /// @brief Parse background art reveal mode flag (--art, --bg-art, --reveal, --no-art, --no-bg-art).
     /// @param[in] argc Argument count.
     /// @param[in] argv Argument array.
