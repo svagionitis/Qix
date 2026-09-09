@@ -5,8 +5,8 @@
 namespace qix {
 
 namespace {
-constexpr float Pi = 3.14159265358979323846f;
-constexpr float TwoPi = 2.0f * Pi;
+    constexpr float Pi = 3.14159265358979323846f;
+    constexpr float TwoPi = 2.0f * Pi;
 } // namespace
 
 std::uint32_t ParticleSystem::randomUint() noexcept
@@ -162,13 +162,9 @@ void ParticleSystem::emitCaptureFlash(const std::vector<Point>& perimeter, DrawM
 
     const bool isSlow = (mode == DrawMode::Slow);
     // Slow Draw (2x score): incandescent gold/amber. Fast Draw (1x score): electric cyan/blue.
-    const PaletteColor baseStartColor = isSlow
-        ? PaletteColor {255, 230, 60, 255}
-        : PaletteColor {0, 245, 255, 255};
+    const PaletteColor baseStartColor = isSlow ? PaletteColor {255, 230, 60, 255} : PaletteColor {0, 245, 255, 255};
 
-    const PaletteColor baseEndColor = isSlow
-        ? PaletteColor {255, 110, 0, 0}
-        : PaletteColor {0, 70, 230, 0};
+    const PaletteColor baseEndColor = isSlow ? PaletteColor {255, 110, 0, 0} : PaletteColor {0, 70, 230, 0};
 
     // 1. Emit glowing burst shards along the completed Stix trail vertices
     const std::size_t step = std::max<std::size_t>(1, perimeter.size() / 32);
@@ -216,7 +212,8 @@ void ParticleSystem::emitCaptureFlash(const std::vector<Point>& perimeter, DrawM
             break;
         }
 
-        const float angle = (static_cast<float>(r) / static_cast<float>(ShockwaveRays)) * TwoPi + randomFloat(-0.1f, 0.1f);
+        const float angle
+            = (static_cast<float>(r) / static_cast<float>(ShockwaveRays)) * TwoPi + randomFloat(-0.1f, 0.1f);
         const float speed = randomFloat(12.0f, 26.0f);
         const float maxLife = randomFloat(0.45f, 0.85f);
 
@@ -246,11 +243,11 @@ void ParticleSystem::emitMarkerExplosion(Point deathPos) noexcept
     // Vibrant arcade neon multi-color palette
     const std::array<PaletteColor, 6> neonColors {
         PaletteColor {255, 255, 255, 255}, // White core
-        PaletteColor {255, 235, 30, 255},  // Electric yellow
-        PaletteColor {0, 245, 255, 255},   // Cyan
-        PaletteColor {255, 30, 140, 255},  // Magenta
-        PaletteColor {255, 45, 30, 255},   // Crimson
-        PaletteColor {40, 255, 110, 255}   // Lime emerald
+        PaletteColor {255, 235, 30, 255}, // Electric yellow
+        PaletteColor {0, 245, 255, 255}, // Cyan
+        PaletteColor {255, 30, 140, 255}, // Magenta
+        PaletteColor {255, 45, 30, 255}, // Crimson
+        PaletteColor {40, 255, 110, 255} // Lime emerald
     };
 
     constexpr std::size_t TotalDebris = 44;
@@ -259,7 +256,8 @@ void ParticleSystem::emitMarkerExplosion(Point deathPos) noexcept
             break;
         }
 
-        const float angle = (static_cast<float>(i) / static_cast<float>(TotalDebris)) * TwoPi + randomFloat(-0.15f, 0.15f);
+        const float angle
+            = (static_cast<float>(i) / static_cast<float>(TotalDebris)) * TwoPi + randomFloat(-0.15f, 0.15f);
         const float speed = randomFloat(8.0f, 32.0f);
         const float maxLife = randomFloat(0.6f, 1.25f);
         const auto& startCol = neonColors[i % neonColors.size()];

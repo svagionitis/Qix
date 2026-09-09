@@ -6,13 +6,12 @@ namespace qix {
 
 const std::array<InstructionRule, 5>& GamePresenter::getInstructionRules() noexcept
 {
-    static const std::array<InstructionRule, 5> s_rules {{
-        {"OBJECTIVE:", "CLAIM 75% OF THE PLAYFIELD TO WIN", PaletteColor {59, 130, 246, 255}},
-        {"SLOW DRAW:", "HOLD [SPACE] WHILE MOVING (2X POINTS)", PaletteColor {34, 197, 94, 255}},
-        {"FAST DRAW:", "HOLD [SHIFT/F] WHILE MOVING (1X POINTS)", PaletteColor {245, 158, 11, 255}},
-        {"HAZARDS:", "AVOID BOUNCING QIX AND SPARX ON BORDERS", PaletteColor {239, 68, 68, 255}},
-        {"THE FUSE:", "BURNS YOUR TRAIL IF YOU STOP MOVING!", PaletteColor {217, 70, 239, 255}}
-    }};
+    static const std::array<InstructionRule, 5> s_rules {
+        {{"OBJECTIVE:", "CLAIM 75% OF THE PLAYFIELD TO WIN", PaletteColor {59, 130, 246, 255}},
+            {"SLOW DRAW:", "HOLD [SPACE] WHILE MOVING (2X POINTS)", PaletteColor {34, 197, 94, 255}},
+            {"FAST DRAW:", "HOLD [SHIFT/F] WHILE MOVING (1X POINTS)", PaletteColor {245, 158, 11, 255}},
+            {"HAZARDS:", "AVOID BOUNCING QIX AND SPARX ON BORDERS", PaletteColor {239, 68, 68, 255}},
+            {"THE FUSE:", "BURNS YOUR TRAIL IF YOU STOP MOVING!", PaletteColor {217, 70, 239, 255}}}};
     return s_rules;
 }
 
@@ -33,16 +32,14 @@ VictoryPresentation GamePresenter::formatVictory(const GameStats& stats) noexcep
         pres.title = stats.splitBonus ? "QIX SPLIT BONUS!" : "LEVEL COMPLETE!";
         pres.titleColor = stats.splitBonus ? PaletteColor {250, 204, 21, 255} : PaletteColor {74, 222, 128, 255};
         if (!stats.splitBonus && stats.thresholdBonus > 0) {
-            const auto overshoot = (stats.claimedPercent > stats.targetPercent)
-                ? (stats.claimedPercent - stats.targetPercent)
-                : 0U;
-            pres.bonus = "+" + std::to_string(stats.thresholdBonus) + " THRESHOLD BONUS (+"
-                + std::to_string(overshoot) + "%)";
+            const auto overshoot
+                = (stats.claimedPercent > stats.targetPercent) ? (stats.claimedPercent - stats.targetPercent) : 0U;
+            pres.bonus
+                = "+" + std::to_string(stats.thresholdBonus) + " THRESHOLD BONUS (+" + std::to_string(overshoot) + "%)";
             pres.hasBonus = true;
         }
-        pres.prompt = stats.splitBonus
-            ? ("Multiplier: " + std::to_string(stats.multiplier) + "X! Press [Space]")
-            : "Press [Space] for Next Level";
+        pres.prompt = stats.splitBonus ? ("Multiplier: " + std::to_string(stats.multiplier) + "X! Press [Space]")
+                                       : "Press [Space] for Next Level";
         pres.hasDetail = false;
         pres.isTrap = false;
     }
@@ -111,8 +108,8 @@ std::vector<HofRowPresentation> GamePresenter::formatHallOfFame(
 
         char rowBuf[64];
         const char* modeStr = (e.mode == GameMode::Classic) ? "CLASSIC" : "MODERN";
-        std::snprintf(rowBuf, sizeof(rowBuf), "%2zu.      %-4s    %8u      %02u     %-7s", i + 1,
-            e.initials.c_str(), e.score, static_cast<unsigned>(e.level), modeStr);
+        std::snprintf(rowBuf, sizeof(rowBuf), "%2zu.      %-4s    %8u      %02u     %-7s", i + 1, e.initials.c_str(),
+            e.score, static_cast<unsigned>(e.level), modeStr);
         row.formattedRow = rowBuf;
 
         rows.push_back(std::move(row));

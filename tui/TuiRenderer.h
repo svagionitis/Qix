@@ -160,7 +160,8 @@ private:
     void renderAsciiPlayfield(std::string& frame, const GameView& view) noexcept;
     void renderBraillePlayfield(std::string& frame, const GameView& view) noexcept;
     void renderNameEntry(std::string& frame, const NameEntryState& entry, const GameStats& stats) noexcept;
-    void renderHallOfFame(std::string& frame, const HighScoreTable* table, bool isGameOver, bool isAttract = false) noexcept;
+    void renderHallOfFame(
+        std::string& frame, const HighScoreTable* table, bool isGameOver, bool isAttract = false) noexcept;
     void renderInstructions(std::string& frame) noexcept;
 };
 

@@ -3,9 +3,9 @@
 #include "ColorPalette.h"
 #include "IQixGame.h"
 #include "ParticleSystem.h"
-#include <chrono>
 #include <QImage>
 #include <QWidget>
+#include <chrono>
 
 namespace qix::qt {
 

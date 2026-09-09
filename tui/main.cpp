@@ -1,9 +1,11 @@
 #include "GameConfig.h"
 #include "QixGame.h"
+#include "ReplaySystem.h"
 #include "SpeedConfig.h"
 #include "TuiRenderer.h"
 #include <chrono>
 #include <cstdlib>
+#include <iostream>
 #include <memory>
 #include <thread>
 
@@ -14,6 +16,8 @@ int main(int argc, char* argv[])
     const auto palette = qix::GameConfig::parsePaletteFlag(argc, argv);
     const auto artEnabled = qix::GameConfig::parseArtFlag(argc, argv, true);
     const auto artScene = qix::GameConfig::parseArtSceneFlag(argc, argv, -1);
+    const auto recordPath = qix::GameConfig::parseRecordFlag(argc, argv);
+    const auto replayPath = qix::GameConfig::parseReplayFlag(argc, argv);
 
     bool brailleMode = true;
     bool truecolor = true;
@@ -54,10 +58,42 @@ int main(int argc, char* argv[])
     }
 
     const auto attractMode = qix::GameConfig::parseAttractFlag(argc, argv);
-    auto game = std::make_unique<qix::QixGame>(width, height, 75, mode, delayMs);
-    if (attractMode) {
-        game->startAttractMode();
+    std::unique_ptr<qix::QixGame> game;
+    qix::ReplayPlayer player;
+    bool replaying = false;
+
+    if (!replayPath.empty()) {
+        if (player.loadFromFile(replayPath)) {
+            const auto& hdr = player.getHeader();
+            width = hdr.playfieldWidth;
+            height = hdr.playfieldHeight;
+            game = std::make_unique<qix::QixGame>(width, height, hdr.targetPercent, hdr.mode, hdr.baseDelayMs);
+            delayMs = hdr.baseDelayMs;
+            replaying = true;
+        } else {
+            std::cerr << "[Qix] Failed to load replay file: " << replayPath << "\n";
+            return 1;
+        }
+    } else {
+        game = std::make_unique<qix::QixGame>(width, height, 75, mode, delayMs);
+        if (attractMode) {
+            game->startAttractMode();
+        }
     }
+
+    qix::ReplayRecorder recorder;
+    std::uint32_t simTick = 0;
+    if (!recordPath.empty() && !replaying) {
+        const auto& view = game->getView();
+        qix::ReplayHeader hdr {};
+        hdr.mode = game->getGameMode();
+        hdr.playfieldWidth = (view.playfield != nullptr) ? view.playfield->getWidth() : width;
+        hdr.playfieldHeight = (view.playfield != nullptr) ? view.playfield->getHeight() : height;
+        hdr.targetPercent = view.stats.targetPercent;
+        hdr.baseDelayMs = game->getBaseDelayMs();
+        recorder.start(hdr);
+    }
+
     qix::tui::TuiRenderer renderer {};
     renderer.setBrailleMode(brailleMode);
     renderer.setTruecolor(truecolor);
@@ -192,6 +228,17 @@ int main(int argc, char* argv[])
             } else {
                 game->reset();
             }
+            if (recorder.isRecording()) {
+                const auto& view = game->getView();
+                qix::ReplayHeader hdr {};
+                hdr.mode = game->getGameMode();
+                hdr.playfieldWidth = (view.playfield != nullptr) ? view.playfield->getWidth() : width;
+                hdr.playfieldHeight = (view.playfield != nullptr) ? view.playfield->getHeight() : height;
+                hdr.targetPercent = view.stats.targetPercent;
+                hdr.baseDelayMs = game->getBaseDelayMs();
+                recorder.start(hdr);
+                simTick = 0;
+            }
             delayMs = game->getCurrentDelayMs();
         } else if (action == qix::tui::TuiAction::SpeedDown) {
             game->setBaseDelayMs(qix::SpeedConfig::speedDown(game->getBaseDelayMs()));
@@ -203,17 +250,31 @@ int main(int argc, char* argv[])
             currentCmd.drawMode = qix::DrawMode::None;
         }
 
-        if (cmd.direction != qix::Direction::None) {
-            currentCmd.direction = cmd.direction;
-        }
-        if (cmd.drawMode != qix::DrawMode::None) {
-            currentCmd.drawMode = cmd.drawMode;
+        if (replaying) {
+            currentCmd = player.getCommandForTick(simTick);
+            if (game->getView().state == qix::GameState::LevelComplete) {
+                if (currentCmd.drawMode != qix::DrawMode::None || currentCmd.direction != qix::Direction::None) {
+                    game->nextLevel();
+                    delayMs = game->getCurrentDelayMs();
+                }
+            }
+        } else {
+            if (cmd.direction != qix::Direction::None) {
+                currentCmd.direction = cmd.direction;
+            }
+            if (cmd.drawMode != qix::DrawMode::None) {
+                currentCmd.drawMode = cmd.drawMode;
+            }
+            if (recorder.isRecording()) {
+                recorder.recordTick(simTick, currentCmd);
+            }
         }
 
         const bool wasDrawing = (game->getView().drawMode != qix::DrawMode::None);
 
         game->handleInput(currentCmd);
         game->step(delayMs);
+        ++simTick;
 
         const bool isDrawing = (game->getView().drawMode != qix::DrawMode::None);
         if (wasDrawing && !isDrawing) {
@@ -231,6 +292,11 @@ int main(int argc, char* argv[])
         if (static_cast<std::uint32_t>(frameElapsed) < delayMs) {
             std::this_thread::sleep_for(std::chrono::milliseconds(delayMs - static_cast<std::uint32_t>(frameElapsed)));
         }
+    }
+
+    if (recorder.isRecording() && !recordPath.empty()) {
+        recorder.finish(game->getView().stats.score, simTick);
+        static_cast<void>(recorder.saveToFile(recordPath));
     }
 
     renderer.shutdown();

@@ -203,30 +203,19 @@ TEST(TerritoryFillTest, DetectSpiralTrailGeometry)
     EXPECT_FALSE(qix::TerritoryFill::detectSpiralTrail(straight));
 
     // L-turn: not a spiral
-    std::vector<qix::Point> lTurn {
-        {0, 0}, {1, 0}, {2, 0}, {3, 0},
-        {3, 1}, {3, 2}, {3, 3}
-    };
+    std::vector<qix::Point> lTurn {{0, 0}, {1, 0}, {2, 0}, {3, 0}, {3, 1}, {3, 2}, {3, 3}};
     EXPECT_FALSE(qix::TerritoryFill::detectSpiralTrail(lTurn));
 
     // Zigzag (alternating turns): not a spiral
-    std::vector<qix::Point> zigzag {
-        {0, 0}, {2, 0},
-        {2, 2},
-        {4, 2},
-        {4, 4},
-        {6, 4}
-    };
+    std::vector<qix::Point> zigzag {{0, 0}, {2, 0}, {2, 2}, {4, 2}, {4, 4}, {6, 4}};
     EXPECT_FALSE(qix::TerritoryFill::detectSpiralTrail(zigzag));
 
     // Clockwise spiral inward: Right -> Down -> Left -> Up -> Right
-    std::vector<qix::Point> spiral {
-        {0, 0}, {5, 0},       // Turn 1: Right to Down
-        {5, 1}, {5, 5},       // Turn 2: Down to Left
-        {4, 5}, {1, 5},       // Turn 3: Left to Up
-        {1, 4}, {1, 2},       // Turn 4: Up to Right
-        {2, 2}, {3, 2}
-    };
+    std::vector<qix::Point> spiral {{0, 0}, {5, 0}, // Turn 1: Right to Down
+        {5, 1}, {5, 5}, // Turn 2: Down to Left
+        {4, 5}, {1, 5}, // Turn 3: Left to Up
+        {1, 4}, {1, 2}, // Turn 4: Up to Right
+        {2, 2}, {3, 2}};
     EXPECT_TRUE(qix::TerritoryFill::detectSpiralTrail(spiral));
 }
 
@@ -237,10 +226,7 @@ TEST(TerritoryFillTest, QixTrapSuperBonusTightPocket)
     qix::TerritoryFill fill {10, 10};
 
     // Seal off top-left corner (1, 1) by cutting from (0, 2) -> (2, 2) -> (2, 0)
-    std::vector<qix::Point> trail {
-        {0, 2}, {1, 2}, {2, 2},
-        {2, 1}, {2, 0}
-    };
+    std::vector<qix::Point> trail {{0, 2}, {1, 2}, {2, 2}, {2, 1}, {2, 0}};
 
     // Qix trapped inside (1, 1)
     std::vector<qix::Point> qixPositions {qix::Point {1, 1}};
@@ -267,10 +253,7 @@ TEST(TerritoryFillTest, QixTrapStandardBonusPocket)
     // Enclose a 2x3 pocket on the left: x in [1, 2], y in [1, 3] = 6 cells
     // 6 / 64 = 9% <= 10% -> Standard Trap
     // Trail goes around the pocket: (0, 4) -> (3, 4) -> (3, 0)
-    std::vector<qix::Point> trail {
-        {0, 4}, {1, 4}, {2, 4}, {3, 4},
-        {3, 3}, {3, 2}, {3, 1}, {3, 0}
-    };
+    std::vector<qix::Point> trail {{0, 4}, {1, 4}, {2, 4}, {3, 4}, {3, 3}, {3, 2}, {3, 1}, {3, 0}};
 
     std::vector<qix::Point> qixPositions {qix::Point {1, 1}};
 
@@ -348,4 +331,3 @@ TEST(TerritoryFillTest, SpiralBonusCombinedWithTrap)
     EXPECT_LE(result.qixRemainingPercent, 5U);
     EXPECT_GE(result.trapBonus, 100000U);
 }
-

@@ -267,4 +267,63 @@ int GameConfig::parseArtSceneFlag(int argc, char* const argv[], int defaultScene
     return parseArtSceneFlag(args, defaultScene);
 }
 
+std::string GameConfig::parseRecordFlag(const std::vector<std::string>& args) noexcept
+{
+    for (std::size_t i {0}; i < args.size(); ++i) {
+        const auto& rawArg = args[i];
+        if (rawArg.rfind("--record=", 0) == 0) {
+            return rawArg.substr(9);
+        }
+        if ((rawArg == "--record" || rawArg == "-r") && i + 1 < args.size()) {
+            return args[i + 1];
+        }
+    }
+    return "";
+}
+
+std::string GameConfig::parseRecordFlag(int argc, char* const argv[]) noexcept
+{
+    std::vector<std::string> args {};
+    if (argc > 1 && argv != nullptr) {
+        args.reserve(static_cast<std::size_t>(argc - 1));
+        for (int i {1}; i < argc; ++i) {
+            if (argv[i] != nullptr) {
+                args.emplace_back(argv[i]);
+            }
+        }
+    }
+    return parseRecordFlag(args);
+}
+
+std::string GameConfig::parseReplayFlag(const std::vector<std::string>& args) noexcept
+{
+    for (std::size_t i {0}; i < args.size(); ++i) {
+        const auto& rawArg = args[i];
+        if (rawArg.rfind("--replay=", 0) == 0) {
+            return rawArg.substr(9);
+        }
+        if (rawArg.rfind("--playback=", 0) == 0) {
+            return rawArg.substr(11);
+        }
+        if ((rawArg == "--replay" || rawArg == "--playback") && i + 1 < args.size()) {
+            return args[i + 1];
+        }
+    }
+    return "";
+}
+
+std::string GameConfig::parseReplayFlag(int argc, char* const argv[]) noexcept
+{
+    std::vector<std::string> args {};
+    if (argc > 1 && argv != nullptr) {
+        args.reserve(static_cast<std::size_t>(argc - 1));
+        for (int i {1}; i < argc; ++i) {
+            if (argv[i] != nullptr) {
+                args.emplace_back(argv[i]);
+            }
+        }
+    }
+    return parseReplayFlag(args);
+}
+
 } // namespace qix

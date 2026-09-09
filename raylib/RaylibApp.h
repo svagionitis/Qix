@@ -2,6 +2,7 @@
 #include "ArcadeAudio.h"
 #include "IQixGame.h"
 #include "RaylibRenderer.h"
+#include "ReplaySystem.h"
 #include "SpeedConfig.h"
 #include <cstdint>
 #include <memory>
@@ -110,6 +111,22 @@ public:
     /// @return Reference to ArcadeAudio.
     [[nodiscard]] ArcadeAudio& getAudio() noexcept;
 
+    /// @brief Enable input recording to the given file upon exit.
+    /// @param[in] recordPath Target replay file path.
+    void setRecordPath(const std::string& recordPath) noexcept;
+
+    /// @brief Enable playback from a preloaded ReplayPlayer.
+    /// @param[in] player Initialized ReplayPlayer.
+    void setReplayPlayer(ReplayPlayer player) noexcept;
+
+    /// @brief Check whether currently in replay playback mode.
+    /// @return True if replaying.
+    [[nodiscard]] bool isReplaying() const noexcept;
+
+    /// @brief Check whether currently recording.
+    /// @return True if recording.
+    [[nodiscard]] bool isRecording() const noexcept;
+
 private:
     std::unique_ptr<IQixGame> m_game;
     RaylibRenderer m_renderer {};
@@ -118,6 +135,11 @@ private:
     std::uint32_t m_delayMs {SpeedConfig::DefaultDelayMs};
     AudioStream m_audioStream {};
     bool m_audioDeviceReady {false};
+    ReplayRecorder m_recorder {};
+    ReplayPlayer m_player {};
+    std::string m_recordPath {};
+    std::uint32_t m_simTick {0};
+    bool m_replaying {false};
 
     void processInput() noexcept;
 };

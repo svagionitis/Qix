@@ -14,6 +14,7 @@ if(GTest_FOUND)
         GamePresenterTest.cpp
         HighScoreTableTest.cpp
         ParticleSystemTest.cpp
+        ReplaySystemTest.cpp
         SpeedConfigTest.cpp
         TuiInputTest.cpp
         ../tui/TuiRenderer.cpp

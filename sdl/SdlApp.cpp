@@ -17,6 +17,10 @@ SdlApp::SdlApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bool crtEn
 
 SdlApp::~SdlApp()
 {
+    if (m_recorder.isRecording() && !m_recordPath.empty() && m_game) {
+        m_recorder.finish(m_game->getView().stats.score, m_simTick);
+        static_cast<void>(m_recorder.saveToFile(m_recordPath));
+    }
     if (m_audioDevice != 0) {
         SDL_CloseAudioDevice(m_audioDevice);
         m_audioDevice = 0;
@@ -48,7 +52,14 @@ bool SdlApp::init(const std::string& title, int width, int height) noexcept
         SDL_PauseAudioDevice(m_audioDevice, 0);
     }
 
-    return m_renderer.init(title, width, height);
+    std::string finalTitle = title;
+    if (m_replaying) {
+        finalTitle += " [REPLAY]";
+    } else if (m_recorder.isRecording()) {
+        finalTitle += " [REC]";
+    }
+
+    return m_renderer.init(finalTitle, width, height);
 }
 
 std::uint32_t SdlApp::getDelayMs() const noexcept
@@ -144,6 +155,39 @@ void SdlApp::toggleArt() noexcept
 void SdlApp::setArtScene(int scene) noexcept
 {
     m_renderer.setArtScene(scene);
+}
+
+void SdlApp::setRecordPath(const std::string& recordPath) noexcept
+{
+    m_recordPath = recordPath;
+    if (!m_recordPath.empty() && m_game) {
+        const auto& view = m_game->getView();
+        ReplayHeader hdr {};
+        hdr.mode = m_game->getGameMode();
+        hdr.playfieldWidth = (view.playfield != nullptr) ? view.playfield->getWidth() : 80;
+        hdr.playfieldHeight = (view.playfield != nullptr) ? view.playfield->getHeight() : 60;
+        hdr.targetPercent = view.stats.targetPercent;
+        hdr.baseDelayMs = m_game->getBaseDelayMs();
+        m_recorder.start(hdr);
+        m_simTick = 0;
+    }
+}
+
+void SdlApp::setReplayPlayer(ReplayPlayer player) noexcept
+{
+    m_player = std::move(player);
+    m_replaying = m_player.isLoaded();
+    m_simTick = 0;
+}
+
+bool SdlApp::isReplaying() const noexcept
+{
+    return m_replaying;
+}
+
+bool SdlApp::isRecording() const noexcept
+{
+    return m_recorder.isRecording();
 }
 
 void SdlApp::sdlAudioCallback(void* userdata, Uint8* stream, int len) noexcept
@@ -242,33 +286,40 @@ void SdlApp::processEvents(bool& running) noexcept
                 }
             }
 
+            if (!m_replaying) {
+                switch (key) {
+                case SDLK_UP:
+                case SDLK_w:
+                    m_currentCmd.direction = Direction::Up;
+                    break;
+                case SDLK_DOWN:
+                case SDLK_s:
+                    m_currentCmd.direction = Direction::Down;
+                    break;
+                case SDLK_LEFT:
+                case SDLK_a:
+                    m_currentCmd.direction = Direction::Left;
+                    break;
+                case SDLK_RIGHT:
+                case SDLK_d:
+                    m_currentCmd.direction = Direction::Right;
+                    break;
+                case SDLK_SPACE:
+                case SDLK_LCTRL:
+                case SDLK_RCTRL:
+                    m_currentCmd.drawMode = DrawMode::Slow;
+                    break;
+                case SDLK_LSHIFT:
+                case SDLK_RSHIFT:
+                case SDLK_f:
+                    m_currentCmd.drawMode = DrawMode::Fast;
+                    break;
+                default:
+                    break;
+                }
+            }
+
             switch (key) {
-            case SDLK_UP:
-            case SDLK_w:
-                m_currentCmd.direction = Direction::Up;
-                break;
-            case SDLK_DOWN:
-            case SDLK_s:
-                m_currentCmd.direction = Direction::Down;
-                break;
-            case SDLK_LEFT:
-            case SDLK_a:
-                m_currentCmd.direction = Direction::Left;
-                break;
-            case SDLK_RIGHT:
-            case SDLK_d:
-                m_currentCmd.direction = Direction::Right;
-                break;
-            case SDLK_SPACE:
-            case SDLK_LCTRL:
-            case SDLK_RCTRL:
-                m_currentCmd.drawMode = DrawMode::Slow;
-                break;
-            case SDLK_LSHIFT:
-            case SDLK_RSHIFT:
-            case SDLK_f:
-                m_currentCmd.drawMode = DrawMode::Fast;
-                break;
             case SDLK_MINUS:
             case SDLK_KP_MINUS:
             case SDLK_LEFTBRACKET:
@@ -284,6 +335,16 @@ void SdlApp::processEvents(bool& running) noexcept
             case SDLK_r:
                 if (m_game) {
                     m_game->reset();
+                    if (m_recorder.isRecording()) {
+                        ReplayHeader hdr {};
+                        hdr.mode = m_game->getGameMode();
+                        hdr.playfieldWidth = (view.playfield != nullptr) ? view.playfield->getWidth() : 80;
+                        hdr.playfieldHeight = (view.playfield != nullptr) ? view.playfield->getHeight() : 60;
+                        hdr.targetPercent = view.stats.targetPercent;
+                        hdr.baseDelayMs = m_game->getBaseDelayMs();
+                        m_recorder.start(hdr);
+                        m_simTick = 0;
+                    }
                 }
                 break;
             case SDLK_c:
@@ -307,7 +368,7 @@ void SdlApp::processEvents(bool& running) noexcept
             default:
                 break;
             }
-        } else if (event.type == SDL_KEYUP) {
+        } else if (event.type == SDL_KEYUP && !m_replaying) {
             const auto key = event.key.keysym.sym;
             if (key == SDLK_SPACE || key == SDLK_LCTRL || key == SDLK_RCTRL || key == SDLK_LSHIFT || key == SDLK_RSHIFT
                 || key == SDLK_f) {
@@ -330,8 +391,20 @@ void SdlApp::run() noexcept
         }
 
         if (m_game) {
+            if (m_replaying) {
+                m_currentCmd = m_player.getCommandForTick(m_simTick);
+                if (m_game->getView().state == GameState::LevelComplete) {
+                    if (m_currentCmd.drawMode != DrawMode::None || m_currentCmd.direction != Direction::None) {
+                        m_game->nextLevel();
+                    }
+                }
+            } else if (m_recorder.isRecording()) {
+                m_recorder.recordTick(m_simTick, m_currentCmd);
+            }
+
             m_game->handleInput(m_currentCmd);
             m_game->step(m_delayMs);
+            ++m_simTick;
 
             m_audio.update(m_game->getView(), m_delayMs);
 
@@ -346,6 +419,11 @@ void SdlApp::run() noexcept
         if (frameElapsed < m_delayMs) {
             SDL_Delay(m_delayMs - frameElapsed);
         }
+    }
+
+    if (m_recorder.isRecording() && !m_recordPath.empty() && m_game) {
+        m_recorder.finish(m_game->getView().stats.score, m_simTick);
+        static_cast<void>(m_recorder.saveToFile(m_recordPath));
     }
 }
 

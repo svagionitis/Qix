@@ -32,11 +32,7 @@ struct VictoryPresentation {
 
 /// @enum HudUrgency
 /// @brief Urgency tier for time countdown display in the HUD.
-enum class HudUrgency : std::uint8_t {
-    Normal,
-    Warning,
-    Critical
-};
+enum class HudUrgency : std::uint8_t { Normal, Warning, Critical };
 
 /// @struct HudPresentation
 /// @brief Formatted view-model for the top HUD status bar.
@@ -57,12 +53,7 @@ struct HudPresentation {
 
 /// @enum MedalTier
 /// @brief Hall of Fame ranking achievement badge tiers.
-enum class MedalTier : std::uint8_t {
-    Gold = 0,
-    Silver = 1,
-    Bronze = 2,
-    Standard = 3
-};
+enum class MedalTier : std::uint8_t { Gold = 0, Silver = 1, Bronze = 2, Standard = 3 };
 
 /// @struct HofRowPresentation
 /// @brief Formatted row in the Hall of Fame table.

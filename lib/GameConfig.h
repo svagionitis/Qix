@@ -85,7 +85,8 @@ public:
     /// @param[in] args Vector of command line argument strings.
     /// @param[in] defaultAttract Fallback value if flag is absent (default: false).
     /// @return True if attract mode should start immediately, false otherwise.
-    [[nodiscard]] static bool parseAttractFlag(const std::vector<std::string>& args, bool defaultAttract = false) noexcept;
+    [[nodiscard]] static bool parseAttractFlag(
+        const std::vector<std::string>& args, bool defaultAttract = false) noexcept;
 
     /// @brief Parse background art reveal mode flag (--art, --bg-art, --reveal, --no-art, --no-bg-art).
     /// @param[in] argc Argument count.
@@ -112,6 +113,28 @@ public:
     /// @param[in] defaultScene Fallback scene index if flag is absent (default: -1 for auto level-based).
     /// @return Scene index (0..3) or -1 for auto level-based cycling.
     [[nodiscard]] static int parseArtSceneFlag(const std::vector<std::string>& args, int defaultScene = -1) noexcept;
+
+    /// @brief Parse recording output filepath from command line arguments (--record=<file>, -r <file>).
+    /// @param[in] argc Argument count.
+    /// @param[in] argv Argument array.
+    /// @return Filepath to write recording, or empty string if recording not requested.
+    [[nodiscard]] static std::string parseRecordFlag(int argc, char* const argv[]) noexcept;
+
+    /// @brief Parse recording output filepath from vector of argument strings.
+    /// @param[in] args Vector of arguments.
+    /// @return Filepath to write recording, or empty string if recording not requested.
+    [[nodiscard]] static std::string parseRecordFlag(const std::vector<std::string>& args) noexcept;
+
+    /// @brief Parse replay playback input filepath from command line arguments (--replay=<file>, --playback=<file>).
+    /// @param[in] argc Argument count.
+    /// @param[in] argv Argument array.
+    /// @return Filepath to replay file, or empty string if playback not requested.
+    [[nodiscard]] static std::string parseReplayFlag(int argc, char* const argv[]) noexcept;
+
+    /// @brief Parse replay playback input filepath from vector of argument strings.
+    /// @param[in] args Vector of arguments.
+    /// @return Filepath to replay file, or empty string if playback not requested.
+    [[nodiscard]] static std::string parseReplayFlag(const std::vector<std::string>& args) noexcept;
 };
 
 } // namespace qix

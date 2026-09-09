@@ -32,12 +32,7 @@ public:
     [[nodiscard]] PlayerCommand update(const GameView& view) noexcept;
 
 private:
-    enum class State : std::uint8_t {
-        BorderPatrol = 0,
-        CuttingInward = 1,
-        CuttingParallel = 2,
-        CuttingReturn = 3
-    };
+    enum class State : std::uint8_t { BorderPatrol = 0, CuttingInward = 1, CuttingParallel = 2, CuttingReturn = 3 };
 
     State m_state {State::BorderPatrol};
     Direction m_borderDir {Direction::Right};

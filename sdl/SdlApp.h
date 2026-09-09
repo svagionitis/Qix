@@ -1,6 +1,7 @@
 #pragma once
 #include "ArcadeAudio.h"
 #include "IQixGame.h"
+#include "ReplaySystem.h"
 #include "SdlRenderer.h"
 #include "SpeedConfig.h"
 #include <SDL.h>
@@ -108,6 +109,22 @@ public:
     /// @param[in] scene Scene index or -1 for auto.
     void setArtScene(int scene) noexcept;
 
+    /// @brief Enable input recording to the given file upon exit.
+    /// @param[in] recordPath Target replay file path.
+    void setRecordPath(const std::string& recordPath) noexcept;
+
+    /// @brief Enable playback from a preloaded ReplayPlayer.
+    /// @param[in] player Initialized ReplayPlayer.
+    void setReplayPlayer(ReplayPlayer player) noexcept;
+
+    /// @brief Check whether currently in replay playback mode.
+    /// @return True if replaying.
+    [[nodiscard]] bool isReplaying() const noexcept;
+
+    /// @brief Check whether currently recording.
+    /// @return True if recording.
+    [[nodiscard]] bool isRecording() const noexcept;
+
 private:
     std::unique_ptr<IQixGame> m_game;
     SdlRenderer m_renderer {};
@@ -116,6 +133,11 @@ private:
     std::uint32_t m_delayMs {SpeedConfig::DefaultDelayMs};
     bool m_sdlInitialized {false};
     SDL_AudioDeviceID m_audioDevice {0};
+    ReplayRecorder m_recorder {};
+    ReplayPlayer m_player {};
+    std::string m_recordPath {};
+    std::uint32_t m_simTick {0};
+    bool m_replaying {false};
 
     void processEvents(bool& running) noexcept;
     static void sdlAudioCallback(void* userdata, Uint8* stream, int len) noexcept;

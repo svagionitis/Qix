@@ -123,6 +123,11 @@ MainWindow::MainWindow(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bo
 
 MainWindow::~MainWindow()
 {
+    m_timer.stop();
+    if (m_recorder.isRecording() && !m_recordPath.empty() && m_game) {
+        m_recorder.finish(m_game->getView().stats.score, m_simTick);
+        static_cast<void>(m_recorder.saveToFile(m_recordPath));
+    }
 #if defined(QIX_QT_HAS_MULTIMEDIA)
 #if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
     if (m_audioSink) {
@@ -312,14 +317,64 @@ void MainWindow::setArtScene(int scene) noexcept
     }
 }
 
+void MainWindow::setRecordPath(const std::string& recordPath) noexcept
+{
+    m_recordPath = recordPath;
+    if (!m_recordPath.empty() && m_game) {
+        const auto& view = m_game->getView();
+        ReplayHeader hdr {};
+        hdr.mode = m_game->getGameMode();
+        hdr.playfieldWidth = (view.playfield != nullptr) ? view.playfield->getWidth() : 80;
+        hdr.playfieldHeight = (view.playfield != nullptr) ? view.playfield->getHeight() : 60;
+        hdr.targetPercent = view.stats.targetPercent;
+        hdr.baseDelayMs = m_game->getBaseDelayMs();
+        m_recorder.start(hdr);
+        m_simTick = 0;
+        setWindowTitle(windowTitle() + " [REC]");
+    }
+}
+
+void MainWindow::setReplayPlayer(ReplayPlayer player) noexcept
+{
+    m_player = std::move(player);
+    m_replaying = m_player.isLoaded();
+    m_simTick = 0;
+    if (m_replaying) {
+        setWindowTitle(windowTitle() + " [REPLAY]");
+    }
+}
+
+bool MainWindow::isReplaying() const noexcept
+{
+    return m_replaying;
+}
+
+bool MainWindow::isRecording() const noexcept
+{
+    return m_recorder.isRecording();
+}
+
 void MainWindow::onTick()
 {
     if (!m_game) {
         return;
     }
 
+    if (m_replaying) {
+        m_currentCmd = m_player.getCommandForTick(m_simTick);
+        if (m_game->getView().state == GameState::LevelComplete) {
+            if (m_currentCmd.drawMode != DrawMode::None || m_currentCmd.direction != Direction::None) {
+                m_game->nextLevel();
+                setDelayMs(m_game->getCurrentDelayMs());
+            }
+        }
+    } else if (m_recorder.isRecording()) {
+        m_recorder.recordTick(m_simTick, m_currentCmd);
+    }
+
     m_game->handleInput(m_currentCmd);
     m_game->step(m_delayMs);
+    ++m_simTick;
 
     m_audio.update(m_game->getView(), m_delayMs);
 
@@ -401,31 +456,38 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
         }
     }
 
+    if (!m_replaying) {
+        switch (event->key()) {
+        case Qt::Key_Up:
+        case Qt::Key_W:
+            m_currentCmd.direction = Direction::Up;
+            break;
+        case Qt::Key_Down:
+        case Qt::Key_S:
+            m_currentCmd.direction = Direction::Down;
+            break;
+        case Qt::Key_Left:
+        case Qt::Key_A:
+            m_currentCmd.direction = Direction::Left;
+            break;
+        case Qt::Key_Right:
+        case Qt::Key_D:
+            m_currentCmd.direction = Direction::Right;
+            break;
+        case Qt::Key_Space:
+        case Qt::Key_Control:
+            m_currentCmd.drawMode = DrawMode::Slow;
+            break;
+        case Qt::Key_Shift:
+        case Qt::Key_F:
+            m_currentCmd.drawMode = DrawMode::Fast;
+            break;
+        default:
+            break;
+        }
+    }
+
     switch (event->key()) {
-    case Qt::Key_Up:
-    case Qt::Key_W:
-        m_currentCmd.direction = Direction::Up;
-        break;
-    case Qt::Key_Down:
-    case Qt::Key_S:
-        m_currentCmd.direction = Direction::Down;
-        break;
-    case Qt::Key_Left:
-    case Qt::Key_A:
-        m_currentCmd.direction = Direction::Left;
-        break;
-    case Qt::Key_Right:
-    case Qt::Key_D:
-        m_currentCmd.direction = Direction::Right;
-        break;
-    case Qt::Key_Space:
-    case Qt::Key_Control:
-        m_currentCmd.drawMode = DrawMode::Slow;
-        break;
-    case Qt::Key_Shift:
-    case Qt::Key_F:
-        m_currentCmd.drawMode = DrawMode::Fast;
-        break;
     case Qt::Key_Minus:
     case Qt::Key_BracketLeft:
     case Qt::Key_Underscore:
@@ -437,7 +499,19 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
         speedUp();
         break;
     case Qt::Key_R:
-        m_game->reset();
+        if (m_game) {
+            m_game->reset();
+            if (m_recorder.isRecording()) {
+                ReplayHeader hdr {};
+                hdr.mode = m_game->getGameMode();
+                hdr.playfieldWidth = (view.playfield != nullptr) ? view.playfield->getWidth() : 80;
+                hdr.playfieldHeight = (view.playfield != nullptr) ? view.playfield->getHeight() : 60;
+                hdr.targetPercent = view.stats.targetPercent;
+                hdr.baseDelayMs = m_game->getBaseDelayMs();
+                m_recorder.start(hdr);
+                m_simTick = 0;
+            }
+        }
         break;
     case Qt::Key_C:
     case Qt::Key_F2:
@@ -466,9 +540,11 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
 
 void MainWindow::keyReleaseEvent(QKeyEvent* event)
 {
-    if (event->key() == Qt::Key_Space || event->key() == Qt::Key_Control || event->key() == Qt::Key_Shift
-        || event->key() == Qt::Key_F) {
-        m_currentCmd.drawMode = DrawMode::None;
+    if (!m_replaying) {
+        if (event->key() == Qt::Key_Space || event->key() == Qt::Key_Control || event->key() == Qt::Key_Shift
+            || event->key() == Qt::Key_F) {
+            m_currentCmd.drawMode = DrawMode::None;
+        }
     }
 
     QMainWindow::keyReleaseEvent(event);

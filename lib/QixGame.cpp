@@ -84,16 +84,11 @@ void QixGame::step(std::uint32_t deltaMs) noexcept
 
             const auto completedTrail = m_marker.getTrail();
             const auto drawMode = m_marker.getDrawMode();
-            const auto fillRes = m_fill.execute(m_playfield, completedTrail, qixPositions, drawMode,
-                m_stats.targetPercent, m_stats.multiplier);
+            const auto fillRes = m_fill.execute(
+                m_playfield, completedTrail, qixPositions, drawMode, m_stats.targetPercent, m_stats.multiplier);
 
             if (fillRes.claimedCellsCount > 0) {
-                m_events.push_back(GameEvent {
-                    GameEventType::TerritoryCapture,
-                    currentPos,
-                    completedTrail,
-                    drawMode
-                });
+                m_events.push_back(GameEvent {GameEventType::TerritoryCapture, currentPos, completedTrail, drawMode});
             }
 
             m_stats.score += fillRes.pointsAwarded;
@@ -145,12 +140,7 @@ void QixGame::step(std::uint32_t deltaMs) noexcept
     // 6. Audit Collisions
     const auto collision = CollisionDetector::check(m_marker, m_qixList, m_sparxList, m_fuse);
     if (collision != CollisionEvent::None) {
-        m_events.push_back(GameEvent {
-            GameEventType::MarkerDeath,
-            m_marker.getPosition(),
-            {},
-            m_marker.getDrawMode()
-        });
+        m_events.push_back(GameEvent {GameEventType::MarkerDeath, m_marker.getPosition(), {}, m_marker.getDrawMode()});
         handleDeath();
     }
 

@@ -46,12 +46,8 @@ public:
     {
         const int g = (static_cast<int>(color.g) * 2 / 3) + 30;
         const int b = (static_cast<int>(color.b) * 4 / 5) + 60;
-        return PaletteColor {
-            static_cast<std::uint8_t>(color.r / 3),
-            static_cast<std::uint8_t>(g > 255 ? 255 : g),
-            static_cast<std::uint8_t>(b > 255 ? 255 : b),
-            color.a
-        };
+        return PaletteColor {static_cast<std::uint8_t>(color.r / 3), static_cast<std::uint8_t>(g > 255 ? 255 : g),
+            static_cast<std::uint8_t>(b > 255 ? 255 : b), color.a};
     }
 
     /// @brief Pre-generate both standard and muted fast-draw RGBA buffers for an artwork scene.
@@ -60,10 +56,8 @@ public:
     /// @param[in] height Target buffer height in pixels.
     /// @param[out] standardBuffer Output standard 100% saturation buffer.
     /// @param[out] mutedBuffer Output muted/cyan-tinted buffer for Fast Draw.
-    static void generateDualRgbaBuffers(
-        ArtScene scene, int width, int height,
-        std::vector<std::uint8_t>& standardBuffer,
-        std::vector<std::uint8_t>& mutedBuffer) noexcept;
+    static void generateDualRgbaBuffers(ArtScene scene, int width, int height,
+        std::vector<std::uint8_t>& standardBuffer, std::vector<std::uint8_t>& mutedBuffer) noexcept;
 
     /// @brief Retrieve the human-readable display name of an artwork scene.
     /// @param[in] scene The artwork scene enum.

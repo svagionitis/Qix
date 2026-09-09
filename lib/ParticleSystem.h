@@ -11,26 +11,26 @@ namespace qix {
 
 /// @brief Geometric visual type of an individual simulated particle.
 enum class ParticleType : std::uint8_t {
-    Spark = 0,     ///< High-speed fiery spark / streak.
-    GlowShard,     ///< Glowing diamond / boundary flash shard.
+    Spark = 0, ///< High-speed fiery spark / streak.
+    GlowShard, ///< Glowing diamond / boundary flash shard.
     DebrisDiamond, ///< Rotating multi-colored diamond fragment.
-    DebrisSquare,  ///< Rotating square debris fragment.
-    DebrisLine     ///< Tumbling geometric line shard.
+    DebrisSquare, ///< Rotating square debris fragment.
+    DebrisLine ///< Tumbling geometric line shard.
 };
 
 /// @brief Individual particle instance with kinematics, orientation, and color decay.
 struct Particle {
-    float x {0.0f};             ///< Horizontal position in grid space.
-    float y {0.0f};             ///< Vertical position in grid space.
-    float vx {0.0f};            ///< Horizontal velocity in grid units per second.
-    float vy {0.0f};            ///< Vertical velocity in grid units per second.
-    float size {0.0f};          ///< Characteristic radius/scale in grid units.
-    float rotation {0.0f};      ///< Angular rotation in radians.
+    float x {0.0f}; ///< Horizontal position in grid space.
+    float y {0.0f}; ///< Vertical position in grid space.
+    float vx {0.0f}; ///< Horizontal velocity in grid units per second.
+    float vy {0.0f}; ///< Vertical velocity in grid units per second.
+    float size {0.0f}; ///< Characteristic radius/scale in grid units.
+    float rotation {0.0f}; ///< Angular rotation in radians.
     float rotationSpeed {0.0f}; ///< Angular velocity in radians per second.
-    float life {1.0f};          ///< Normalized life remaining [1.0 -> 0.0].
-    float decay {1.0f};         ///< Decay rate per second (1.0 / maxLife).
+    float life {1.0f}; ///< Normalized life remaining [1.0 -> 0.0].
+    float decay {1.0f}; ///< Decay rate per second (1.0 / maxLife).
     PaletteColor startColor {}; ///< Color at birth.
-    PaletteColor endColor {};   ///< Target color upon full decay.
+    PaletteColor endColor {}; ///< Target color upon full decay.
     ParticleType type {ParticleType::Spark};
 
     /// @brief Interpolate current color based on remaining life.
@@ -43,8 +43,7 @@ struct Particle {
             static_cast<std::uint8_t>(static_cast<float>(startColor.r) * t + static_cast<float>(endColor.r) * invT),
             static_cast<std::uint8_t>(static_cast<float>(startColor.g) * t + static_cast<float>(endColor.g) * invT),
             static_cast<std::uint8_t>(static_cast<float>(startColor.b) * t + static_cast<float>(endColor.b) * invT),
-            static_cast<std::uint8_t>(static_cast<float>(startColor.a) * t + static_cast<float>(endColor.a) * invT)
-        };
+            static_cast<std::uint8_t>(static_cast<float>(startColor.a) * t + static_cast<float>(endColor.a) * invT)};
     }
 };
 

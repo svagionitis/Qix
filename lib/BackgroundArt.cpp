@@ -6,62 +6,57 @@ namespace qix {
 
 namespace {
 
-constexpr float Pi = 3.14159265358979323846f;
-constexpr float TwoPi = 6.28318530717958647692f;
+    constexpr float Pi = 3.14159265358979323846f;
+    constexpr float TwoPi = 6.28318530717958647692f;
 
-[[nodiscard]] inline float clamp01(float val) noexcept
-{
-    return std::clamp(val, 0.0f, 1.0f);
-}
-
-[[nodiscard]] inline std::uint8_t toByte(float v) noexcept
-{
-    const auto clamped = std::clamp(v, 0.0f, 255.0f);
-    return static_cast<std::uint8_t>(clamped + 0.5f);
-}
-
-[[nodiscard]] inline PaletteColor lerpColor(const PaletteColor& c1, const PaletteColor& c2, float t) noexcept
-{
-    const float factor = clamp01(t);
-    return PaletteColor {
-        toByte(static_cast<float>(c1.r) + (static_cast<float>(c2.r) - static_cast<float>(c1.r)) * factor),
-        toByte(static_cast<float>(c1.g) + (static_cast<float>(c2.g) - static_cast<float>(c1.g)) * factor),
-        toByte(static_cast<float>(c1.b) + (static_cast<float>(c2.b) - static_cast<float>(c1.b)) * factor),
-        255
-    };
-}
-
-[[nodiscard]] inline PaletteColor addGlow(const PaletteColor& base, float r, float g, float b, float intensity) noexcept
-{
-    const float scale = std::max(0.0f, intensity);
-    return PaletteColor {
-        toByte(static_cast<float>(base.r) + r * scale),
-        toByte(static_cast<float>(base.g) + g * scale),
-        toByte(static_cast<float>(base.b) + b * scale),
-        255
-    };
-}
-
-// Deterministic 1D/2D pseudo-random hash
-[[nodiscard]] inline float hash11(float p) noexcept
-{
-    float pInt = 0.0f;
-    float pFract = std::modf(std::sin(p * 127.1f) * 43758.5453123f, &pInt);
-    if (pFract < 0.0f) {
-        pFract += 1.0f;
+    [[nodiscard]] inline float clamp01(float val) noexcept
+    {
+        return std::clamp(val, 0.0f, 1.0f);
     }
-    return pFract;
-}
 
-[[nodiscard]] inline float hash21(float x, float y) noexcept
-{
-    float pInt = 0.0f;
-    float pFract = std::modf(std::sin(x * 12.9898f + y * 78.233f) * 43758.5453f, &pInt);
-    if (pFract < 0.0f) {
-        pFract += 1.0f;
+    [[nodiscard]] inline std::uint8_t toByte(float v) noexcept
+    {
+        const auto clamped = std::clamp(v, 0.0f, 255.0f);
+        return static_cast<std::uint8_t>(clamped + 0.5f);
     }
-    return pFract;
-}
+
+    [[nodiscard]] inline PaletteColor lerpColor(const PaletteColor& c1, const PaletteColor& c2, float t) noexcept
+    {
+        const float factor = clamp01(t);
+        return PaletteColor {
+            toByte(static_cast<float>(c1.r) + (static_cast<float>(c2.r) - static_cast<float>(c1.r)) * factor),
+            toByte(static_cast<float>(c1.g) + (static_cast<float>(c2.g) - static_cast<float>(c1.g)) * factor),
+            toByte(static_cast<float>(c1.b) + (static_cast<float>(c2.b) - static_cast<float>(c1.b)) * factor), 255};
+    }
+
+    [[nodiscard]] inline PaletteColor addGlow(
+        const PaletteColor& base, float r, float g, float b, float intensity) noexcept
+    {
+        const float scale = std::max(0.0f, intensity);
+        return PaletteColor {toByte(static_cast<float>(base.r) + r * scale),
+            toByte(static_cast<float>(base.g) + g * scale), toByte(static_cast<float>(base.b) + b * scale), 255};
+    }
+
+    // Deterministic 1D/2D pseudo-random hash
+    [[nodiscard]] inline float hash11(float p) noexcept
+    {
+        float pInt = 0.0f;
+        float pFract = std::modf(std::sin(p * 127.1f) * 43758.5453123f, &pInt);
+        if (pFract < 0.0f) {
+            pFract += 1.0f;
+        }
+        return pFract;
+    }
+
+    [[nodiscard]] inline float hash21(float x, float y) noexcept
+    {
+        float pInt = 0.0f;
+        float pFract = std::modf(std::sin(x * 12.9898f + y * 78.233f) * 43758.5453f, &pInt);
+        if (pFract < 0.0f) {
+            pFract += 1.0f;
+        }
+        return pFract;
+    }
 
 } // namespace
 
@@ -113,10 +108,8 @@ void BackgroundArt::generateRgbaBuffer(
     }
 }
 
-void BackgroundArt::generateDualRgbaBuffers(
-    ArtScene scene, int width, int height,
-    std::vector<std::uint8_t>& standardBuffer,
-    std::vector<std::uint8_t>& mutedBuffer) noexcept
+void BackgroundArt::generateDualRgbaBuffers(ArtScene scene, int width, int height,
+    std::vector<std::uint8_t>& standardBuffer, std::vector<std::uint8_t>& mutedBuffer) noexcept
 {
     if (width <= 0 || height <= 0) {
         standardBuffer.clear();
@@ -363,7 +356,8 @@ PaletteColor BackgroundArt::sampleSynthwave(float u, float v) noexcept
 
     if (totalGrid > 0.0f) {
         // Glowing Neon Cyan and Magenta wireframe
-        const PaletteColor gridColor = (depth > 0.4f) ? PaletteColor {0, 240, 255, 255} : PaletteColor {255, 0, 180, 255};
+        const PaletteColor gridColor
+            = (depth > 0.4f) ? PaletteColor {0, 240, 255, 255} : PaletteColor {255, 0, 180, 255};
         groundCol = lerpColor(groundCol, gridColor, totalGrid * clamp01(depth * 1.5f));
     }
 
@@ -392,9 +386,9 @@ PaletteColor BackgroundArt::sampleCosmic(float u, float v) noexcept
     // Nebula color layers: Turquoise + Electric Violet + Magenta
     const float nebulaAlpha = std::pow(n1 * 0.5f + n2 * 0.35f + n3 * 0.15f, 1.8f);
     if (nebulaAlpha > 0.12f) {
-        PaletteColor neb1 {0, 180, 210, 255};   // Turquoise
-        PaletteColor neb2 {140, 30, 220, 255};  // Electric Violet
-        PaletteColor neb3 {240, 35, 120, 255};  // Magenta
+        PaletteColor neb1 {0, 180, 210, 255}; // Turquoise
+        PaletteColor neb2 {140, 30, 220, 255}; // Electric Violet
+        PaletteColor neb3 {240, 35, 120, 255}; // Magenta
 
         const PaletteColor nebCol = lerpColor(neb1, lerpColor(neb2, neb3, n2), n1);
         col = lerpColor(col, nebCol, std::min(0.85f, nebulaAlpha * 1.1f));
@@ -443,7 +437,7 @@ PaletteColor BackgroundArt::sampleCosmic(float u, float v) noexcept
     if (pDist <= PlanetR) {
         // Atmospheric Bands
         const float band = std::sin((pDy / PlanetR) * 22.0f) * 0.5f + 0.5f;
-        PaletteColor planetDark {110, 45, 25, 255};  // Copper/Rust
+        PaletteColor planetDark {110, 45, 25, 255}; // Copper/Rust
         PaletteColor planetLight {215, 170, 110, 255}; // Cream Amber
         PaletteColor pCol = lerpColor(planetDark, planetLight, band);
 
@@ -453,12 +447,8 @@ PaletteColor BackgroundArt::sampleCosmic(float u, float v) noexcept
         const float nz = std::sqrt(std::max(0.0f, 1.0f - nx * nx - ny * ny));
         const float light = std::max(0.05f, -nx * 0.6f - ny * 0.5f + nz * 0.62f);
 
-        col = PaletteColor {
-            toByte(static_cast<float>(pCol.r) * light),
-            toByte(static_cast<float>(pCol.g) * light),
-            toByte(static_cast<float>(pCol.b) * light),
-            255
-        };
+        col = PaletteColor {toByte(static_cast<float>(pCol.r) * light), toByte(static_cast<float>(pCol.g) * light),
+            toByte(static_cast<float>(pCol.b) * light), 255};
 
         // Outer atmospheric glow rim
         if (pDist > PlanetR * 0.92f) {

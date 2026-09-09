@@ -196,24 +196,27 @@ PaletteColor ColorPalette::computeRibbonColor(
         const double m = v - c;
         double r1 {0.0}, g1 {0.0}, b1 {0.0};
         if (h < 60.0) {
-            r1 = c; g1 = x;
+            r1 = c;
+            g1 = x;
         } else if (h < 120.0) {
-            r1 = x; g1 = c;
+            r1 = x;
+            g1 = c;
         } else if (h < 180.0) {
-            g1 = c; b1 = x;
+            g1 = c;
+            b1 = x;
         } else if (h < 240.0) {
-            g1 = x; b1 = c;
+            g1 = x;
+            b1 = c;
         } else if (h < 300.0) {
-            r1 = x; b1 = c;
+            r1 = x;
+            b1 = c;
         } else {
-            r1 = c; b1 = x;
+            r1 = c;
+            b1 = x;
         }
-        return PaletteColor {
-            static_cast<std::uint8_t>(std::clamp((r1 + m) * 255.0, 0.0, 255.0)),
+        return PaletteColor {static_cast<std::uint8_t>(std::clamp((r1 + m) * 255.0, 0.0, 255.0)),
             static_cast<std::uint8_t>(std::clamp((g1 + m) * 255.0, 0.0, 255.0)),
-            static_cast<std::uint8_t>(std::clamp((b1 + m) * 255.0, 0.0, 255.0)),
-            255
-        };
+            static_cast<std::uint8_t>(std::clamp((b1 + m) * 255.0, 0.0, 255.0)), 255};
     };
 
     const auto safeTotal = std::max<std::size_t>(1, totalSegs);

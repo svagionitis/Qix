@@ -70,7 +70,6 @@ namespace {
         std::uint8_t b {0};
     };
 
-
     void appendTruecolor(std::string& out, std::uint8_t r, std::uint8_t g, std::uint8_t b) noexcept
     {
         char buf[32];
@@ -773,19 +772,19 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
 
     // 3. Controls Legend
     if (view.state == GameState::LevelComplete) {
-        const auto artScene = (m_customArtScene >= 0)
-            ? BackgroundArt::fromIndex(m_customArtScene)
-            : BackgroundArt::getSceneForLevel(view.stats.level);
+        const auto artScene = (m_customArtScene >= 0) ? BackgroundArt::fromIndex(m_customArtScene)
+                                                      : BackgroundArt::getSceneForLevel(view.stats.level);
         if (m_artEnabled) {
             frame += "  \033[1;33m*** ART UNMASKED: " + std::string(BackgroundArt::getSceneName(artScene))
-                   + " ***   \033[1;32mPRESS [SPACE/ENTER] FOR NEXT LEVEL\033[0m\n";
+                + " ***   \033[1;32mPRESS [SPACE/ENTER] FOR NEXT LEVEL\033[0m\n";
         } else {
             frame += "  \033[1;32m*** LEVEL COMPLETE ***   PRESS [SPACE/ENTER] FOR NEXT LEVEL\033[0m\n";
         }
     } else if (view.state == GameState::Attract) {
         frame += "  \033[1;33m*** ARCADE DEMO MODE ***   \033[1;32mINSERT COIN - PRESS ANY KEY TO PLAY\033[0m\n";
     } else if (m_lastTermSize.cols >= 115) {
-        frame += "\033[2mControls: [WASD/Arrows] Move | [Space] Slow | [F] Fast | [V/F5] Art | [X] Border | [P/F4] Theme | [B] "
+        frame += "\033[2mControls: [WASD/Arrows] Move | [Space] Slow | [F] Fast | [V/F5] Art | [X] Border | [P/F4] "
+                 "Theme | [B] "
                  "Braille/ASCII | [T] RGB | [-/+] Speed | [R] Reset | [Q] Quit\033[0m\n";
     } else {
         frame += "\033[2mControls: [WASD] Move | [Space/F] Draw | [V] Art | [P/F4] Theme | [B] Mode | [T] RGB | "
@@ -806,9 +805,8 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
     std::vector<BrailleCell> grid(static_cast<std::size_t>(cols * rows));
     const auto& theme = ColorPalette::get(m_paletteId);
     const auto ansiColors = getThemeAnsi(m_paletteId);
-    const auto artScene = (m_customArtScene >= 0)
-        ? BackgroundArt::fromIndex(m_customArtScene)
-        : BackgroundArt::getSceneForLevel(view.stats.level);
+    const auto artScene = (m_customArtScene >= 0) ? BackgroundArt::fromIndex(m_customArtScene)
+                                                  : BackgroundArt::getSceneForLevel(view.stats.level);
 
     // 1. Plot Playfield Cells (Borders, Claimed Areas, Active Stix)
     for (std::int32_t y {0}; y < height; ++y) {
@@ -874,8 +872,10 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
                     if (m_truecolor) {
                         cell.isRgb = true;
                         if (m_artEnabled) {
-                            const float u = static_cast<float>(static_cast<double>(x) + 0.5) / static_cast<float>(width);
-                            const float v = static_cast<float>(static_cast<double>(y) + 0.5) / static_cast<float>(height);
+                            const float u
+                                = static_cast<float>(static_cast<double>(x) + 0.5) / static_cast<float>(width);
+                            const float v
+                                = static_cast<float>(static_cast<double>(y) + 0.5) / static_cast<float>(height);
                             const auto artPixel = BackgroundArt::samplePixel(artScene, u, v);
                             cell.r = artPixel.r;
                             cell.g = artPixel.g;
@@ -896,8 +896,10 @@ void TuiRenderer::renderBraillePlayfield(std::string& frame, const GameView& vie
                     if (m_truecolor) {
                         cell.isRgb = true;
                         if (m_artEnabled) {
-                            const float u = static_cast<float>(static_cast<double>(x) + 0.5) / static_cast<float>(width);
-                            const float v = static_cast<float>(static_cast<double>(y) + 0.5) / static_cast<float>(height);
+                            const float u
+                                = static_cast<float>(static_cast<double>(x) + 0.5) / static_cast<float>(width);
+                            const float v
+                                = static_cast<float>(static_cast<double>(y) + 0.5) / static_cast<float>(height);
                             const auto artPixel = BackgroundArt::samplePixel(artScene, u, v);
                             cell.r = static_cast<std::uint8_t>(artPixel.r / 3);
                             cell.g = static_cast<std::uint8_t>(std::min(255, artPixel.g * 2 / 3 + 30));
@@ -1145,9 +1147,8 @@ void TuiRenderer::renderAsciiPlayfield(std::string& frame, const GameView& view)
 
     const auto& theme = ColorPalette::get(m_paletteId);
     const auto ansi = getThemeAnsi(m_paletteId);
-    const auto artScene = (m_customArtScene >= 0)
-        ? BackgroundArt::fromIndex(m_customArtScene)
-        : BackgroundArt::getSceneForLevel(view.stats.level);
+    const auto artScene = (m_customArtScene >= 0) ? BackgroundArt::fromIndex(m_customArtScene)
+                                                  : BackgroundArt::getSceneForLevel(view.stats.level);
     const std::string borderCol = m_truecolor ? appendTruecolorStr(theme.hudBorder) : ansi.border;
     const std::string titleCol = m_truecolor ? appendTruecolorStr(theme.textAccent) : "\033[1;36m";
     const std::string titleBadge = std::string(" QIX · ASCII · ") + theme.name + " ";
@@ -1797,8 +1798,8 @@ void TuiRenderer::renderHallOfFame(
     frame += "  " + bCol + "├────────────────────────────────────────────────────────────┤" + reset + "\n";
     const std::string prompt = isAttract ? "           INSERT COIN - PRESS [SPACE] TO PLAY            "
                                          : "              Press [R] or [Space] to Play Again            ";
-    frame += "  " + bCol + "│" + (m_truecolor ? "\033[1;38;2;50;240;120m" : "\033[1;32m")
-        + prompt + bCol + "│" + reset + "\n";
+    frame += "  " + bCol + "│" + (m_truecolor ? "\033[1;38;2;50;240;120m" : "\033[1;32m") + prompt + bCol + "│" + reset
+        + "\n";
     frame += "  " + bCol + "└────────────────────────────────────────────────────────────┘" + reset + "\n";
 }
 

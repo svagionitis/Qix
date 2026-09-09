@@ -147,9 +147,8 @@ void RaylibRenderer::render(const GameView& view, std::uint32_t delayMs) noexcep
 
     const auto& theme = ColorPalette::get(m_paletteId);
 
-    const auto activeScene = (m_forcedArtScene >= 0)
-        ? BackgroundArt::fromIndex(m_forcedArtScene)
-        : BackgroundArt::getSceneForLevel(view.stats.level);
+    const auto activeScene = (m_forcedArtScene >= 0) ? BackgroundArt::fromIndex(m_forcedArtScene)
+                                                     : BackgroundArt::getSceneForLevel(view.stats.level);
 
     if (m_artEnabled) {
         ensureArtTexture(activeScene);
@@ -356,10 +355,8 @@ void RaylibRenderer::drawPlayfield(
             } else if (state == CellState::ClaimedSlow || state == CellState::ClaimedFast) {
                 if (m_artEnabled && m_artTextureInitialized) {
                     const auto sr = vp.cellToTextureSrc(x, y, texW, texH);
-                    const Rectangle srcRect {
-                        static_cast<float>(sr.x), static_cast<float>(sr.y),
-                        static_cast<float>(sr.width), static_cast<float>(sr.height)
-                    };
+                    const Rectangle srcRect {static_cast<float>(sr.x), static_cast<float>(sr.y),
+                        static_cast<float>(sr.width), static_cast<float>(sr.height)};
                     if (state == CellState::ClaimedSlow) {
                         DrawTexturePro(m_artTexture, srcRect, cellRect, {0.0f, 0.0f}, 0.0f, WHITE);
                     } else {
@@ -478,10 +475,7 @@ void RaylibRenderer::drawParticles(const Rectangle& fieldRect) noexcept
 
     for (std::size_t i = 0; i < count; ++i) {
         const auto& p = parts[i];
-        const Vector2 pos {
-            fieldRect.x + p.x * cellW,
-            fieldRect.y + p.y * cellH
-        };
+        const Vector2 pos {fieldRect.x + p.x * cellW, fieldRect.y + p.y * cellH};
         const Color col = toRaylib(p.currentColor());
         const float pixelSize = std::max(1.5f, p.size * cellW);
 
@@ -588,7 +582,8 @@ void RaylibRenderer::drawOverlays(const GameView& view, const Rectangle& fieldRe
 
         const int fontP = 18;
         const int wp = MeasureText(pres.prompt.c_str(), fontP);
-        const int yp = pres.isTrap ? (screenH / 2 + 32)
+        const int yp = pres.isTrap
+            ? (screenH / 2 + 32)
             : ((!view.stats.splitBonus && pres.hasBonus) ? (screenH / 2 + 28) : (screenH / 2 + 15));
         DrawText(pres.prompt.c_str(), (screenW - wp) / 2, yp, fontP, Color {243, 244, 246, 255});
     } else if (view.state == GameState::NameEntry) {
@@ -711,8 +706,8 @@ void RaylibRenderer::drawDemoBanners() noexcept
 
     // Top banner card
     DrawRectangle(screenW / 2 - 170, 16, 340, 36, Color {15, 23, 42, 220});
-    DrawRectangleLinesEx(Rectangle {static_cast<float>(screenW / 2 - 170), 16.0f, 340.0f, 36.0f}, 2.0f,
-        Color {250, 204, 21, 255});
+    DrawRectangleLinesEx(
+        Rectangle {static_cast<float>(screenW / 2 - 170), 16.0f, 340.0f, 36.0f}, 2.0f, Color {250, 204, 21, 255});
 
     const char* demoText = "*** GAMEPLAY DEMO ***";
     const int fontDemo = 20;
@@ -723,9 +718,9 @@ void RaylibRenderer::drawDemoBanners() noexcept
     const bool blink = (static_cast<int>(GetTime() * 3.0) % 2 == 0);
     if (blink) {
         DrawRectangle(screenW / 2 - 220, screenH - 54, 440, 34, Color {15, 23, 42, 220});
-        DrawRectangleLinesEx(Rectangle {static_cast<float>(screenW / 2 - 220), static_cast<float>(screenH - 54),
-                                 440.0f, 34.0f},
-            1.5f, Color {74, 222, 128, 255});
+        DrawRectangleLinesEx(
+            Rectangle {static_cast<float>(screenW / 2 - 220), static_cast<float>(screenH - 54), 440.0f, 34.0f}, 1.5f,
+            Color {74, 222, 128, 255});
 
         const char* prompt = "INSERT COIN - PRESS ANY KEY TO PLAY";
         const int fontPrompt = 18;

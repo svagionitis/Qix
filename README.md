@@ -109,6 +109,8 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
 │   ├── DemoBot.h / .cpp        # Autonomous AI agent for arcade Attract Mode demo
 │   ├── GameConfig.h / .cpp     # Unified CLI argument parser and runtime options
 │   ├── HighScoreTable.h / .cpp # Persistent high score hall of fame and serialization
+│   ├── ParticleSystem.h / .cpp # High-performance zero-allocation particle FX engine
+│   ├── ReplaySystem.h / .cpp   # Deterministic playthrough recorder and playback engine
 │   ├── SpeedConfig.h / .cpp    # Simulation tick pacing and level delay escalation
 │   ├── IQixGame.h              # Pure virtual game engine interface & GameView
 │   └── QixGame.h / .cpp        # Concrete game engine and state machine
@@ -143,6 +145,8 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
 │   ├── ColorPaletteTest.cpp    # Theme lookup, color cycling, and palette serialization tests
 │   ├── GameConfigTest.cpp      # CLI argument parsing and configuration flag tests
 │   ├── HighScoreTableTest.cpp  # Hall of Fame ranking, persistence, and initials validation
+│   ├── ParticleSystemTest.cpp  # Particle lifecycle, pooling, and event burst tests
+│   ├── ReplaySystemTest.cpp    # Deterministic playthrough recording, playback, and CLI tests
 │   ├── SpeedConfigTest.cpp     # Tick delay calculation and pacing escalation tests
 │   └── TuiInputTest.cpp        # Terminal input escape sequences and buffer parsing tests
 └── benchmarks/
@@ -276,13 +280,17 @@ All client frontends support configurable startup speed, game mode, CRT filter, 
 ./build/bin/qix_raylib --palette synthwave              # Raylib client with Cyberpunk / Synthwave theme
 ./build/bin/qix_raylib --art-scene 1                    # Raylib client pinned to Synthwave Sunset scene
 ./build/bin/qix_raylib --demo                           # Launch directly into arcade Attract / Demo mode
+./build/bin/qix_raylib --record playthrough.qixrec      # Record playthrough in compact text format
+./build/bin/qix_raylib --replay playthrough.qixrec      # Play back recorded session exactly
 ./build/bin/qix_sdl --delay 100 --crt --audio           # SDL2 client with CRT filter & procedural sound
 ./build/bin/qix_sdl --palette amber                     # SDL2 client with Amber CRT monitor theme
 ./build/bin/qix_sdl --no-art                            # SDL2 client with background art reveal disabled
 ./build/bin/qix_sdl --attract                           # SDL2 client starting in Attract mode
+./build/bin/qix_sdl --record run.json                   # Record playthrough in structured JSON format
 ./build/bin/qix_qt --mode classic -c --audio            # Qt client in Classic mode with CRT & audio
 ./build/bin/qix_qt --palette green                      # Qt client with Matrix Phosphor Green theme
 ./build/bin/qix_qt --art-scene 2                        # Qt client pinned to Cosmic Nebula scene
+./build/bin/qix_qt --replay playthrough.qixrec          # Cross-frontend playback in Qt GUI
 ./build/bin/qix_tui                                     # Terminal client: auto-detects terminal size to fill screen
 ./build/bin/qix_tui --demo                              # Terminal client in Attract demo mode
 ./build/bin/qix_tui --palette synthwave                 # Terminal client with Synthwave Truecolor palette
@@ -293,7 +301,18 @@ All client frontends support configurable startup speed, game mode, CRT filter, 
 ./build/bin/qix_tui --no-diff                           # Disable flicker-free differential updates (forces full redraws)
 ./build/bin/qix_tui --width 80 --height 40              # Custom playfield dimensions override
 ./build/bin/qix_tui --mode modern                       # Terminal client in Modern mode
+./build/bin/qix_tui --replay run.json                   # Play back JSON recording in terminal
 ```
+
+### Deterministic Replay System (Recording & Playback)
+Because `libqix_core` is built as a pure, deterministic fixed-step simulation engine, an entire playthrough can be saved to an ultra-lightweight file (`.qixrec` compact format or `.json`) by recording only discrete input timestamps:
+- **Zero Simulation Overhead**: Only non-idle input transitions (`{tick, command}`) are persisted, yielding tiny recording footprints (a few kilobytes per minute of gameplay).
+- **Cross-Frontend Playback**: A recording captured in Raylib or SDL2 can be played back identically in Qt or the Terminal TUI (`qix_tui`), or used in automated continuous integration regression suites.
+- **Header Metadata**: Recordings encode initial simulation parameters (playfield dimensions, target fill percent, game mode, base delay pacing) ensuring exact replication regardless of default desktop configs.
+- **Usage**:
+  - Record: `--record=<file.qixrec>` or `-r <file.json>`
+  - Replay: `--replay=<file.qixrec>` or `--playback=<file.json>`
+  - Window title / HUD indicates active `[REC]` or `[REPLAY]` mode.
 
 ### Scoring & Territory Rules
 - **Loop Closure**: When your Stix connects back to any existing border or claimed territory, the field partitions. The region containing the **Qix** remains empty; the opposite enclosed region is claimed!
@@ -352,7 +371,7 @@ ctest --test-dir build -C Release --output-on-failure
 ```
 Result:
 ```
-100% tests passed, 0 tests failed out of 107 (6.69 sec)
+100% tests passed, 0 tests failed out of 127 (0.32 sec)
 ```
 
 ### 6. Run Performance Benchmarks

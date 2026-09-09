@@ -121,8 +121,8 @@ void SdlRenderer::ensureArtTexture(ArtScene scene) noexcept
     std::vector<std::uint8_t> buffer;
     BackgroundArt::generateRgbaBuffer(scene, ArtW, ArtH, buffer);
 
-    SDL_Surface* surf = SDL_CreateRGBSurfaceWithFormatFrom(
-        buffer.data(), ArtW, ArtH, 32, ArtW * 4, SDL_PIXELFORMAT_RGBA32);
+    SDL_Surface* surf
+        = SDL_CreateRGBSurfaceWithFormatFrom(buffer.data(), ArtW, ArtH, 32, ArtW * 4, SDL_PIXELFORMAT_RGBA32);
     if (surf != nullptr) {
         SDL_Texture* tex = SDL_CreateTextureFromSurface(m_renderer.get(), surf);
         SDL_FreeSurface(surf);
@@ -145,9 +145,8 @@ void SdlRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     const int screenH = getHeight();
     const auto& theme = ColorPalette::get(m_paletteId);
 
-    const auto activeScene = (m_forcedArtScene >= 0)
-        ? BackgroundArt::fromIndex(m_forcedArtScene)
-        : BackgroundArt::getSceneForLevel(view.stats.level);
+    const auto activeScene = (m_forcedArtScene >= 0) ? BackgroundArt::fromIndex(m_forcedArtScene)
+                                                     : BackgroundArt::getSceneForLevel(view.stats.level);
 
     if (m_artEnabled) {
         ensureArtTexture(activeScene);
@@ -318,8 +317,7 @@ void SdlRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noexcep
 
     // 2. CLAIMED %
     BitmapFont::drawText(m_renderer.get(), "CLAIM:", 240, 18, 1, labelColor);
-    BitmapFont::drawText(
-        m_renderer.get(), hud.claimStr, 295, 18, 1, hud.targetReached ? greenColor : accentColor);
+    BitmapFont::drawText(m_renderer.get(), hud.claimStr, 295, 18, 1, hud.targetReached ? greenColor : accentColor);
 
     // 3. Progress Bar
     const int barX = 390;
@@ -372,8 +370,7 @@ void SdlRenderer::drawHud(const GameStats& stats, std::uint32_t delayMs) noexcep
     }
 }
 
-void SdlRenderer::drawPlayfield(
-    const Playfield& playfield, const SDL_Rect& fieldRect, const GameView& view) noexcept
+void SdlRenderer::drawPlayfield(const Playfield& playfield, const SDL_Rect& fieldRect, const GameView& view) noexcept
 {
     (void)view;
     const auto gridW = playfield.getWidth();
@@ -383,10 +380,8 @@ void SdlRenderer::drawPlayfield(
     }
 
     const auto& theme = ColorPalette::get(m_paletteId);
-    const PlayfieldViewport vp {
-        static_cast<float>(fieldRect.x), static_cast<float>(fieldRect.y),
-        static_cast<float>(fieldRect.w), static_cast<float>(fieldRect.h),
-        gridW, gridH};
+    const PlayfieldViewport vp {static_cast<float>(fieldRect.x), static_cast<float>(fieldRect.y),
+        static_cast<float>(fieldRect.w), static_cast<float>(fieldRect.h), gridW, gridH};
 
     for (std::int32_t y {0}; y < gridH; ++y) {
         for (std::int32_t x {0}; x < gridW; ++x) {
@@ -430,10 +425,8 @@ void SdlRenderer::drawPlayfield(
 void SdlRenderer::drawQixRibbons(
     const std::vector<std::deque<LineSegment>>& ribbons, const SDL_Rect& fieldRect) noexcept
 {
-    const PlayfieldViewport vp {
-        static_cast<float>(fieldRect.x), static_cast<float>(fieldRect.y),
-        static_cast<float>(fieldRect.w), static_cast<float>(fieldRect.h),
-        80, 60};
+    const PlayfieldViewport vp {static_cast<float>(fieldRect.x), static_cast<float>(fieldRect.y),
+        static_cast<float>(fieldRect.w), static_cast<float>(fieldRect.h), 80, 60};
     const double cellW = vp.cellWidth();
     const double cellH = vp.cellHeight();
     const auto& theme = ColorPalette::get(m_paletteId);
@@ -647,7 +640,8 @@ void SdlRenderer::drawOverlays(const GameView& view, const SDL_Rect& fieldRect) 
         }
 
         const int x2 = std::max(20, (screenW - static_cast<int>(pres.prompt.length()) * 8 * 1) / 2);
-        const int y2 = pres.isTrap ? (screenH / 2 + 30)
+        const int y2 = pres.isTrap
+            ? (screenH / 2 + 30)
             : ((!view.stats.splitBonus && pres.hasBonus) ? (screenH / 2 + 25) : (screenH / 2 + 15));
         BitmapFont::drawText(m_renderer.get(), pres.prompt, x2, y2, 1, SDL_Color {243, 244, 246, 255});
     } else if (view.state == GameState::NameEntry) {
@@ -699,7 +693,8 @@ void SdlRenderer::drawNameEntry(const NameEntryState& entry, const GameStats& st
 
         if (isActive) {
             BitmapFont::drawText(m_renderer.get(), "^", bx + boxW / 2 - 4, boxY - 14, 1, SDL_Color {250, 204, 21, 255});
-            BitmapFont::drawText(m_renderer.get(), "v", bx + boxW / 2 - 4, boxY + boxH + 4, 1, SDL_Color {250, 204, 21, 255});
+            BitmapFont::drawText(
+                m_renderer.get(), "v", bx + boxW / 2 - 4, boxY + boxH + 4, 1, SDL_Color {250, 204, 21, 255});
         }
 
         const std::string letterStr(1, entry.initials[i]);

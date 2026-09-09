@@ -46,11 +46,7 @@ TEST(ParticleSystemTest, FuseSparklesGeneration)
 {
     qix::ParticleSystem ps {};
     const qix::Point fusePos {20, 30};
-    const std::vector<qix::Point> trail {
-        qix::Point {18, 30},
-        qix::Point {19, 30},
-        qix::Point {20, 30}
-    };
+    const std::vector<qix::Point> trail {qix::Point {18, 30}, qix::Point {19, 30}, qix::Point {20, 30}};
 
     // Emit sparks across 100ms
     ps.emitFuseSparkles(fusePos, trail, 0.10f);
@@ -72,11 +68,7 @@ TEST(ParticleSystemTest, CapturePerimeterFlashColorsAndShockwave)
     qix::ParticleSystem psFast {};
 
     const std::vector<qix::Point> perimeter {
-        qix::Point {10, 10},
-        qix::Point {10, 20},
-        qix::Point {20, 20},
-        qix::Point {20, 10}
-    };
+        qix::Point {10, 10}, qix::Point {10, 20}, qix::Point {20, 20}, qix::Point {20, 10}};
 
     psSlow.emitCaptureFlash(perimeter, qix::DrawMode::Slow);
     psFast.emitCaptureFlash(perimeter, qix::DrawMode::Fast);

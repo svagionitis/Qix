@@ -98,9 +98,8 @@ void QixCanvas::setArtScene(int scene) noexcept
 
 void QixCanvas::ensureArtImage()
 {
-    const auto scene = (m_customArtScene >= 0)
-        ? BackgroundArt::fromIndex(m_customArtScene)
-        : BackgroundArt::getSceneForLevel(m_view.stats.level);
+    const auto scene = (m_customArtScene >= 0) ? BackgroundArt::fromIndex(m_customArtScene)
+                                               : BackgroundArt::getSceneForLevel(m_view.stats.level);
 
     if (m_artLevel == m_view.stats.level && m_currentArtScene == scene && !m_artImage.isNull()) {
         return;
@@ -341,10 +340,8 @@ void QixCanvas::drawPlayfield(QPainter& painter, const QRect& fieldRect)
 {
     const auto gridW = m_view.playfield->getWidth();
     const auto gridH = m_view.playfield->getHeight();
-    const PlayfieldViewport vp {
-        static_cast<float>(fieldRect.x()), static_cast<float>(fieldRect.y()),
-        static_cast<float>(fieldRect.width()), static_cast<float>(fieldRect.height()),
-        gridW, gridH};
+    const PlayfieldViewport vp {static_cast<float>(fieldRect.x()), static_cast<float>(fieldRect.y()),
+        static_cast<float>(fieldRect.width()), static_cast<float>(fieldRect.height()), gridW, gridH};
     const auto& theme = ColorPalette::get(m_paletteId);
 
     if (m_artEnabled) {
@@ -393,10 +390,8 @@ void QixCanvas::drawQixRibbons(QPainter& painter, const QRect& fieldRect)
 {
     const auto gridW = m_view.playfield->getWidth();
     const auto gridH = m_view.playfield->getHeight();
-    const PlayfieldViewport vp {
-        static_cast<float>(fieldRect.x()), static_cast<float>(fieldRect.y()),
-        static_cast<float>(fieldRect.width()), static_cast<float>(fieldRect.height()),
-        gridW, gridH};
+    const PlayfieldViewport vp {static_cast<float>(fieldRect.x()), static_cast<float>(fieldRect.y()),
+        static_cast<float>(fieldRect.width()), static_cast<float>(fieldRect.height()), gridW, gridH};
     const double cellW = vp.cellWidth();
     const double cellH = vp.cellHeight();
     const auto& theme = ColorPalette::get(m_paletteId);
@@ -564,9 +559,7 @@ void QixCanvas::drawParticles(QPainter& painter, const QRect& fieldRect)
             painter.setBrush(qCol);
             painter.setPen(Qt::NoPen);
             QPolygonF diamond;
-            diamond << QPointF(0.0, -pixelSize)
-                    << QPointF(pixelSize, 0.0)
-                    << QPointF(0.0, pixelSize)
+            diamond << QPointF(0.0, -pixelSize) << QPointF(pixelSize, 0.0) << QPointF(0.0, pixelSize)
                     << QPointF(-pixelSize, 0.0);
             painter.drawPolygon(diamond);
             painter.restore();

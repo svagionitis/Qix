@@ -146,4 +146,3 @@ TEST(GameConfigTest, ParseArtSceneFlags)
     EXPECT_EQ(qix::GameConfig::parseArtSceneFlag(std::vector<std::string> {"--scene", "0"}), 0);
     EXPECT_EQ(qix::GameConfig::parseArtSceneFlag(std::vector<std::string> {}, -1), -1);
 }
-

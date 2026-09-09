@@ -43,7 +43,16 @@ inline constexpr GameMode DefaultGameMode {GameMode::Classic};
 enum class DrawMode : std::uint8_t { None = 0, Slow, Fast };
 
 /// @brief State of the game session.
-enum class GameState : std::uint8_t { Ready = 0, Playing, PlayerDying, LevelComplete, GameOver, NameEntry, HallOfFame, Attract };
+enum class GameState : std::uint8_t {
+    Ready = 0,
+    Playing,
+    PlayerDying,
+    LevelComplete,
+    GameOver,
+    NameEntry,
+    HallOfFame,
+    Attract
+};
 
 /// @brief Attract cycle phase during non-interactive arcade showcase.
 enum class AttractStage : std::uint8_t {
@@ -106,11 +115,7 @@ struct SparxInfo {
 };
 
 /// @brief Discrete game simulation events for visual feedback and particle effects.
-enum class GameEventType : std::uint8_t {
-    None = 0,
-    MarkerDeath,
-    TerritoryCapture
-};
+enum class GameEventType : std::uint8_t { None = 0, MarkerDeath, TerritoryCapture };
 
 /// @brief Event descriptor dispatched upon notable game state occurrences.
 struct GameEvent {

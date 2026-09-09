@@ -29,6 +29,10 @@ RaylibApp::RaylibApp(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bool
 
 RaylibApp::~RaylibApp()
 {
+    if (m_recorder.isRecording() && !m_recordPath.empty() && m_game) {
+        m_recorder.finish(m_game->getView().stats.score, m_simTick);
+        static_cast<void>(m_recorder.saveToFile(m_recordPath));
+    }
     if (m_audioDeviceReady) {
         if (s_currentApp == this) {
             s_currentApp = nullptr;
@@ -41,7 +45,14 @@ RaylibApp::~RaylibApp()
 
 bool RaylibApp::init(const std::string& title, int width, int height) noexcept
 {
-    const bool ok = m_renderer.init(title, width, height);
+    std::string finalTitle = title;
+    if (m_replaying) {
+        finalTitle += " [REPLAY]";
+    } else if (m_recorder.isRecording()) {
+        finalTitle += " [REC]";
+    }
+
+    const bool ok = m_renderer.init(finalTitle, width, height);
     if (!ok) {
         return false;
     }
@@ -158,6 +169,39 @@ void RaylibApp::setArtScene(int scene) noexcept
     m_renderer.setArtScene(scene);
 }
 
+void RaylibApp::setRecordPath(const std::string& recordPath) noexcept
+{
+    m_recordPath = recordPath;
+    if (!m_recordPath.empty() && m_game) {
+        const auto& view = m_game->getView();
+        ReplayHeader hdr {};
+        hdr.mode = m_game->getGameMode();
+        hdr.playfieldWidth = (view.playfield != nullptr) ? view.playfield->getWidth() : 80;
+        hdr.playfieldHeight = (view.playfield != nullptr) ? view.playfield->getHeight() : 60;
+        hdr.targetPercent = view.stats.targetPercent;
+        hdr.baseDelayMs = m_game->getBaseDelayMs();
+        m_recorder.start(hdr);
+        m_simTick = 0;
+    }
+}
+
+void RaylibApp::setReplayPlayer(ReplayPlayer player) noexcept
+{
+    m_player = std::move(player);
+    m_replaying = m_player.isLoaded();
+    m_simTick = 0;
+}
+
+bool RaylibApp::isReplaying() const noexcept
+{
+    return m_replaying;
+}
+
+bool RaylibApp::isRecording() const noexcept
+{
+    return m_recorder.isRecording();
+}
+
 void RaylibApp::processInput() noexcept
 {
     const auto view = m_game ? m_game->getView() : GameView {};
@@ -240,28 +284,30 @@ void RaylibApp::processInput() noexcept
         }
     }
 
-    // Direction controls
-    Direction dir {Direction::None};
-    if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
-        dir = Direction::Up;
-    } else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
-        dir = Direction::Down;
-    } else if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
-        dir = Direction::Left;
-    } else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
-        dir = Direction::Right;
-    }
+    if (!m_replaying) {
+        // Direction controls
+        Direction dir {Direction::None};
+        if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
+            dir = Direction::Up;
+        } else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
+            dir = Direction::Down;
+        } else if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+            dir = Direction::Left;
+        } else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+            dir = Direction::Right;
+        }
 
-    // Two-button arcade draw mode controls
-    DrawMode mode {DrawMode::None};
-    if (IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) {
-        mode = DrawMode::Slow;
-    } else if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT) || IsKeyDown(KEY_F)) {
-        mode = DrawMode::Fast;
-    }
+        // Two-button arcade draw mode controls
+        DrawMode mode {DrawMode::None};
+        if (IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) {
+            mode = DrawMode::Slow;
+        } else if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT) || IsKeyDown(KEY_F)) {
+            mode = DrawMode::Fast;
+        }
 
-    m_currentCmd.direction = dir;
-    m_currentCmd.drawMode = mode;
+        m_currentCmd.direction = dir;
+        m_currentCmd.drawMode = mode;
+    }
 
     // Speed pacing runtime controls
     if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD) || IsKeyPressed(KEY_RIGHT_BRACKET)) {
@@ -275,6 +321,16 @@ void RaylibApp::processInput() noexcept
     if (IsKeyPressed(KEY_R)) {
         if (m_game) {
             m_game->reset();
+            if (m_recorder.isRecording()) {
+                ReplayHeader hdr {};
+                hdr.mode = m_game->getGameMode();
+                hdr.playfieldWidth = (view.playfield != nullptr) ? view.playfield->getWidth() : 80;
+                hdr.playfieldHeight = (view.playfield != nullptr) ? view.playfield->getHeight() : 60;
+                hdr.targetPercent = view.stats.targetPercent;
+                hdr.baseDelayMs = m_game->getBaseDelayMs();
+                m_recorder.start(hdr);
+                m_simTick = 0;
+            }
         }
     }
 
@@ -311,8 +367,21 @@ void RaylibApp::run() noexcept
 
         if (currentTime - lastStepTime >= stepInterval) {
             if (m_game) {
+                if (m_replaying) {
+                    m_currentCmd = m_player.getCommandForTick(m_simTick);
+                    if (m_game->getView().state == GameState::LevelComplete) {
+                        if (m_currentCmd.drawMode != DrawMode::None || m_currentCmd.direction != Direction::None) {
+                            m_game->nextLevel();
+                        }
+                    }
+                } else if (m_recorder.isRecording()) {
+                    m_recorder.recordTick(m_simTick, m_currentCmd);
+                }
+
                 m_game->handleInput(m_currentCmd);
                 m_game->step(m_delayMs);
+                ++m_simTick;
+
                 m_audio.update(m_game->getView(), m_delayMs);
                 m_currentCmd.direction = Direction::None;
             }
@@ -322,6 +391,11 @@ void RaylibApp::run() noexcept
         if (m_game) {
             m_renderer.render(m_game->getView(), m_delayMs);
         }
+    }
+
+    if (m_recorder.isRecording() && !m_recordPath.empty() && m_game) {
+        m_recorder.finish(m_game->getView().stats.score, m_simTick);
+        static_cast<void>(m_recorder.saveToFile(m_recordPath));
     }
 }
 

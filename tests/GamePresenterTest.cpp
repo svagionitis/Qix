@@ -1,6 +1,6 @@
+#include "GamePresenter.h"
 #include "BackgroundArt.h"
 #include "ColorPalette.h"
-#include "GamePresenter.h"
 #include "PlayfieldViewport.h"
 #include <gtest/gtest.h>
 
