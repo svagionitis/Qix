@@ -639,6 +639,16 @@ void TuiRenderer::setArtScene(int scene) noexcept
     }
 }
 
+void TuiRenderer::setAudioMuted(bool muted) noexcept
+{
+    m_audioMuted = muted;
+}
+
+bool TuiRenderer::isAudioMuted() const noexcept
+{
+    return m_audioMuted;
+}
+
 void TuiRenderer::setDifferentialUpdates(bool enabled) noexcept
 {
     m_differentialUpdates = enabled;
@@ -788,15 +798,14 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
         }
     } else if (view.state == GameState::Attract) {
         frame += "  \033[1;33m*** ARCADE DEMO MODE ***   \033[1;32mINSERT COIN - PRESS ANY KEY TO PLAY\033[0m\n";
-    } else if (m_lastTermSize.cols >= 115) {
+    } else if (m_lastTermSize.cols >= 125) {
         frame += "\033[2mControls: [WASD/Arrows] Move | [Space] Slow | [F] Fast | [V] Art | [F5/F9] Save/Load | [X] "
-                 "Border | [P/F4] "
-                 "Theme | [B] "
+                 "Border | [F4] Theme | [M/F3] Sound | [P] Pause | [B] "
                  "Braille/ASCII | [T] RGB | [-/+] Speed | [R] Reset | [Q] Quit\033[0m\n";
     } else {
-        frame += "\033[2mControls: [WASD] Move | [Space/F] Draw | [F5/F9] Save/Load | [V] Art | [P/F4] Theme | [B] "
-                 "Mode | [T] RGB | "
-                 "[R] Reset | [Q] Quit\033[0m\n";
+        frame += "\033[2mControls: [WASD] Move | [Space/F] Draw | [F5/F9] Save/Load | [V] Art | [F4] Theme | [M/F3] "
+                 "Sound | [P] Pause | [B] "
+                 "Mode | [T] RGB | [R] Reset | [Q] Quit\033[0m\n";
     }
 
     presentFrame(frame);
@@ -1406,7 +1415,9 @@ PlayerCommand TuiRenderer::processInput(std::string_view bytes, TuiAction& actio
                     break;
                 case '~': {
                     const auto param = m_inputQueue.substr(i + 2, j - (i + 2));
-                    if (param == "14" || param == "11" || param == "1;4P" || param == "1;*P") {
+                    if (param == "13" || param == "1;3P") {
+                        action = TuiAction::ToggleAudio;
+                    } else if (param == "14" || param == "11" || param == "1;4P" || param == "1;*P") {
                         action = TuiAction::CyclePalette;
                     } else if (param == "15" || param == "1;5P" || param == "1;*Q") {
                         action = TuiAction::QuickSave;
@@ -1439,6 +1450,9 @@ PlayerCommand TuiRenderer::processInput(std::string_view bytes, TuiAction& actio
                     break;
                 case 'D':
                     cmd.direction = Direction::Left;
+                    break;
+                case 'R':
+                    action = TuiAction::ToggleAudio;
                     break;
                 case 'S':
                     action = TuiAction::CyclePalette;
@@ -1513,6 +1527,10 @@ PlayerCommand TuiRenderer::processInput(std::string_view bytes, TuiAction& actio
         case 't':
         case 'T':
             action = TuiAction::ToggleTruecolor;
+            break;
+        case 'm':
+        case 'M':
+            action = TuiAction::ToggleAudio;
             break;
         case 'p':
         case 'P':

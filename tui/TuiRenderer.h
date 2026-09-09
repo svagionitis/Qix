@@ -28,6 +28,7 @@ enum class TuiAction : std::uint8_t {
     ToggleTruecolor,
     CyclePalette,
     ToggleArt,
+    ToggleAudio,
     QuickSave,
     QuickLoad,
     TogglePause,
@@ -119,6 +120,14 @@ public:
     /// @param[in] scene Scene index or -1 for auto.
     void setArtScene(int scene) noexcept;
 
+    /// @brief Set whether audio is currently muted.
+    /// @param[in] muted True if muted.
+    void setAudioMuted(bool muted) noexcept;
+
+    /// @brief Query whether audio is muted.
+    /// @return True if muted.
+    [[nodiscard]] bool isAudioMuted() const noexcept;
+
     /// @brief Enable or disable flicker-free differential screen updates.
     /// @param[in] enabled True to emit only modified lines, false for full redraws.
     void setDifferentialUpdates(bool enabled) noexcept;
@@ -152,6 +161,7 @@ private:
     PaletteId m_paletteId {PaletteId::Classic};
     bool m_artEnabled {true};
     int m_customArtScene {-1};
+    bool m_audioMuted {true};
     char m_typedChar {0};
     std::uint32_t m_colorCycle {0};
     TerminalSize m_lastTermSize {0, 0};

@@ -266,7 +266,7 @@ You can select the ruleset mode at launch via CLI:
 | **Pause / Help Overlay** | `P` | `P` / `Pause` | `P` / `Pause` | `P` / `Pause` |
 | **Cycle Color Palette** | `F4` | `F4` / Theme Menu | `F4` | `F4` |
 | **Toggle Art Reveal** | `V` | `V` / View Menu | `V` | `V` |
-| **Toggle Audio Mute** | N/A | `M` / `F3` / Audio Menu | `M` / `F3` | `M` / `F3` |
+| **Toggle Audio Mute** | `M` / `F3` | `M` / `F3` / Audio Menu | `M` / `F3` | `M` / `F3` |
 | **Toggle CRT Filter** | N/A | `C` / `F2` / View Menu | `C` / `F2` | `C` / `F2` |
 | **Toggle Braille / ASCII** | `B` | N/A | N/A | N/A |
 | **Toggle Truecolor (RGB)** | `T` | N/A | N/A | N/A |
@@ -301,6 +301,7 @@ All client frontends support configurable startup speed, game mode, CRT filter, 
 ./build/bin/qix_qt --art-scene 2                        # Qt client pinned to Cosmic Nebula scene
 ./build/bin/qix_qt --replay playthrough.qixrec          # Cross-frontend playback in Qt GUI
 ./build/bin/qix_tui                                     # Terminal client: auto-detects terminal size to fill screen
+./build/bin/qix_tui --audio                             # Terminal client with procedural chiptune audio enabled
 ./build/bin/qix_tui --demo                              # Terminal client in Attract demo mode
 ./build/bin/qix_tui --palette synthwave                 # Terminal client with Synthwave Truecolor palette
 ./build/bin/qix_tui --art-scene 0                       # Terminal client with Cyberpunk Skyline art

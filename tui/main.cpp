@@ -1,7 +1,9 @@
+#include "ArcadeAudio.h"
 #include "GameConfig.h"
 #include "QixGame.h"
 #include "ReplaySystem.h"
 #include "SpeedConfig.h"
+#include "TuiAudio.h"
 #include "TuiRenderer.h"
 #include <chrono>
 #include <cstdlib>
@@ -18,6 +20,12 @@ int main(int argc, char* argv[])
     const auto artScene = qix::GameConfig::parseArtSceneFlag(argc, argv, -1);
     const auto recordPath = qix::GameConfig::parseRecordFlag(argc, argv);
     const auto replayPath = qix::GameConfig::parseReplayFlag(argc, argv);
+    const auto audioEnabled = qix::GameConfig::parseAudioFlag(argc, argv, false);
+
+    qix::ArcadeAudio audio {};
+    audio.setMuted(!audioEnabled);
+    qix::tui::TuiAudioStream audioStream {audio};
+    audioStream.start();
 
     bool brailleMode = true;
     bool truecolor = true;
@@ -105,6 +113,7 @@ int main(int argc, char* argv[])
     renderer.setPalette(palette);
     renderer.setArtEnabled(artEnabled);
     renderer.setArtScene(artScene);
+    renderer.setAudioMuted(audio.isMuted());
 
     renderer.init();
 
@@ -195,6 +204,13 @@ int main(int argc, char* argv[])
             continue;
         }
 
+        if (action == qix::tui::TuiAction::ToggleAudio) {
+            audio.toggleMute();
+            renderer.setAudioMuted(audio.isMuted());
+            renderer.render(game->getView(), delayMs);
+            continue;
+        }
+
         if (action == qix::tui::TuiAction::QuickSave) {
             (void)game->quickSave();
             continue;
@@ -204,24 +220,29 @@ int main(int argc, char* argv[])
             if (game->quickLoad()) {
                 delayMs = game->getCurrentDelayMs();
             }
+            audio.update(game->getView(), delayMs);
             renderer.render(game->getView(), delayMs);
             continue;
         }
 
         if (action == qix::tui::TuiAction::TogglePause) {
             game->togglePause();
+            audio.update(game->getView(), delayMs);
             renderer.render(game->getView(), delayMs);
             continue;
         }
 
         if (game->getView().state == qix::GameState::LevelComplete) {
+            audio.update(game->getView(), delayMs);
             if (cmd.drawMode == qix::DrawMode::Slow || cmd.direction != qix::Direction::None) {
                 game->nextLevel();
                 delayMs = game->getCurrentDelayMs();
+                audio.update(game->getView(), delayMs);
                 continue;
             }
         } else if (game->getView().state == qix::GameState::HallOfFame
             || game->getView().state == qix::GameState::GameOver) {
+            audio.update(game->getView(), delayMs);
             if (action == qix::tui::TuiAction::Restart || action == qix::tui::TuiAction::Confirm
                 || cmd.drawMode != qix::DrawMode::None) {
                 if (!customSizeSpecified) {
@@ -232,6 +253,7 @@ int main(int argc, char* argv[])
                     game->reset();
                 }
                 delayMs = game->getCurrentDelayMs();
+                audio.update(game->getView(), delayMs);
             }
             renderer.render(game->getView(), delayMs);
             const auto frameElapsed
@@ -263,6 +285,7 @@ int main(int argc, char* argv[])
                 simTick = 0;
             }
             delayMs = game->getCurrentDelayMs();
+            audio.update(game->getView(), delayMs);
         } else if (action == qix::tui::TuiAction::SpeedDown) {
             game->setBaseDelayMs(qix::SpeedConfig::speedDown(game->getBaseDelayMs()));
             delayMs = game->getCurrentDelayMs();
@@ -299,6 +322,8 @@ int main(int argc, char* argv[])
         game->step(delayMs);
         ++simTick;
 
+        audio.update(game->getView(), delayMs);
+
         const bool isDrawing = (game->getView().drawMode != qix::DrawMode::None);
         if (wasDrawing && !isDrawing) {
             currentCmd.drawMode = qix::DrawMode::None;
@@ -322,6 +347,7 @@ int main(int argc, char* argv[])
         static_cast<void>(recorder.saveToFile(recordPath));
     }
 
+    audioStream.stop();
     renderer.shutdown();
     return 0;
 }

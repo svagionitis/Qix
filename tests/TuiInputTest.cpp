@@ -180,3 +180,30 @@ TEST(TuiInputTest, ArtRevealInputAndToggle)
     (void)renderer.processInput("\033[20~", action);
     EXPECT_EQ(action, TuiAction::QuickLoad);
 }
+
+TEST(TuiInputTest, AudioInputAndToggle)
+{
+    TuiRenderer renderer {};
+    EXPECT_TRUE(renderer.isAudioMuted());
+
+    renderer.setAudioMuted(false);
+    EXPECT_FALSE(renderer.isAudioMuted());
+    renderer.setAudioMuted(true);
+    EXPECT_TRUE(renderer.isAudioMuted());
+
+    TuiAction action {TuiAction::None};
+
+    (void)renderer.processInput("m", action);
+    EXPECT_EQ(action, TuiAction::ToggleAudio);
+
+    (void)renderer.processInput("M", action);
+    EXPECT_EQ(action, TuiAction::ToggleAudio);
+
+    // F3 SS3 escape sequence: \033OR
+    (void)renderer.processInput("\033OR", action);
+    EXPECT_EQ(action, TuiAction::ToggleAudio);
+
+    // F3 VT220 escape sequence: \033[13~
+    (void)renderer.processInput("\033[13~", action);
+    EXPECT_EQ(action, TuiAction::ToggleAudio);
+}
