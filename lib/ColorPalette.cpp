@@ -15,8 +15,8 @@ namespace {
         PaletteColor {35, 45, 68, 255},
         // Playfield & Grid Cells
         PaletteColor {59, 130, 246, 255}, // Border (Vivid Blue)
-        PaletteColor {14, 116, 144, 200}, // ClaimedSlow (Cyan/Teal)
-        PaletteColor {180, 83, 9, 200}, // ClaimedFast (Amber/Orange)
+        PaletteColor {14, 116, 144, 55}, // ClaimedSlow (Cyan/Teal)
+        PaletteColor {180, 83, 9, 60}, // ClaimedFast (Amber/Orange)
         PaletteColor {255, 255, 255, 255}, // ActiveStix (White)
         // Entities
         PaletteColor {255, 255, 255, 255}, // Marker
@@ -41,8 +41,8 @@ namespace {
         PaletteColor {55, 30, 95, 255}, // Violet border
         // Playfield & Grid Cells
         PaletteColor {0, 240, 255, 255}, // Border (Laser Cyan)
-        PaletteColor {236, 72, 153, 200}, // ClaimedSlow (Neon Hot Pink)
-        PaletteColor {126, 34, 206, 200}, // ClaimedFast (Neon Purple)
+        PaletteColor {236, 72, 153, 55}, // ClaimedSlow (Neon Hot Pink)
+        PaletteColor {126, 34, 206, 55}, // ClaimedFast (Neon Purple)
         PaletteColor {255, 255, 255, 255}, // ActiveStix
         // Entities
         PaletteColor {255, 230, 0, 255}, // Marker (Neon Yellow)
@@ -66,8 +66,8 @@ namespace {
         PaletteColor {60, 36, 0, 255}, // Amber HUD border
         // Playfield & Grid Cells
         PaletteColor {217, 119, 6, 255}, // Border (Warm Amber)
-        PaletteColor {180, 83, 9, 200}, // ClaimedSlow (Rich Amber)
-        PaletteColor {120, 53, 15, 200}, // ClaimedFast (Deep Amber)
+        PaletteColor {180, 83, 9, 55}, // ClaimedSlow (Rich Amber)
+        PaletteColor {120, 53, 15, 50}, // ClaimedFast (Deep Amber)
         PaletteColor {254, 243, 199, 255}, // ActiveStix (Glowing Amber White)
         // Entities
         PaletteColor {245, 158, 11, 255}, // Marker (Pure Amber)
@@ -91,8 +91,8 @@ namespace {
         PaletteColor {10, 65, 25, 255}, // Green HUD border
         // Playfield & Grid Cells
         PaletteColor {34, 197, 94, 255}, // Border (Matrix Green)
-        PaletteColor {21, 128, 61, 200}, // ClaimedSlow (Forest Jade)
-        PaletteColor {20, 83, 45, 200}, // ClaimedFast (Dark Moss)
+        PaletteColor {21, 128, 61, 55}, // ClaimedSlow (Forest Jade)
+        PaletteColor {20, 83, 45, 50}, // ClaimedFast (Dark Moss)
         PaletteColor {187, 247, 208, 255}, // ActiveStix (Mint White)
         // Entities
         PaletteColor {74, 222, 128, 255}, // Marker (Pure Phosphor Green)

@@ -51,8 +51,8 @@ struct PaletteTheme {
 
     // Playfield & Grid Cells
     PaletteColor playfieldBorder {59, 130, 246, 255};
-    PaletteColor claimedSlow {14, 116, 144, 200};
-    PaletteColor claimedFast {180, 83, 9, 200};
+    PaletteColor claimedSlow {14, 116, 144, 55};
+    PaletteColor claimedFast {180, 83, 9, 60};
     PaletteColor activeStix {255, 255, 255, 255};
 
     // Entities

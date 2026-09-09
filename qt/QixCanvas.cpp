@@ -365,20 +365,13 @@ void QixCanvas::drawPlayfield(QPainter& painter, const QRect& fieldRect)
             const auto vr = vp.cellToScreen(x, y);
             const QRectF r(vr.x, vr.y, vr.width, vr.height);
 
-            if (state == CellState::ClaimedSlow) {
+            if (state == CellState::ClaimedSlow || state == CellState::ClaimedFast) {
                 if (hasArt) {
                     const auto sr = vp.cellToTextureSrc(x, y, artW, artH);
                     painter.drawImage(r, m_artImage, QRect(sr.x, sr.y, sr.width, sr.height));
-                } else {
-                    painter.fillRect(r, toQColor(theme.claimedSlow));
                 }
-            } else if (state == CellState::ClaimedFast) {
-                if (hasArt) {
-                    const auto sr = vp.cellToTextureSrc(x, y, artW, artH);
-                    painter.drawImage(r, m_artMutedImage, QRect(sr.x, sr.y, sr.width, sr.height));
-                } else {
-                    painter.fillRect(r, toQColor(theme.claimedFast));
-                }
+                const auto& col = (state == CellState::ClaimedSlow) ? theme.claimedSlow : theme.claimedFast;
+                painter.fillRect(r, toQColor(col));
             } else if (state == CellState::Border) {
                 // Fill the half of the border cell facing any claimed neighbor so claimed territory
                 // meets the thin vector line seamlessly without gaps

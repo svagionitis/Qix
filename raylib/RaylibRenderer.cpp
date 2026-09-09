@@ -357,16 +357,10 @@ void RaylibRenderer::drawPlayfield(
                     const auto sr = vp.cellToTextureSrc(x, y, texW, texH);
                     const Rectangle srcRect {static_cast<float>(sr.x), static_cast<float>(sr.y),
                         static_cast<float>(sr.width), static_cast<float>(sr.height)};
-                    if (state == CellState::ClaimedSlow) {
-                        DrawTexturePro(m_artTexture, srcRect, cellRect, {0.0f, 0.0f}, 0.0f, WHITE);
-                    } else {
-                        // Fast draw: cool retro cyan/blue tint
-                        DrawTexturePro(m_artTexture, srcRect, cellRect, {0.0f, 0.0f}, 0.0f, Color {185, 220, 255, 255});
-                    }
-                } else {
-                    DrawRectangleRec(
-                        cellRect, toRaylib(state == CellState::ClaimedSlow ? theme.claimedSlow : theme.claimedFast));
+                    DrawTexturePro(m_artTexture, srcRect, cellRect, {0.0f, 0.0f}, 0.0f, WHITE);
                 }
+                DrawRectangleRec(
+                    cellRect, toRaylib(state == CellState::ClaimedSlow ? theme.claimedSlow : theme.claimedFast));
             } else if (state == CellState::Border) {
                 // Fill the half of the border cell facing any claimed neighbor so claimed territory
                 // meets the thin vector line seamlessly without gaps

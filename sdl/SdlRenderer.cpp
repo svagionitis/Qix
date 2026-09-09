@@ -397,18 +397,13 @@ void SdlRenderer::drawPlayfield(const Playfield& playfield, const SDL_Rect& fiel
                 if (m_artEnabled && m_artTexture) {
                     const auto sr = vp.cellToTextureSrc(x, y, m_artWidth, m_artHeight);
                     const SDL_Rect srcRect {sr.x, sr.y, sr.width, sr.height};
-                    if (state == CellState::ClaimedSlow) {
-                        SDL_SetTextureColorMod(m_artTexture.get(), 255, 255, 255);
-                    } else {
-                        // Fast draw: cool cyan/blue tint
-                        SDL_SetTextureColorMod(m_artTexture.get(), 180, 220, 255);
-                    }
+                    SDL_SetTextureColorMod(m_artTexture.get(), 255, 255, 255);
                     SDL_RenderCopy(m_renderer.get(), m_artTexture.get(), &srcRect, &cellRect);
-                } else {
-                    const auto& c = (state == CellState::ClaimedSlow) ? theme.claimedSlow : theme.claimedFast;
-                    SDL_SetRenderDrawColor(m_renderer.get(), c.r, c.g, c.b, c.a);
-                    SDL_RenderFillRect(m_renderer.get(), &cellRect);
                 }
+                const auto& c = (state == CellState::ClaimedSlow) ? theme.claimedSlow : theme.claimedFast;
+                SDL_SetRenderDrawBlendMode(m_renderer.get(), SDL_BLENDMODE_BLEND);
+                SDL_SetRenderDrawColor(m_renderer.get(), c.r, c.g, c.b, c.a);
+                SDL_RenderFillRect(m_renderer.get(), &cellRect);
             } else if (state == CellState::Border) {
                 // Fill the half of the border cell facing any claimed neighbor so claimed territory
                 // meets the thin vector line seamlessly without gaps
@@ -419,6 +414,7 @@ void SdlRenderer::drawPlayfield(const Playfield& playfield, const SDL_Rect& fiel
 
                 auto fillHalf = [&](int dx, int dy, CellState neighborState) {
                     const auto& c = (neighborState == CellState::ClaimedSlow) ? theme.claimedSlow : theme.claimedFast;
+                    SDL_SetRenderDrawBlendMode(m_renderer.get(), SDL_BLENDMODE_BLEND);
                     SDL_SetRenderDrawColor(m_renderer.get(), c.r, c.g, c.b, c.a);
                     SDL_Rect subRect {};
                     if (dx > 0) {
