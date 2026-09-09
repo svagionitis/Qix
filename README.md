@@ -65,7 +65,11 @@ The project separates core game mechanics, 2D playfield spatial partitioning, ki
     - `Cosmic Nebula`: Deep starfields, multi-octave plasma clouds, and a banded gas giant with tilted planetary rings.
     - `Laser Mandala`: Intricate 8-fold and 16-fold kaleidoscopic cybernetic laser geometry.
   - *Victory Curtain Call*: Achieving $\ge 75\%$ capture or trapping the Qix reveals the artwork at 100% full-screen glory across the entire playfield with an `"ART UNMASKED: <Scene Name>"` victory banner.
-  - Runtime toggle (`V` / `F5`) across all clients and launch-time configuration (`--art`, `--bg-art`, `--no-art`, `--art-scene <0..3>`).
+  - Runtime toggle (`V`) across all clients and launch-time configuration (`--art`, `--bg-art`, `--no-art`, `--art-scene <0..3>`).
+- **Save & Resume Session (QuickSave / QuickLoad)**:
+  - Press `F5` to QuickSave and `F9` to QuickLoad the current game state to/from `~/.qix_saved_game.json` across all frontends (Terminal, Qt, SDL2, Raylib).
+  - Serializes complete playfield cells with run-length encoding (RLE), marker coordinates, Stix trail, live Qix velocities and ribbon segments, Sparx positions, Fuse anti-stall countdown, score, lives, level, and current tick speed.
+  - Fault-tolerant JSON format with automatic path expansion (`~`) and instant level pacing restoration upon reload.
 - **Quad Frontends**:
   - **Terminal Client (`qix_tui`)**: Lightweight console client with high-resolution Unicode Braille ($2 \times 4$ sub-pixel) rendering, 24-bit Truecolor (RGB) dynamic neon stick ribbons, modern arcade HUD cards and box-drawing borders (`┌─┬─┐`, `│ │ │`, `└─┴─┘`), real-time territory progress bar with 1/8th fractional blocks (`▏`..`█`), classic ASCII mode, flicker-free differential screen updates (cutting stdout bandwidth by >95%), and non-blocking key polling across Linux (`termios`) and Windows (`conio.h`).
   - **Desktop Qt Client (`qix_qt`)**: Modern hardware-accelerated Qt client rendering neon color-cycling stick helix ribbons, glowing sparks, and real-time territory fills.
@@ -255,8 +259,10 @@ You can select the ruleset mode at launch via CLI:
 | **Fast Draw (1x Points)** | Hold `F` + Direction | Hold `Shift` or `F` + Dir | Hold `Shift` or `F` + Dir | Hold `Shift` or `F` + Dir |
 | **Disengage Draw / Border** | `X` (Return to border nav) | Release draw key | Release draw key | Release draw key |
 | **Adjust Speed (Pacing)** | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) | `-` / `[` (Slower), `+` / `]` (Faster) |
+| **QuickSave Session** | `F5` | `F5` / Game Menu | `F5` | `F5` |
+| **QuickLoad Session** | `F9` | `F9` / Game Menu | `F9` | `F9` |
 | **Cycle Color Palette** | `P` | `P` / `F4` / Theme Menu | `F4` | `F4` |
-| **Toggle Art Reveal** | `V` | `V` / `F5` / View Menu | `V` / `F5` | `V` / `F5` |
+| **Toggle Art Reveal** | `V` | `V` / View Menu | `V` | `V` |
 | **Toggle Audio Mute** | N/A | `M` / `F3` / Audio Menu | `M` / `F3` | `M` / `F3` |
 | **Toggle CRT Filter** | N/A | `C` / `F2` / View Menu | `C` / `F2` | `C` / `F2` |
 | **Toggle Braille / ASCII** | `B` | N/A | N/A | N/A |

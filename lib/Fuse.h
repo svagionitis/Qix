@@ -46,6 +46,23 @@ public:
     /// @return Current idle tick threshold.
     [[nodiscard]] std::uint32_t getIdleLimit() const noexcept;
 
+    /// @brief Retrieve current stationary idle tick counter.
+    /// @return Current idle tick count.
+    [[nodiscard]] std::uint32_t getIdleCounter() const noexcept;
+
+    /// @brief Retrieve current trail index reached by burning fuse.
+    /// @return Index on active Stix trail.
+    [[nodiscard]] std::size_t getTrailIndex() const noexcept;
+
+    /// @brief Restore fuse state from saved snapshot.
+    /// @param[in] idleLimit Saved idle limit.
+    /// @param[in] idleCounter Saved idle counter.
+    /// @param[in] burning Saved burning flag.
+    /// @param[in] trailIndex Saved index on trail.
+    /// @param[in] position Saved coordinates.
+    void restore(std::uint32_t idleLimit, std::uint32_t idleCounter, bool burning, std::size_t trailIndex,
+        Point position) noexcept;
+
 private:
     std::uint32_t m_idleLimit {30};
     std::uint32_t m_idleCounter {0};

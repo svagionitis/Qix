@@ -3,6 +3,7 @@
 #include "Types.h"
 #include <deque>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace qix {
@@ -89,6 +90,16 @@ public:
     /// @brief Check whether game is currently running in attract showcase mode.
     /// @return True if in attract mode.
     [[nodiscard]] virtual bool isAttractMode() const noexcept = 0;
+
+    /// @brief Save current game state to a save file (default: ~/.qix_saved_game.json).
+    /// @param[in] filepath Destination file path (empty for default).
+    /// @return True on success, false on failure.
+    [[nodiscard]] virtual bool quickSave(const std::string& filepath = "") const noexcept = 0;
+
+    /// @brief Load and resume game state from a save file (default: ~/.qix_saved_game.json).
+    /// @param[in] filepath Source file path (empty for default).
+    /// @return True on success, false on failure.
+    [[nodiscard]] virtual bool quickLoad(const std::string& filepath = "") noexcept = 0;
 };
 
 } // namespace qix

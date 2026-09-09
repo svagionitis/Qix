@@ -56,6 +56,14 @@ public:
     /// @brief Recalculate count of claimed cells.
     void updateClaimedCount() noexcept;
 
+    /// @brief Retrieve immutable view of all grid cell states.
+    /// @return Const reference to internal cell vector.
+    [[nodiscard]] const std::vector<CellState>& getCells() const noexcept;
+
+    /// @brief Overwrite all cells and recalculate claimed cells count.
+    /// @param[in] cells Vector of new cell states (must match width * height).
+    void setCells(const std::vector<CellState>& cells) noexcept;
+
 private:
     std::int32_t m_width {0};
     std::int32_t m_height {0};

@@ -166,7 +166,11 @@ TEST(TuiInputTest, ArtRevealInputAndToggle)
     (void)renderer.processInput("V", action);
     EXPECT_EQ(action, TuiAction::ToggleArt);
 
-    // F5 escape sequence: \033[15~
+    // F5 escape sequence: \033[15~ -> QuickSave
     (void)renderer.processInput("\033[15~", action);
-    EXPECT_EQ(action, TuiAction::ToggleArt);
+    EXPECT_EQ(action, TuiAction::QuickSave);
+
+    // F9 escape sequence: \033[20~ -> QuickLoad
+    (void)renderer.processInput("\033[20~", action);
+    EXPECT_EQ(action, TuiAction::QuickLoad);
 }

@@ -1,4 +1,5 @@
 #include "QixGame.h"
+#include "SaveSystem.h"
 
 namespace qix {
 
@@ -608,6 +609,124 @@ void QixGame::updateAttractCycle(std::uint32_t deltaMs) noexcept
 
     updateSnapshot();
     m_pendingCmd.direction = Direction::None;
+}
+
+bool QixGame::quickSave(const std::string& filepath) const noexcept
+{
+    const std::string targetPath = filepath.empty() ? SaveSystem::getDefaultFilePath() : filepath;
+
+    GameStateSnapshot snap {};
+    snap.version = 1;
+    snap.mode = m_mode;
+    snap.state = m_state;
+    snap.baseDelayMs = m_baseDelayMs;
+    snap.currentDelayMs = m_currentDelayMs;
+    snap.timeRemainingMs = m_timeRemainingMs;
+    snap.nextExtraLifeScore = m_nextExtraLifeScore;
+    snap.stats = m_stats;
+
+    // Playfield
+    snap.playfield.width = m_playfield.getWidth();
+    snap.playfield.height = m_playfield.getHeight();
+    snap.playfield.cellsRle = SaveSystem::encodeCellsRle(m_playfield.getCells());
+
+    // Marker
+    snap.marker.position = m_marker.getPosition();
+    snap.marker.drawMode = m_marker.getDrawMode();
+    snap.marker.lives = m_marker.getLives();
+    snap.marker.trail = m_marker.getTrail();
+
+    // Qixes
+    for (const auto& q : m_qixList) {
+        QixSnapshot qs {};
+        qs.p1 = q.getP1();
+        qs.p2 = q.getP2();
+        q.getVelocities(qs.vx1, qs.vy1, qs.vx2, qs.vy2);
+        qs.segments = q.getSegments();
+        snap.qixes.push_back(std::move(qs));
+    }
+
+    // Sparx
+    for (const auto& s : m_sparxList) {
+        SparxSnapshot ss {};
+        ss.position = s.getPosition();
+        ss.clockwise = s.isClockwise();
+        ss.isSuper = s.isSuper();
+        snap.sparxList.push_back(ss);
+    }
+
+    // Fuse
+    snap.fuse.idleLimit = m_fuse.getIdleLimit();
+    snap.fuse.idleCounter = m_fuse.getIdleCounter();
+    snap.fuse.isBurning = m_fuse.isBurning();
+    snap.fuse.trailIndex = m_fuse.getTrailIndex();
+    if (auto p = m_fuse.getPosition()) {
+        snap.fuse.position = *p;
+    }
+
+    return SaveSystem::saveToFile(targetPath, snap);
+}
+
+bool QixGame::quickLoad(const std::string& filepath) noexcept
+{
+    const std::string targetPath = filepath.empty() ? SaveSystem::getDefaultFilePath() : filepath;
+
+    GameStateSnapshot snap {};
+    if (!SaveSystem::loadFromFile(targetPath, snap)) {
+        return false;
+    }
+
+    if (snap.playfield.width <= 0 || snap.playfield.height <= 0) {
+        return false;
+    }
+
+    m_mode = snap.mode;
+    m_state = snap.state;
+    m_baseDelayMs = snap.baseDelayMs;
+    m_currentDelayMs = snap.currentDelayMs;
+    m_timeRemainingMs = snap.timeRemainingMs;
+    m_nextExtraLifeScore = snap.nextExtraLifeScore;
+    m_stats = snap.stats;
+
+    // Restore Playfield
+    std::vector<CellState> cells {};
+    const auto totalExpected
+        = static_cast<std::size_t>(snap.playfield.width) * static_cast<std::size_t>(snap.playfield.height);
+    if (snap.playfield.width != m_playfield.getWidth() || snap.playfield.height != m_playfield.getHeight()) {
+        m_playfield = Playfield {snap.playfield.width, snap.playfield.height};
+        m_fill = TerritoryFill {snap.playfield.width, snap.playfield.height};
+    }
+    if (SaveSystem::decodeCellsRle(snap.playfield.cellsRle, totalExpected, cells)) {
+        m_playfield.setCells(cells);
+    }
+
+    // Restore Marker
+    m_marker.setGameMode(m_mode);
+    m_marker.restore(snap.marker.position, snap.marker.drawMode, snap.marker.lives, snap.marker.trail);
+
+    // Restore Qixes
+    m_qixList.clear();
+    for (const auto& qs : snap.qixes) {
+        LineSegment startLine {qs.p1, qs.p2};
+        Qix q {startLine, 8};
+        q.restore(qs.p1, qs.p2, qs.vx1, qs.vy1, qs.vx2, qs.vy2, qs.segments);
+        m_qixList.push_back(std::move(q));
+    }
+
+    // Restore Sparx
+    m_sparxList.clear();
+    for (const auto& ss : snap.sparxList) {
+        Sparx s {ss.position, ss.clockwise, m_mode, ss.isSuper};
+        s.restore(ss.position, ss.clockwise, ss.isSuper);
+        m_sparxList.push_back(std::move(s));
+    }
+
+    // Restore Fuse
+    m_fuse.restore(
+        snap.fuse.idleLimit, snap.fuse.idleCounter, snap.fuse.isBurning, snap.fuse.trailIndex, snap.fuse.position);
+
+    updateSnapshot();
+    return true;
 }
 
 } // namespace qix

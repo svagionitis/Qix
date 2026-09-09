@@ -74,4 +74,24 @@ std::uint32_t Fuse::getIdleLimit() const noexcept
     return m_idleLimit;
 }
 
+std::uint32_t Fuse::getIdleCounter() const noexcept
+{
+    return m_idleCounter;
+}
+
+std::size_t Fuse::getTrailIndex() const noexcept
+{
+    return m_trailIndex;
+}
+
+void Fuse::restore(
+    std::uint32_t idleLimit, std::uint32_t idleCounter, bool burning, std::size_t trailIndex, Point position) noexcept
+{
+    m_idleLimit = idleLimit;
+    m_idleCounter = idleCounter;
+    m_burning = burning;
+    m_trailIndex = trailIndex;
+    m_position = position;
+}
+
 } // namespace qix

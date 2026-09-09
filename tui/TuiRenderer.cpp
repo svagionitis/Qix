@@ -783,11 +783,13 @@ void TuiRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     } else if (view.state == GameState::Attract) {
         frame += "  \033[1;33m*** ARCADE DEMO MODE ***   \033[1;32mINSERT COIN - PRESS ANY KEY TO PLAY\033[0m\n";
     } else if (m_lastTermSize.cols >= 115) {
-        frame += "\033[2mControls: [WASD/Arrows] Move | [Space] Slow | [F] Fast | [V/F5] Art | [X] Border | [P/F4] "
+        frame += "\033[2mControls: [WASD/Arrows] Move | [Space] Slow | [F] Fast | [V] Art | [F5/F9] Save/Load | [X] "
+                 "Border | [P/F4] "
                  "Theme | [B] "
                  "Braille/ASCII | [T] RGB | [-/+] Speed | [R] Reset | [Q] Quit\033[0m\n";
     } else {
-        frame += "\033[2mControls: [WASD] Move | [Space/F] Draw | [V] Art | [P/F4] Theme | [B] Mode | [T] RGB | "
+        frame += "\033[2mControls: [WASD] Move | [Space/F] Draw | [F5/F9] Save/Load | [V] Art | [P/F4] Theme | [B] "
+                 "Mode | [T] RGB | "
                  "[R] Reset | [Q] Quit\033[0m\n";
     }
 
@@ -1401,7 +1403,9 @@ PlayerCommand TuiRenderer::processInput(std::string_view bytes, TuiAction& actio
                     if (param == "14" || param == "11" || param == "1;4P" || param == "1;*P") {
                         action = TuiAction::CyclePalette;
                     } else if (param == "15" || param == "1;5P" || param == "1;*Q") {
-                        action = TuiAction::ToggleArt;
+                        action = TuiAction::QuickSave;
+                    } else if (param == "20" || param == "1;9P" || param == "1;*U") {
+                        action = TuiAction::QuickLoad;
                     }
                     break;
                 }
@@ -1564,6 +1568,9 @@ PlayerCommand TuiRenderer::pollInput(TuiAction& action) noexcept
                 break;
             case 63: // F5
                 readBuf += "\033[15~";
+                break;
+            case 67: // F9
+                readBuf += "\033[20~";
                 break;
             default:
                 break;

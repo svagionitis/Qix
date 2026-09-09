@@ -31,6 +31,8 @@ add_library(qix_core STATIC
     QixGame.h
     ReplaySystem.cpp
     ReplaySystem.h
+    SaveSystem.cpp
+    SaveSystem.h
     Sparx.cpp
     Sparx.h
     SpeedConfig.cpp

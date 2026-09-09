@@ -191,6 +191,19 @@ int main(int argc, char* argv[])
             continue;
         }
 
+        if (action == qix::tui::TuiAction::QuickSave) {
+            (void)game->quickSave();
+            continue;
+        }
+
+        if (action == qix::tui::TuiAction::QuickLoad) {
+            if (game->quickLoad()) {
+                delayMs = game->getCurrentDelayMs();
+            }
+            renderer.render(game->getView(), delayMs);
+            continue;
+        }
+
         if (game->getView().state == qix::GameState::LevelComplete) {
             if (cmd.drawMode == qix::DrawMode::Slow || cmd.direction != qix::Direction::None) {
                 game->nextLevel();

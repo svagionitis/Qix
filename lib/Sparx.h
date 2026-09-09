@@ -39,6 +39,16 @@ public:
     /// @param[in] isSuper True to enable Super Sparx behavior.
     void setSuper(bool isSuper) noexcept;
 
+    /// @brief Check whether this Sparx traverses clockwise.
+    /// @return True if clockwise.
+    [[nodiscard]] bool isClockwise() const noexcept;
+
+    /// @brief Restore Sparx position, direction, and super status.
+    /// @param[in] pos Saved coordinates.
+    /// @param[in] clockwise Saved traversal orientation.
+    /// @param[in] isSuper Saved super status.
+    void restore(Point pos, bool clockwise, bool isSuper) noexcept;
+
     /// @brief Retrieve active game mode ruleset.
     /// @return Active GameMode.
     [[nodiscard]] GameMode getGameMode() const noexcept;

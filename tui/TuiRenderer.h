@@ -28,6 +28,8 @@ enum class TuiAction : std::uint8_t {
     ToggleTruecolor,
     CyclePalette,
     ToggleArt,
+    QuickSave,
+    QuickLoad,
     Resize,
     CharInput,
     Backspace

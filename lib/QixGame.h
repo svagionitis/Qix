@@ -50,6 +50,9 @@ public:
     void exitAttractMode() noexcept override;
     [[nodiscard]] bool isAttractMode() const noexcept override;
 
+    [[nodiscard]] bool quickSave(const std::string& filepath = "") const noexcept override;
+    [[nodiscard]] bool quickLoad(const std::string& filepath = "") noexcept override;
+
     /// @brief Calculate initial level time budget in milliseconds.
     /// @param[in] level Current game level (1-indexed).
     /// @return Initial countdown duration in milliseconds.

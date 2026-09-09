@@ -208,4 +208,14 @@ bool Marker::isPacingWait() const noexcept
     return m_pacingWait;
 }
 
+void Marker::restore(Point pos, DrawMode mode, std::uint8_t lives, const std::vector<Point>& trail) noexcept
+{
+    m_position = pos;
+    m_drawMode = mode;
+    m_lives = (lives > MaxLives) ? MaxLives : lives;
+    m_trail = trail;
+    m_slowTick = false;
+    m_pacingWait = false;
+}
+
 } // namespace qix

@@ -39,6 +39,19 @@ public:
     /// @return True if intersection detected.
     [[nodiscard]] bool intersectsTrail(const std::vector<Point>& trail) const noexcept;
 
+    /// @brief Retrieve first endpoint coordinates.
+    [[nodiscard]] Point getP1() const noexcept;
+
+    /// @brief Retrieve second endpoint coordinates.
+    [[nodiscard]] Point getP2() const noexcept;
+
+    /// @brief Retrieve endpoint velocities.
+    void getVelocities(std::int32_t& vx1, std::int32_t& vy1, std::int32_t& vx2, std::int32_t& vy2) const noexcept;
+
+    /// @brief Restore Qix state from saved snapshot.
+    void restore(Point p1, Point p2, std::int32_t vx1, std::int32_t vy1, std::int32_t vx2, std::int32_t vy2,
+        const std::deque<LineSegment>& segments) noexcept;
+
 private:
     std::size_t m_maxHistory {8};
     std::deque<LineSegment> m_segments {};

@@ -350,8 +350,22 @@ void RaylibApp::processInput() noexcept
     }
 
     // Toggle background art reveal mode
-    if (IsKeyPressed(KEY_V) || IsKeyPressed(KEY_F5)) {
+    if (IsKeyPressed(KEY_V)) {
         toggleArt();
+    }
+
+    // QuickSave / QuickLoad session
+    if (IsKeyPressed(KEY_F5)) {
+        if (m_game) {
+            (void)m_game->quickSave();
+        }
+    }
+    if (IsKeyPressed(KEY_F9)) {
+        if (m_game) {
+            if (m_game->quickLoad()) {
+                m_delayMs = m_game->getCurrentDelayMs();
+            }
+        }
     }
 }
 

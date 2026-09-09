@@ -359,8 +359,19 @@ void SdlApp::processEvents(bool& running) noexcept
                 cyclePalette();
                 break;
             case SDLK_v:
-            case SDLK_F5:
                 toggleArt();
+                break;
+            case SDLK_F5:
+                if (m_game) {
+                    (void)m_game->quickSave();
+                }
+                break;
+            case SDLK_F9:
+                if (m_game) {
+                    if (m_game->quickLoad()) {
+                        setDelayMs(m_game->getCurrentDelayMs());
+                    }
+                }
                 break;
             case SDLK_ESCAPE:
                 running = false;

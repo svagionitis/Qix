@@ -75,7 +75,23 @@ MainWindow::MainWindow(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bo
     m_canvas->setArtScene(artScene);
     setCentralWidget(m_canvas);
 
-    // Menu Bar with View -> CRT Filter, Sound, Art Reveal, and Theme
+    // Menu Bar with Game -> QuickSave, QuickLoad and View -> CRT Filter, Sound, Art Reveal, and Theme
+    auto* gameMenu = menuBar()->addMenu(tr("&Game"));
+    auto* quickSaveAction = gameMenu->addAction(tr("&QuickSave (F5)"), [this]() {
+        if (m_game) {
+            (void)m_game->quickSave();
+        }
+    });
+    quickSaveAction->setShortcut(QKeySequence(Qt::Key_F5));
+
+    auto* quickLoadAction = gameMenu->addAction(tr("Quick&Load (F9)"), [this]() {
+        if (m_game && m_game->quickLoad()) {
+            setDelayMs(m_game->getCurrentDelayMs());
+            m_canvas->updateView(m_game->getView());
+        }
+    });
+    quickLoadAction->setShortcut(QKeySequence(Qt::Key_F9));
+
     auto* viewMenu = menuBar()->addMenu(tr("&View"));
     m_crtAction = viewMenu->addAction(tr("&CRT Filter (Scanlines && Glow)"), this, &MainWindow::toggleCrt);
     m_crtAction->setCheckable(true);
@@ -87,10 +103,10 @@ MainWindow::MainWindow(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bo
     m_audioAction->setChecked(audioEnabled);
     m_audioAction->setShortcut(QKeySequence(Qt::Key_F3));
 
-    m_artAction = viewMenu->addAction(tr("Background &Art Reveal (V / F5)"), this, &MainWindow::toggleArt);
+    m_artAction = viewMenu->addAction(tr("Background &Art Reveal (V)"), this, &MainWindow::toggleArt);
     m_artAction->setCheckable(true);
     m_artAction->setChecked(artEnabled);
-    m_artAction->setShortcut(QKeySequence(Qt::Key_F5));
+    m_artAction->setShortcut(QKeySequence(Qt::Key_V));
 
     auto* themeMenu = viewMenu->addMenu(tr("&Theme"));
     auto* themeGroup = new QActionGroup(this);
@@ -526,8 +542,18 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
         cyclePalette();
         break;
     case Qt::Key_V:
-    case Qt::Key_F5:
         toggleArt();
+        break;
+    case Qt::Key_F5:
+        if (m_game) {
+            (void)m_game->quickSave();
+        }
+        break;
+    case Qt::Key_F9:
+        if (m_game && m_game->quickLoad()) {
+            setDelayMs(m_game->getCurrentDelayMs());
+            m_canvas->updateView(m_game->getView());
+        }
         break;
     case Qt::Key_Escape:
         close();

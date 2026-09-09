@@ -142,6 +142,19 @@ void Sparx::setSuper(bool isSuper) noexcept
     m_isSuper = isSuper;
 }
 
+bool Sparx::isClockwise() const noexcept
+{
+    return m_clockwise;
+}
+
+void Sparx::restore(Point pos, bool clockwise, bool isSuper) noexcept
+{
+    m_position = pos;
+    m_clockwise = clockwise;
+    m_isSuper = isSuper;
+    m_lastDir = clockwise ? Direction::Right : Direction::Left;
+}
+
 GameMode Sparx::getGameMode() const noexcept
 {
     return m_mode;

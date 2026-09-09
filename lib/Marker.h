@@ -91,6 +91,13 @@ public:
     /// @return True if marker held position solely due to Slow Draw pacing cadence.
     [[nodiscard]] bool isPacingWait() const noexcept;
 
+    /// @brief Restore marker position, draw mode, lives, and trail from a saved state.
+    /// @param[in] pos Saved coordinates.
+    /// @param[in] mode Saved draw mode.
+    /// @param[in] lives Saved life count.
+    /// @param[in] trail Saved Stix trail coordinates.
+    void restore(Point pos, DrawMode mode, std::uint8_t lives, const std::vector<Point>& trail) noexcept;
+
 private:
     Point m_position {0, 0};
     DrawMode m_drawMode {DrawMode::None};

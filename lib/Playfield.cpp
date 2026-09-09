@@ -107,6 +107,19 @@ void Playfield::updateClaimedCount() noexcept
     m_claimedCount = count;
 }
 
+const std::vector<CellState>& Playfield::getCells() const noexcept
+{
+    return m_cells;
+}
+
+void Playfield::setCells(const std::vector<CellState>& cells) noexcept
+{
+    if (cells.size() == m_cells.size()) {
+        m_cells = cells;
+        updateClaimedCount();
+    }
+}
+
 std::size_t Playfield::toIndex(std::int32_t x, std::int32_t y) const noexcept
 {
     return static_cast<std::size_t>(y) * static_cast<std::size_t>(m_width) + static_cast<std::size_t>(x);

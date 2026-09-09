@@ -64,6 +64,38 @@ bool Qix::intersectsTrail(const std::vector<Point>& trail) const noexcept
     return false;
 }
 
+Point Qix::getP1() const noexcept
+{
+    return m_p1;
+}
+
+Point Qix::getP2() const noexcept
+{
+    return m_p2;
+}
+
+void Qix::getVelocities(std::int32_t& vx1, std::int32_t& vy1, std::int32_t& vx2, std::int32_t& vy2) const noexcept
+{
+    vx1 = m_vx1;
+    vy1 = m_vy1;
+    vx2 = m_vx2;
+    vy2 = m_vy2;
+}
+
+void Qix::restore(Point p1, Point p2, std::int32_t vx1, std::int32_t vy1, std::int32_t vx2, std::int32_t vy2,
+    const std::deque<LineSegment>& segments) noexcept
+{
+    m_p1 = p1;
+    m_p2 = p2;
+    m_vx1 = vx1;
+    m_vy1 = vy1;
+    m_vx2 = vx2;
+    m_vy2 = vy2;
+    if (!segments.empty()) {
+        m_segments = segments;
+    }
+}
+
 void Qix::bounceEndpoint(Point& p, std::int32_t& vx, std::int32_t& vy, const Playfield& field) noexcept
 {
     Point nextX {p.x + vx, p.y};
