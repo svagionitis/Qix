@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Qix (1981) - WebAssembly Arcade</title>
+    <style>
+        :root {
+            --bg-color: #0b0c10;
+            --card-bg: #1f2833;
+            --accent-cyan: #66fcf1;
+            --accent-glow: #45a29e;
+            --text-main: #c5c6c7;
+            --text-bright: #ffffff;
+            --arcade-red: #ff0055;
+            --arcade-gold: #ffd700;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            padding: 16px;
+            overflow-x: hidden;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            letter-spacing: 4px;
+            color: var(--accent-cyan);
+            text-shadow: 0 0 10px rgba(102, 252, 241, 0.6), 0 0 20px rgba(69, 162, 158, 0.4);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            font-size: 0.95rem;
+            letter-spacing: 2px;
+            color: var(--arcade-gold);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        #game-container {
+            position: relative;
+            background: #000;
+            border-radius: 8px;
+            box-shadow: 0 0 25px rgba(0, 0, 0, 0.8), 0 0 15px rgba(102, 252, 241, 0.2);
+            border: 2px solid #2d3748;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            width: 960px;
+            max-width: 95vw;
+            height: 720px;
+            max-height: 70vh;
+        }
+
+        canvas.emscripten {
+            border: 0 none;
+            background-color: #000000;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            outline: none;
+        }
+
+        #loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(11, 12, 16, 0.92);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            transition: opacity 0.4s ease;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(102, 252, 241, 0.2);
+            border-top-color: var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #status-text {
+            font-size: 1.1rem;
+            color: var(--text-bright);
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        #progress-bar {
+            width: 240px;
+            height: 8px;
+            background: #1f2833;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid var(--accent-glow);
+        }
+
+        #progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent-glow), var(--accent-cyan));
+            transition: width 0.2s ease;
+        }
+
+        #audio-unlock-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.65);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+            cursor: pointer;
+        }
+
+        #audio-unlock-overlay.visible {
+            display: flex;
+        }
+
+        .click-prompt {
+            background: rgba(31, 40, 51, 0.95);
+            border: 2px solid var(--accent-cyan);
+            border-radius: 8px;
+            padding: 16px 28px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-bright);
+            box-shadow: 0 0 20px rgba(102, 252, 241, 0.4);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.04); }
+        }
+
+        .controls-panel {
+            width: 960px;
+            max-width: 95vw;
+            margin-top: 14px;
+            background: var(--card-bg);
+            border: 1px solid #324050;
+            border-radius: 8px;
+            padding: 12px 18px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            font-size: 0.88rem;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .key-badge {
+            background: #0b0c10;
+            color: var(--accent-cyan);
+            border: 1px solid var(--accent-glow);
+            padding: 3px 7px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.82rem;
+            font-weight: bold;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            white-space: nowrap;
+        }
+
+        .control-desc {
+            color: var(--text-main);
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 10px;
+            gap: 10px;
+        }
+
+        .btn {
+            background: transparent;
+            color: var(--accent-cyan);
+            border: 1px solid var(--accent-glow);
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: var(--accent-cyan);
+            color: var(--bg-color);
+            box-shadow: 0 0 10px var(--accent-cyan);
+        }
+
+        footer {
+            margin-top: 16px;
+            font-size: 0.78rem;
+            color: #606f7b;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>QIX</h1>
+        <div class="subtitle">Arcade Simulation &bull; WebAssembly (HTML5)</div>
+    </header>
+
+    <div id="game-container">
+        <div id="loading-overlay">
+            <div class="spinner"></div>
+            <div id="status-text">Loading WebAssembly module...</div>
+            <div id="progress-bar"><div id="progress-fill"></div></div>
+        </div>
+
+        <div id="audio-unlock-overlay" onclick="resumeAudio()">
+            <div class="click-prompt">Click to Play &amp; Enable Sound</div>
+        </div>
+
+        <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+    </div>
+
+    <div class="controls-panel">
+        <div class="controls-grid">
+            <div class="control-group">
+                <span class="key-badge">Arrows / WASD</span>
+                <span class="control-desc">Move along border</span>
+            </div>
+            <div class="control-group">
+                <span class="key-badge">Space</span>
+                <span class="control-desc">Slow Draw (2x Score)</span>
+            </div>
+            <div class="control-group">
+                <span class="key-badge">Shift / F</span>
+                <span class="control-desc">Fast Draw (Quick)</span>
+            </div>
+            <div class="control-group">
+                <span class="key-badge">C</span>
+                <span class="control-desc">Toggle CRT Scanlines</span>
+            </div>
+            <div class="control-group">
+                <span class="key-badge">M</span>
+                <span class="control-desc">Toggle Procedural Sound</span>
+            </div>
+            <div class="control-group">
+                <span class="key-badge">F4</span>
+                <span class="control-desc">Cycle Arcade Palette</span>
+            </div>
+            <div class="control-group">
+                <span class="key-badge">P</span>
+                <span class="control-desc">Pause Game</span>
+            </div>
+            <div class="control-group">
+                <span class="key-badge">R</span>
+                <span class="control-desc">Restart / New Game</span>
+            </div>
+        </div>
+        <div class="toolbar">
+            <button class="btn" onclick="toggleFullscreen()">Fullscreen</button>
+            <button class="btn" onclick="focusGame()">Focus Game</button>
+        </div>
+    </div>
+
+    <footer>
+        Classic 1981 Arcade Recreation &bull; Compiled to WebAssembly with Emscripten
+    </footer>
+
+    <script type="text/javascript">
+        var statusElement = document.getElementById('status-text');
+        var progressElement = document.getElementById('progress-fill');
+        var loadingOverlay = document.getElementById('loading-overlay');
+        var canvasElement = document.getElementById('canvas');
+        var audioOverlay = document.getElementById('audio-unlock-overlay');
+
+        function focusGame() {
+            canvasElement.focus();
+        }
+
+        function resumeAudio() {
+            audioOverlay.classList.remove('visible');
+            focusGame();
+            if (typeof SDL2 !== 'undefined' && SDL2.audioContext && SDL2.audioContext.state === 'suspended') {
+                SDL2.audioContext.resume();
+            }
+        }
+
+        window.addEventListener('click', function() {
+            if (typeof SDL2 !== 'undefined' && SDL2.audioContext && SDL2.audioContext.state === 'suspended') {
+                SDL2.audioContext.resume();
+            }
+        });
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.getElementById('game-container').requestFullscreen().catch(err => {
+                    alert(`Fullscreen error: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        var Module = {
+            preRun: [],
+            postRun: [function() {
+                // Focus canvas on game start
+                canvasElement.focus();
+            }],
+            print: function(text) {
+                if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+                console.log('[Qix WASM]', text);
+            },
+            printErr: function(text) {
+                if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+                console.error('[Qix WASM Err]', text);
+            },
+            canvas: (function() {
+                var canvas = document.getElementById('canvas');
+                canvas.addEventListener("webglcontextlost", function(e) {
+                    alert('WebGL context lost. Please reload the page.');
+                    e.preventDefault();
+                }, false);
+                return canvas;
+            })(),
+            setStatus: function(text) {
+                if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+                if (text === Module.setStatus.last.text) return;
+                var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+                var now = Date.now();
+                if (m && now - Module.setStatus.last.time < 30) return;
+                Module.setStatus.last.time = now;
+                Module.setStatus.last.text = text;
+                if (m) {
+                    text = m[1];
+                    var progress = (parseInt(m[2]) / parseInt(m[4])) * 100;
+                    progressElement.style.width = progress + '%';
+                }
+                statusElement.innerText = text || 'Ready!';
+                if (!text) {
+                    loadingOverlay.style.opacity = '0';
+                    setTimeout(function() {
+                        loadingOverlay.style.display = 'none';
+                        focusGame();
+                    }, 400);
+                }
+            },
+            totalDependencies: 0,
+            monitorRunDependencies: function(left) {
+                this.totalDependencies = Math.max(this.totalDependencies, left);
+                Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+            }
+        };
+
+        Module.setStatus('Initializing...');
+        window.onerror = function(event) {
+            Module.setStatus('Exception thrown, see JavaScript console');
+            loadingOverlay.style.display = 'none';
+            Module.setStatus = function(text) {
+                if (text) console.error('[post-exception status] ' + text);
+            };
+        };
+    </script>
+    {{{ SCRIPT }}}
+</body>
+</html>

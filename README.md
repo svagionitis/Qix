@@ -219,6 +219,25 @@ cmake --build build --config Release --target qix_raylib  # Raylib Neon Client
 cmake --build build --config Release --target qix_qt      # Qt Desktop Client
 ```
 
+### WebAssembly (Emscripten / HTML5 Browser)
+
+Compile Qix to WebAssembly (`qix.html`, `qix.js`, and `qix.wasm`) to play directly in modern web browsers with **zero external dependencies** required:
+
+```bash
+# 1. Install Emscripten (via apt or emsdk)
+sudo apt-get install -y emscripten
+
+# 2. Configure project for WebAssembly (SDL2 port is automatically provided by Emscripten)
+emcmake cmake -B build-wasm -DCMAKE_BUILD_TYPE=Release
+
+# 3. Compile the WebAssembly bundle
+cmake --build build-wasm -j$(nproc)
+
+# 4. Host and play locally in your browser
+python3 -m http.server -d build-wasm/bin 8080
+# Open http://localhost:8080/qix.html in Chrome, Firefox, Safari, or Edge
+```
+
 ### CMake Build Options
 
 | Option | Default | Description |

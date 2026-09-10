@@ -21,13 +21,11 @@ public:
 
     ~ArcadeAudio() = default;
 
-    // Non-copyable
+    // Non-copyable and non-movable (contains std::mutex)
     ArcadeAudio(const ArcadeAudio&) = delete;
     ArcadeAudio& operator=(const ArcadeAudio&) = delete;
-
-    // Movable
-    ArcadeAudio(ArcadeAudio&&) noexcept = default;
-    ArcadeAudio& operator=(ArcadeAudio&&) noexcept = default;
+    ArcadeAudio(ArcadeAudio&&) = delete;
+    ArcadeAudio& operator=(ArcadeAudio&&) = delete;
 
     /// @brief Update internal acoustic parameters from immutable game snapshot.
     /// @details Called once per simulation step on the main game thread.

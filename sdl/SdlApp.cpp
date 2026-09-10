@@ -1,5 +1,8 @@
 #include "SdlApp.h"
 #include <algorithm>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 namespace qix::sdl {
 
@@ -395,19 +398,21 @@ void SdlApp::processEvents(bool& running) noexcept
     }
 }
 
-void SdlApp::run() noexcept
+bool SdlApp::tick() noexcept
 {
     bool running {true};
+    processEvents(running);
+    if (!running) {
+        return false;
+    }
 
-    while (running) {
-        const auto frameStart = SDL_GetTicks();
-
-        processEvents(running);
-        if (!running) {
-            break;
+    if (m_game) {
+        const auto now = SDL_GetTicks();
+        if (m_lastStepTicks == 0) {
+            m_lastStepTicks = now;
         }
 
-        if (m_game) {
+        if (now - m_lastStepTicks >= m_delayMs) {
             if (m_replaying) {
                 m_currentCmd = m_player.getCommandForTick(m_simTick);
                 if (m_game->getView().state == GameState::LevelComplete) {
@@ -424,17 +429,41 @@ void SdlApp::run() noexcept
             ++m_simTick;
 
             m_audio.update(m_game->getView(), m_delayMs);
-
-            m_renderer.render(m_game->getView(), m_delayMs);
-            m_renderer.present();
-
-            // Clear direction after step
             m_currentCmd.direction = Direction::None;
+            m_lastStepTicks = now;
+        }
+
+        m_renderer.render(m_game->getView(), m_delayMs);
+        m_renderer.present();
+    }
+
+    return true;
+}
+
+void SdlApp::run() noexcept
+{
+    m_lastStepTicks = SDL_GetTicks();
+
+#ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop_arg(
+        [](void* arg) noexcept {
+            auto* app = static_cast<SdlApp*>(arg);
+            if (app != nullptr && !app->tick()) {
+                emscripten_cancel_main_loop();
+            }
+        },
+        this, 0, 1);
+#else
+    while (true) {
+        const auto frameStart = SDL_GetTicks();
+        if (!tick()) {
+            break;
         }
 
         const auto frameElapsed = SDL_GetTicks() - frameStart;
-        if (frameElapsed < m_delayMs) {
-            SDL_Delay(m_delayMs - frameElapsed);
+        constexpr std::uint32_t TargetFrameMs {16};
+        if (frameElapsed < TargetFrameMs) {
+            SDL_Delay(TargetFrameMs - frameElapsed);
         }
     }
 
@@ -442,6 +471,7 @@ void SdlApp::run() noexcept
         m_recorder.finish(m_game->getView().stats.score, m_simTick);
         static_cast<void>(m_recorder.saveToFile(m_recordPath));
     }
+#endif
 }
 
 } // namespace qix::sdl

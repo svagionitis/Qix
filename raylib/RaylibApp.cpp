@@ -1,5 +1,8 @@
 #include "RaylibApp.h"
 #include <algorithm>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 namespace qix::raylib {
 
@@ -376,41 +379,64 @@ void RaylibApp::processInput() noexcept
     }
 }
 
+bool RaylibApp::tick() noexcept
+{
+    if (WindowShouldClose()) {
+        return false;
+    }
+
+    processInput();
+
+    const double currentTime = GetTime();
+    const double stepInterval = static_cast<double>(m_delayMs) / 1000.0;
+
+    if (currentTime - m_lastStepTime >= stepInterval) {
+        if (m_game) {
+            if (m_replaying) {
+                m_currentCmd = m_player.getCommandForTick(m_simTick);
+                if (m_game->getView().state == GameState::LevelComplete) {
+                    if (m_currentCmd.drawMode != DrawMode::None || m_currentCmd.direction != Direction::None) {
+                        m_game->nextLevel();
+                    }
+                }
+            } else if (m_recorder.isRecording()) {
+                m_recorder.recordTick(m_simTick, m_currentCmd);
+            }
+
+            m_game->handleInput(m_currentCmd);
+            m_game->step(m_delayMs);
+            ++m_simTick;
+
+            m_audio.update(m_game->getView(), m_delayMs);
+            m_currentCmd.direction = Direction::None;
+        }
+        m_lastStepTime = currentTime;
+    }
+
+    if (m_game) {
+        m_renderer.render(m_game->getView(), m_delayMs);
+    }
+
+    return true;
+}
+
 void RaylibApp::run() noexcept
 {
-    double lastStepTime = GetTime();
+    m_lastStepTime = GetTime();
 
-    while (!WindowShouldClose()) {
-        processInput();
-
-        const double currentTime = GetTime();
-        const double stepInterval = static_cast<double>(m_delayMs) / 1000.0;
-
-        if (currentTime - lastStepTime >= stepInterval) {
-            if (m_game) {
-                if (m_replaying) {
-                    m_currentCmd = m_player.getCommandForTick(m_simTick);
-                    if (m_game->getView().state == GameState::LevelComplete) {
-                        if (m_currentCmd.drawMode != DrawMode::None || m_currentCmd.direction != Direction::None) {
-                            m_game->nextLevel();
-                        }
-                    }
-                } else if (m_recorder.isRecording()) {
-                    m_recorder.recordTick(m_simTick, m_currentCmd);
-                }
-
-                m_game->handleInput(m_currentCmd);
-                m_game->step(m_delayMs);
-                ++m_simTick;
-
-                m_audio.update(m_game->getView(), m_delayMs);
-                m_currentCmd.direction = Direction::None;
+#ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop_arg(
+        [](void* arg) noexcept {
+            auto* app = static_cast<RaylibApp*>(arg);
+            if (app != nullptr && !app->tick()) {
+                emscripten_cancel_main_loop();
             }
-            lastStepTime = currentTime;
-        }
-
-        if (m_game) {
-            m_renderer.render(m_game->getView(), m_delayMs);
+        },
+        this, 0, 1);
+#else
+    while (!WindowShouldClose()) {
+        if (!tick()) {
+            break;
         }
     }
 
@@ -418,6 +444,7 @@ void RaylibApp::run() noexcept
         m_recorder.finish(m_game->getView().stats.score, m_simTick);
         static_cast<void>(m_recorder.saveToFile(m_recordPath));
     }
+#endif
 }
 
 } // namespace qix::raylib

@@ -6,9 +6,6 @@ namespace qix {
 
 namespace {
 
-    constexpr float Pi = 3.14159265358979323846f;
-    constexpr float TwoPi = 6.28318530717958647692f;
-
     [[nodiscard]] inline float clamp01(float val) noexcept
     {
         return std::clamp(val, 0.0f, 1.0f);

@@ -48,7 +48,7 @@ function(apply_compiler_flags TARGET_NAME)
             target_compile_options(${TARGET_NAME} PRIVATE -Werror)
         endif()
 
-        if(ENABLE_HARDENING)
+        if(ENABLE_HARDENING AND NOT EMSCRIPTEN)
             get_target_property(TARGET_TYPE ${TARGET_NAME} TYPE)
             target_compile_options(${TARGET_NAME} PRIVATE
                 -fstack-protector-strong

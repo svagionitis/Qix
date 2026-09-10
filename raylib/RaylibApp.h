@@ -26,13 +26,11 @@ public:
         bool artEnabled = true, int artScene = -1) noexcept;
     ~RaylibApp();
 
-    // Non-copyable
+    // Non-copyable and non-movable
     RaylibApp(const RaylibApp&) = delete;
     RaylibApp& operator=(const RaylibApp&) = delete;
-
-    // Movable
-    RaylibApp(RaylibApp&&) noexcept = default;
-    RaylibApp& operator=(RaylibApp&&) noexcept = default;
+    RaylibApp(RaylibApp&&) = delete;
+    RaylibApp& operator=(RaylibApp&&) = delete;
 
     /// @brief Initialize Raylib display window.
     /// @param[in] title Window title.
@@ -44,6 +42,11 @@ public:
 
     /// @brief Enter the main simulation and rendering loop.
     void run() noexcept;
+
+    /// @brief Execute a single frame tick consisting of input polling, simulation pacing, and rendering.
+    /// @details Polled repeatedly by desktop run() or invoked per animation frame by Emscripten under WebAssembly.
+    /// @return True if the application should continue running, false if an exit condition was encountered.
+    [[nodiscard]] bool tick() noexcept;
 
     /// @brief Get current simulation delay in milliseconds.
     /// @return Current tick delay.
@@ -140,6 +143,7 @@ private:
     std::string m_recordPath {};
     std::uint32_t m_simTick {0};
     bool m_replaying {false};
+    double m_lastStepTime {0.0};
 
     void processInput() noexcept;
 };

@@ -29,13 +29,11 @@ public:
         bool artEnabled = true, int artScene = -1) noexcept;
     ~SdlApp();
 
-    // Non-copyable
+    // Non-copyable and non-movable
     SdlApp(const SdlApp&) = delete;
     SdlApp& operator=(const SdlApp&) = delete;
-
-    // Movable
-    SdlApp(SdlApp&&) noexcept = default;
-    SdlApp& operator=(SdlApp&&) noexcept = default;
+    SdlApp(SdlApp&&) = delete;
+    SdlApp& operator=(SdlApp&&) = delete;
 
     /// @brief Initialize SDL subsystems and display window.
     /// @param[in] title Window title.
@@ -46,6 +44,11 @@ public:
 
     /// @brief Enter the main application simulation and rendering loop.
     void run() noexcept;
+
+    /// @brief Execute a single frame tick consisting of input polling, simulation pacing, and rendering.
+    /// @details Polled repeatedly by desktop run() or invoked per animation frame by Emscripten under WebAssembly.
+    /// @return True if the application should continue running, false if an exit condition was encountered.
+    [[nodiscard]] bool tick() noexcept;
 
     /// @brief Get current simulation delay in milliseconds.
     /// @return Current tick delay.
@@ -138,6 +141,7 @@ private:
     std::string m_recordPath {};
     std::uint32_t m_simTick {0};
     bool m_replaying {false};
+    std::uint32_t m_lastStepTicks {0};
 
     void processEvents(bool& running) noexcept;
     static void sdlAudioCallback(void* userdata, Uint8* stream, int len) noexcept;

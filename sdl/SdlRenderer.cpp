@@ -485,8 +485,8 @@ void SdlRenderer::drawQixRibbons(
 {
     const PlayfieldViewport vp {static_cast<float>(fieldRect.x), static_cast<float>(fieldRect.y),
         static_cast<float>(fieldRect.w), static_cast<float>(fieldRect.h), 80, 60};
-    const double cellW = vp.cellWidth();
-    const double cellH = vp.cellHeight();
+    const float cellW = vp.cellWidth();
+    const float cellH = vp.cellHeight();
     const auto& theme = ColorPalette::get(m_paletteId);
 
     for (const auto& ribbon : ribbons) {
@@ -498,10 +498,14 @@ void SdlRenderer::drawQixRibbons(
         std::size_t segIndex {0};
 
         for (const auto& seg : ribbon) {
-            const int x1 = static_cast<int>(fieldRect.x + (seg.start.x + 0.5) * cellW);
-            const int y1 = static_cast<int>(fieldRect.y + (seg.start.y + 0.5) * cellH);
-            const int x2 = static_cast<int>(fieldRect.x + (seg.end.x + 0.5) * cellW);
-            const int y2 = static_cast<int>(fieldRect.y + (seg.end.y + 0.5) * cellH);
+            const int x1
+                = static_cast<int>(static_cast<float>(fieldRect.x) + (static_cast<float>(seg.start.x) + 0.5f) * cellW);
+            const int y1
+                = static_cast<int>(static_cast<float>(fieldRect.y) + (static_cast<float>(seg.start.y) + 0.5f) * cellH);
+            const int x2
+                = static_cast<int>(static_cast<float>(fieldRect.x) + (static_cast<float>(seg.end.x) + 0.5f) * cellW);
+            const int y2
+                = static_cast<int>(static_cast<float>(fieldRect.y) + (static_cast<float>(seg.end.y) + 0.5f) * cellH);
 
             const auto col = ColorPalette::computeRibbonColor(theme, m_colorCycle, segIndex, totalSegs);
             drawThickLine(x1, y1, x2, y2, (segIndex == 0) ? 3 : 2, toSdl(col));
