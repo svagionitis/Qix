@@ -6,6 +6,7 @@
 #include "SpeedConfig.h"
 #include <QMainWindow>
 #include <QTimer>
+#include <chrono>
 #include <memory>
 
 #if defined(QIX_QT_HAS_MULTIMEDIA)
@@ -113,7 +114,8 @@ protected:
     void keyReleaseEvent(QKeyEvent* event) override;
 
 private slots:
-    void onTick();
+    void onSimTick();
+    void onRenderTick();
 
 private:
     std::unique_ptr<IQixGame> m_game;
@@ -125,7 +127,9 @@ private:
     QAction* m_synthwaveThemeAction {nullptr};
     QAction* m_amberThemeAction {nullptr};
     QAction* m_greenThemeAction {nullptr};
-    QTimer m_timer;
+    QTimer m_simTimer;
+    QTimer m_renderTimer;
+    std::chrono::steady_clock::time_point m_lastStepTime {std::chrono::steady_clock::now()};
     PlayerCommand m_currentCmd {};
     std::uint32_t m_delayMs {SpeedConfig::DefaultDelayMs};
     ArcadeAudio m_audio {};

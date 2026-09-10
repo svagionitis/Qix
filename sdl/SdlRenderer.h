@@ -3,6 +3,7 @@
 #include "BitmapFont.h"
 #include "ColorPalette.h"
 #include "IQixGame.h"
+#include "MotionInterpolator.h"
 #include "ParticleSystem.h"
 #include <SDL.h>
 #include <cstdint>
@@ -63,10 +64,18 @@ public:
     /// @return True if initialization succeeded, false otherwise.
     [[nodiscard]] bool init(const std::string& title, int width, int height) noexcept;
 
-    /// @brief Render complete game frame.
+    /// @brief Record entity positions before advancing a simulation tick for sub-pixel interpolation.
+    /// @param[in] view Current game state snapshot before advancing simulation.
+    void onSimulationTick(const GameView& view) noexcept;
+
+    /// @brief Reset motion interpolation history (e.g. upon level advance or session reset).
+    void resetInterpolation() noexcept;
+
+    /// @brief Render complete game frame with optional sub-pixel motion interpolation.
     /// @param[in] view Current game state snapshot.
     /// @param[in] delayMs Current tick delay in milliseconds.
-    void render(const GameView& view, std::uint32_t delayMs) noexcept;
+    /// @param[in] alpha Normalized interpolation factor in [0.0f, 1.0f] (default: 1.0f).
+    void render(const GameView& view, std::uint32_t delayMs, float alpha = 1.0f) noexcept;
 
     /// @brief Present rendered back-buffer to the screen.
     void present() noexcept;
@@ -137,7 +146,7 @@ private:
     void drawHud(const GameStats& stats, std::uint32_t delayMs) noexcept;
     void drawPlayfield(const Playfield& playfield, const SDL_Rect& fieldRect, const GameView& view) noexcept;
     void drawQixRibbons(const std::vector<std::deque<LineSegment>>& ribbons, const SDL_Rect& fieldRect) noexcept;
-    void drawEntities(const GameView& view, const SDL_Rect& fieldRect) noexcept;
+    void drawEntities(const GameView& view, const SDL_Rect& fieldRect, float alpha) noexcept;
     void drawParticles(const SDL_Rect& fieldRect) noexcept;
     void drawOverlays(const GameView& view, const SDL_Rect& fieldRect) noexcept;
     void drawNameEntry(const NameEntryState& entry, const GameStats& stats) noexcept;
@@ -152,6 +161,7 @@ private:
 
     ParticleSystem m_particles {};
     std::uint64_t m_lastFrameTicks {0};
+    MotionInterpolator m_interpolator {};
 };
 
 } // namespace qix::sdl

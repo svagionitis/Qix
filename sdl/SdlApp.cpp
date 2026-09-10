@@ -235,6 +235,7 @@ void SdlApp::processEvents(bool& running) noexcept
                     if (m_game) {
                         m_game->nextLevel();
                         setDelayMs(m_game->getCurrentDelayMs());
+                        m_renderer.resetInterpolation();
                     }
                     continue;
                 }
@@ -284,6 +285,7 @@ void SdlApp::processEvents(bool& running) noexcept
                     if (m_game) {
                         m_game->reset();
                         setDelayMs(m_game->getCurrentDelayMs());
+                        m_renderer.resetInterpolation();
                     }
                     continue;
                 }
@@ -338,6 +340,7 @@ void SdlApp::processEvents(bool& running) noexcept
             case SDLK_r:
                 if (m_game) {
                     m_game->reset();
+                    m_renderer.resetInterpolation();
                     if (m_recorder.isRecording()) {
                         ReplayHeader hdr {};
                         hdr.mode = m_game->getGameMode();
@@ -379,6 +382,7 @@ void SdlApp::processEvents(bool& running) noexcept
                 if (m_game) {
                     if (m_game->quickLoad()) {
                         setDelayMs(m_game->getCurrentDelayMs());
+                        m_renderer.resetInterpolation();
                     }
                 }
                 break;
@@ -407,17 +411,23 @@ bool SdlApp::tick() noexcept
     }
 
     if (m_game) {
-        const auto now = SDL_GetTicks();
-        if (m_lastStepTicks == 0) {
-            m_lastStepTicks = now;
+        const double nowSec
+            = static_cast<double>(SDL_GetPerformanceCounter()) / static_cast<double>(SDL_GetPerformanceFrequency());
+        const double stepIntervalSec = static_cast<double>(m_delayMs) / 1000.0;
+
+        if (m_lastStepTimeSec <= 0.0) {
+            m_lastStepTimeSec = nowSec;
         }
 
-        if (now - m_lastStepTicks >= m_delayMs) {
+        if (nowSec - m_lastStepTimeSec >= stepIntervalSec) {
+            m_renderer.onSimulationTick(m_game->getView());
+
             if (m_replaying) {
                 m_currentCmd = m_player.getCommandForTick(m_simTick);
                 if (m_game->getView().state == GameState::LevelComplete) {
                     if (m_currentCmd.drawMode != DrawMode::None || m_currentCmd.direction != Direction::None) {
                         m_game->nextLevel();
+                        m_renderer.resetInterpolation();
                     }
                 }
             } else if (m_recorder.isRecording()) {
@@ -430,10 +440,15 @@ bool SdlApp::tick() noexcept
 
             m_audio.update(m_game->getView(), m_delayMs);
             m_currentCmd.direction = Direction::None;
-            m_lastStepTicks = now;
+            m_lastStepTimeSec = nowSec;
         }
 
-        m_renderer.render(m_game->getView(), m_delayMs);
+        const auto& view = m_game->getView();
+        const float alpha = (view.state == GameState::Playing && !view.isPaused)
+            ? MotionInterpolator::calculateAlpha(nowSec - m_lastStepTimeSec, stepIntervalSec)
+            : 1.0f;
+
+        m_renderer.render(view, m_delayMs, alpha);
         m_renderer.present();
     }
 
@@ -442,7 +457,8 @@ bool SdlApp::tick() noexcept
 
 void SdlApp::run() noexcept
 {
-    m_lastStepTicks = SDL_GetTicks();
+    m_lastStepTimeSec
+        = static_cast<double>(SDL_GetPerformanceCounter()) / static_cast<double>(SDL_GetPerformanceFrequency());
 
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop_arg(
@@ -455,16 +471,14 @@ void SdlApp::run() noexcept
         this, 0, 1);
 #else
     while (true) {
-        const auto frameStart = SDL_GetTicks();
         if (!tick()) {
             break;
         }
 
-        const auto frameElapsed = SDL_GetTicks() - frameStart;
-        constexpr std::uint32_t TargetFrameMs {16};
-        if (frameElapsed < TargetFrameMs) {
-            SDL_Delay(TargetFrameMs - frameElapsed);
-        }
+        // Small 1 ms yield prevents high CPU utilization on non-VSynced configurations,
+        // while easily accommodating 144 Hz, 240 Hz, and unlocked displays.
+        // When VSync is enabled, SDL_RenderPresent automatically handles display synchronization.
+        SDL_Delay(1);
     }
 
     if (m_recorder.isRecording() && !m_recordPath.empty() && m_game) {

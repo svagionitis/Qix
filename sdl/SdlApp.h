@@ -142,6 +142,7 @@ private:
     std::uint32_t m_simTick {0};
     bool m_replaying {false};
     std::uint32_t m_lastStepTicks {0};
+    double m_lastStepTimeSec {0.0};
 
     void processEvents(bool& running) noexcept;
     static void sdlAudioCallback(void* userdata, Uint8* stream, int len) noexcept;

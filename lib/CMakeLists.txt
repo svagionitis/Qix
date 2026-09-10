@@ -21,6 +21,7 @@ add_library(qix_core STATIC
     LockFreeRingBuffer.h
     Marker.cpp
     Marker.h
+    MotionInterpolator.h
     ParticleSystem.cpp
     ParticleSystem.h
     Playfield.cpp

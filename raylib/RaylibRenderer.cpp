@@ -122,7 +122,17 @@ void RaylibRenderer::toggleCrt() noexcept
     m_crtEnabled = !m_crtEnabled;
 }
 
-void RaylibRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
+void RaylibRenderer::onSimulationTick(const GameView& view) noexcept
+{
+    m_interpolator.onTick(view);
+}
+
+void RaylibRenderer::resetInterpolation() noexcept
+{
+    m_interpolator.reset();
+}
+
+void RaylibRenderer::render(const GameView& view, std::uint32_t delayMs, float alpha) noexcept
 {
     if (!m_initialized) {
         return;
@@ -185,7 +195,7 @@ void RaylibRenderer::render(const GameView& view, std::uint32_t delayMs) noexcep
     if (view.playfield) {
         drawPlayfield(*view.playfield, fieldRect, view);
         drawQixRibbons(view.qixRibbons, fieldRect);
-        drawEntities(view, fieldRect);
+        drawEntities(view, fieldRect, alpha);
         drawParticles(fieldRect);
     }
 
@@ -466,7 +476,7 @@ void RaylibRenderer::drawQixRibbons(
     EndBlendMode();
 }
 
-void RaylibRenderer::drawEntities(const GameView& view, const Rectangle& fieldRect) noexcept
+void RaylibRenderer::drawEntities(const GameView& view, const Rectangle& fieldRect, float alpha) noexcept
 {
     const float cellW = fieldRect.width / 80.0f;
     const float cellH = fieldRect.height / 60.0f;
@@ -483,11 +493,12 @@ void RaylibRenderer::drawEntities(const GameView& view, const Rectangle& fieldRe
         }
     }
 
-    // 2. Sparx
+    // 2. Sparx (Linearly interpolated screen positions)
     if (!view.sparxList.empty()) {
-        for (const auto& sp : view.sparxList) {
-            const Vector2 center {fieldRect.x + (static_cast<float>(sp.position.x) + 0.5f) * cellW,
-                fieldRect.y + (static_cast<float>(sp.position.y) + 0.5f) * cellH};
+        for (std::size_t i = 0; i < view.sparxList.size(); ++i) {
+            const auto& sp = view.sparxList[i];
+            const auto [sx, sy] = m_interpolator.interpolateSparx(i, sp.position, alpha);
+            const Vector2 center {fieldRect.x + (sx + 0.5f) * cellW, fieldRect.y + (sy + 0.5f) * cellH};
             if (sp.isSuper) {
                 DrawPoly(center, 4, 8.0f, 45.0f, toRaylib(theme.superSparx));
                 DrawPoly(center, 4, 4.0f, 45.0f, WHITE);
@@ -496,9 +507,10 @@ void RaylibRenderer::drawEntities(const GameView& view, const Rectangle& fieldRe
             }
         }
     } else {
-        for (const auto& sp : view.sparxPositions) {
-            const Vector2 center {fieldRect.x + (static_cast<float>(sp.x) + 0.5f) * cellW,
-                fieldRect.y + (static_cast<float>(sp.y) + 0.5f) * cellH};
+        for (std::size_t i = 0; i < view.sparxPositions.size(); ++i) {
+            const auto& sp = view.sparxPositions[i];
+            const auto [sx, sy] = m_interpolator.interpolateSparx(i, sp, alpha);
+            const Vector2 center {fieldRect.x + (sx + 0.5f) * cellW, fieldRect.y + (sy + 0.5f) * cellH};
             DrawPoly(center, 4, 6.0f, 45.0f, toRaylib(theme.sparx));
         }
     }
@@ -512,9 +524,9 @@ void RaylibRenderer::drawEntities(const GameView& view, const Rectangle& fieldRe
         DrawCircleV(center, 3.0f, toRaylib(theme.fuse));
     }
 
-    // 4. Player Marker
-    const Vector2 markerPos {fieldRect.x + (static_cast<float>(view.markerPos.x) + 0.5f) * cellW,
-        fieldRect.y + (static_cast<float>(view.markerPos.y) + 0.5f) * cellH};
+    // 4. Player Marker (Linearly interpolated screen position)
+    const auto [mx, my] = m_interpolator.interpolateMarker(view.markerPos, alpha);
+    const Vector2 markerPos {fieldRect.x + (mx + 0.5f) * cellW, fieldRect.y + (my + 0.5f) * cellH};
     const Color markerColor = (view.drawMode != DrawMode::None) ? toRaylib(theme.textValue) : toRaylib(theme.marker);
     DrawPoly(markerPos, 4, 7.0f, 45.0f, markerColor);
 }

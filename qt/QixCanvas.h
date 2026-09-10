@@ -2,6 +2,7 @@
 #include "BackgroundArt.h"
 #include "ColorPalette.h"
 #include "IQixGame.h"
+#include "MotionInterpolator.h"
 #include "ParticleSystem.h"
 #include <QImage>
 #include <QWidget>
@@ -18,9 +19,21 @@ public:
     explicit QixCanvas(QWidget* parent = nullptr);
     ~QixCanvas() override = default;
 
+    /// @brief Record entity positions before advancing a simulation tick for sub-pixel interpolation.
+    /// @param[in] view Current game state snapshot before advancing simulation.
+    void onSimulationTick(const GameView& view) noexcept;
+
+    /// @brief Reset motion interpolation history (e.g. upon level advance or session reset).
+    void resetInterpolation() noexcept;
+
+    /// @brief Update interpolation alpha factor for sub-pixel rendering.
+    /// @param[in] alpha Normalized interpolation factor in [0.0f, 1.0f].
+    void setInterpolationAlpha(float alpha) noexcept;
+
     /// @brief Update canvas with the latest game snapshot and trigger repaint.
     /// @param[in] view Current game state snapshot.
-    void updateView(const GameView& view);
+    /// @param[in] alpha Normalized interpolation factor in [0.0f, 1.0f] (default: 1.0f).
+    void updateView(const GameView& view, float alpha = 1.0f);
 
     /// @brief Set the current simulation delay in milliseconds for HUD display.
     /// @param[in] delayMs Tick delay in milliseconds.
@@ -96,6 +109,8 @@ private:
 
     ParticleSystem m_particles {};
     std::chrono::steady_clock::time_point m_lastFrameTime {std::chrono::steady_clock::now()};
+    MotionInterpolator m_interpolator {};
+    float m_interpolationAlpha {1.0f};
 };
 
 } // namespace qix::qt

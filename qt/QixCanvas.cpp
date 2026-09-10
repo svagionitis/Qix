@@ -25,10 +25,36 @@ QixCanvas::QixCanvas(QWidget* parent)
     setStyleSheet("background-color: #0b0f19;");
 }
 
-void QixCanvas::updateView(const GameView& view)
+void QixCanvas::onSimulationTick(const GameView& view) noexcept
+{
+    m_interpolator.onTick(view);
+}
+
+void QixCanvas::resetInterpolation() noexcept
+{
+    m_interpolator.reset();
+}
+
+void QixCanvas::setInterpolationAlpha(float alpha) noexcept
+{
+    m_interpolationAlpha = alpha;
+}
+
+void QixCanvas::updateView(const GameView& view, float alpha)
 {
     m_view = view;
+    m_interpolationAlpha = alpha;
     ++m_colorCycle;
+
+    // Process one-shot particle events upon simulation view update
+    for (const auto& evt : m_view.events) {
+        if (evt.type == GameEventType::MarkerDeath) {
+            m_particles.emitMarkerExplosion(evt.position);
+        } else if (evt.type == GameEventType::TerritoryCapture) {
+            m_particles.emitCaptureFlash(evt.capturePerimeter, evt.drawMode);
+        }
+    }
+
     update();
 }
 
@@ -132,15 +158,6 @@ void QixCanvas::paintEvent(QPaintEvent* event)
     const auto now = std::chrono::steady_clock::now();
     const float dt = std::chrono::duration<float>(now - m_lastFrameTime).count();
     m_lastFrameTime = now;
-
-    // Particle simulation & event processing
-    for (const auto& evt : m_view.events) {
-        if (evt.type == GameEventType::MarkerDeath) {
-            m_particles.emitMarkerExplosion(evt.position);
-        } else if (evt.type == GameEventType::TerritoryCapture) {
-            m_particles.emitCaptureFlash(evt.capturePerimeter, evt.drawMode);
-        }
-    }
 
     if (m_view.fusePos.has_value()) {
         m_particles.emitFuseSparkles(m_view.fusePos.value(), m_view.stixTrail, dt);
@@ -508,9 +525,11 @@ void QixCanvas::drawEntities(QPainter& painter, const QRect& fieldRect)
 
     // 2. Sparx
     if (!m_view.sparxList.empty()) {
-        for (const auto& sp : m_view.sparxList) {
-            const double cx = fieldRect.left() + (sp.position.x + 0.5) * cellW;
-            const double cy = fieldRect.top() + (sp.position.y + 0.5) * cellH;
+        for (std::size_t i = 0; i < m_view.sparxList.size(); ++i) {
+            const auto& sp = m_view.sparxList[i];
+            const auto [sx, sy] = m_interpolator.interpolateSparx(i, sp.position, m_interpolationAlpha);
+            const double cx = fieldRect.left() + (static_cast<double>(sx) + 0.5) * cellW;
+            const double cy = fieldRect.top() + (static_cast<double>(sy) + 0.5) * cellH;
 
             if (sp.isSuper) {
                 // Super Sparx: bright cyan diamond with white center
@@ -536,9 +555,11 @@ void QixCanvas::drawEntities(QPainter& painter, const QRect& fieldRect)
             }
         }
     } else {
-        for (const auto& sp : m_view.sparxPositions) {
-            const double cx = fieldRect.left() + (sp.x + 0.5) * cellW;
-            const double cy = fieldRect.top() + (sp.y + 0.5) * cellH;
+        for (std::size_t i = 0; i < m_view.sparxPositions.size(); ++i) {
+            const auto& sp = m_view.sparxPositions[i];
+            const auto [sx, sy] = m_interpolator.interpolateSparx(i, sp, m_interpolationAlpha);
+            const double cx = fieldRect.left() + (static_cast<double>(sx) + 0.5) * cellW;
+            const double cy = fieldRect.top() + (static_cast<double>(sy) + 0.5) * cellH;
 
             painter.setBrush(toQColor(theme.sparx));
             painter.setPen(QPen(QColor(255, 255, 255), 1.0));
@@ -561,14 +582,16 @@ void QixCanvas::drawEntities(QPainter& painter, const QRect& fieldRect)
     }
 
     // 4. Player Marker
-    const double mx = fieldRect.left() + (m_view.markerPos.x + 0.5) * cellW;
-    const double my = fieldRect.top() + (m_view.markerPos.y + 0.5) * cellH;
+    const auto [mx, my] = m_interpolator.interpolateMarker(m_view.markerPos, m_interpolationAlpha);
+    const double mxScreen = fieldRect.left() + (static_cast<double>(mx) + 0.5) * cellW;
+    const double myScreen = fieldRect.top() + (static_cast<double>(my) + 0.5) * cellH;
 
     painter.setBrush(m_view.drawMode != DrawMode::None ? toQColor(theme.textValue) : toQColor(theme.marker));
     painter.setPen(QPen(QColor(0, 0, 0), 1.0));
 
     QPolygonF markerDiamond;
-    markerDiamond << QPointF(mx, my - 7) << QPointF(mx + 7, my) << QPointF(mx, my + 7) << QPointF(mx - 7, my);
+    markerDiamond << QPointF(mxScreen, myScreen - 7) << QPointF(mxScreen + 7, myScreen)
+                  << QPointF(mxScreen, myScreen + 7) << QPointF(mxScreen - 7, myScreen);
     painter.drawPolygon(markerDiamond);
 
     painter.restore();

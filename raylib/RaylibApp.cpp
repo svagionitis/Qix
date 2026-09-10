@@ -228,6 +228,7 @@ void RaylibApp::processInput() noexcept
         if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER)) {
             if (m_game) {
                 m_game->nextLevel();
+                m_renderer.resetInterpolation();
             }
             return;
         }
@@ -282,6 +283,7 @@ void RaylibApp::processInput() noexcept
             if (m_game) {
                 m_game->reset();
                 m_delayMs = m_game->getCurrentDelayMs();
+                m_renderer.resetInterpolation();
             }
             return;
         }
@@ -324,6 +326,7 @@ void RaylibApp::processInput() noexcept
     if (IsKeyPressed(KEY_R)) {
         if (m_game) {
             m_game->reset();
+            m_renderer.resetInterpolation();
             if (m_recorder.isRecording()) {
                 ReplayHeader hdr {};
                 hdr.mode = m_game->getGameMode();
@@ -374,6 +377,7 @@ void RaylibApp::processInput() noexcept
         if (m_game) {
             if (m_game->quickLoad()) {
                 m_delayMs = m_game->getCurrentDelayMs();
+                m_renderer.resetInterpolation();
             }
         }
     }
@@ -392,11 +396,14 @@ bool RaylibApp::tick() noexcept
 
     if (currentTime - m_lastStepTime >= stepInterval) {
         if (m_game) {
+            m_renderer.onSimulationTick(m_game->getView());
+
             if (m_replaying) {
                 m_currentCmd = m_player.getCommandForTick(m_simTick);
                 if (m_game->getView().state == GameState::LevelComplete) {
                     if (m_currentCmd.drawMode != DrawMode::None || m_currentCmd.direction != Direction::None) {
                         m_game->nextLevel();
+                        m_renderer.resetInterpolation();
                     }
                 }
             } else if (m_recorder.isRecording()) {
@@ -414,7 +421,11 @@ bool RaylibApp::tick() noexcept
     }
 
     if (m_game) {
-        m_renderer.render(m_game->getView(), m_delayMs);
+        const auto& view = m_game->getView();
+        const float alpha = (view.state == GameState::Playing && !view.isPaused)
+            ? MotionInterpolator::calculateAlpha(currentTime - m_lastStepTime, stepInterval)
+            : 1.0f;
+        m_renderer.render(view, m_delayMs, alpha);
     }
 
     return true;

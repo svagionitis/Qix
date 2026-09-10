@@ -7,8 +7,9 @@ if(GTest_FOUND)
         ColorPaletteTest.cpp
         DemoBotTest.cpp
         LockFreeRingBufferTest.cpp
-        PlayfieldTest.cpp
         MarkerTest.cpp
+        MotionInterpolatorTest.cpp
+        PlayfieldTest.cpp
         TerritoryFillTest.cpp
         CollisionTest.cpp
         GameEngineTest.cpp

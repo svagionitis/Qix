@@ -1,7 +1,10 @@
 #include "MainWindow.h"
 #include <QActionGroup>
+#include <QGuiApplication>
 #include <QKeyEvent>
 #include <QMenuBar>
+#include <QScreen>
+#include <cmath>
 
 #if defined(QIX_QT_HAS_MULTIMEDIA)
 #include <QAudioFormat>
@@ -87,6 +90,7 @@ MainWindow::MainWindow(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bo
     auto* quickLoadAction = gameMenu->addAction(tr("Quick&Load (F9)"), [this]() {
         if (m_game && m_game->quickLoad()) {
             setDelayMs(m_game->getCurrentDelayMs());
+            m_canvas->resetInterpolation();
             m_canvas->updateView(m_game->getView());
         }
     });
@@ -133,13 +137,24 @@ MainWindow::MainWindow(std::unique_ptr<IQixGame> game, std::uint32_t delayMs, bo
     initAudio(audioEnabled);
 
     // Dynamic simulation and rendering loop
-    connect(&m_timer, &QTimer::timeout, this, &MainWindow::onTick);
-    m_timer.start(static_cast<int>(m_delayMs));
+    connect(&m_simTimer, &QTimer::timeout, this, &MainWindow::onSimTick);
+    m_simTimer.start(static_cast<int>(m_delayMs));
+
+    connect(&m_renderTimer, &QTimer::timeout, this, &MainWindow::onRenderTick);
+    int renderIntervalMs = 7;
+    if (const auto* scr = QGuiApplication::primaryScreen()) {
+        const auto rate = scr->refreshRate();
+        if (rate > 10.0) {
+            renderIntervalMs = std::max(1, static_cast<int>(std::round(1000.0 / rate)));
+        }
+    }
+    m_renderTimer.start(renderIntervalMs);
 }
 
 MainWindow::~MainWindow()
 {
-    m_timer.stop();
+    m_simTimer.stop();
+    m_renderTimer.stop();
     if (m_recorder.isRecording() && !m_recordPath.empty() && m_game) {
         m_recorder.finish(m_game->getView().stats.score, m_simTick);
         static_cast<void>(m_recorder.saveToFile(m_recordPath));
@@ -197,8 +212,8 @@ std::uint32_t MainWindow::getDelayMs() const noexcept
 void MainWindow::setDelayMs(std::uint32_t delayMs) noexcept
 {
     m_delayMs = SpeedConfig::clampDelay(delayMs);
-    if (m_timer.isActive()) {
-        m_timer.setInterval(static_cast<int>(m_delayMs));
+    if (m_simTimer.isActive()) {
+        m_simTimer.setInterval(static_cast<int>(m_delayMs));
     }
     if (m_canvas != nullptr) {
         m_canvas->setDelayMs(m_delayMs);
@@ -370,11 +385,13 @@ bool MainWindow::isRecording() const noexcept
     return m_recorder.isRecording();
 }
 
-void MainWindow::onTick()
+void MainWindow::onSimTick()
 {
     if (!m_game) {
         return;
     }
+
+    m_canvas->onSimulationTick(m_game->getView());
 
     if (m_replaying) {
         m_currentCmd = m_player.getCommandForTick(m_simTick);
@@ -382,6 +399,7 @@ void MainWindow::onTick()
             if (m_currentCmd.drawMode != DrawMode::None || m_currentCmd.direction != Direction::None) {
                 m_game->nextLevel();
                 setDelayMs(m_game->getCurrentDelayMs());
+                m_canvas->resetInterpolation();
             }
         }
     } else if (m_recorder.isRecording()) {
@@ -392,12 +410,29 @@ void MainWindow::onTick()
     m_game->step(m_delayMs);
     ++m_simTick;
 
+    m_lastStepTime = std::chrono::steady_clock::now();
+
     m_audio.update(m_game->getView(), m_delayMs);
 
-    m_canvas->updateView(m_game->getView());
+    m_canvas->updateView(m_game->getView(), 0.0f);
 
     // Clear direction after step
     m_currentCmd.direction = Direction::None;
+}
+
+void MainWindow::onRenderTick()
+{
+    if (!m_game) {
+        return;
+    }
+
+    const auto now = std::chrono::steady_clock::now();
+    const auto elapsed = std::chrono::duration_cast<std::chrono::duration<float>>(now - m_lastStepTime).count();
+    const float interval = static_cast<float>(m_delayMs) / 1000.0f;
+    const float alpha = MotionInterpolator::calculateAlpha(elapsed, interval);
+
+    m_canvas->setInterpolationAlpha(alpha);
+    m_canvas->update();
 }
 
 void MainWindow::keyPressEvent(QKeyEvent* event)
@@ -419,6 +454,7 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
         if (event->key() == Qt::Key_Space || event->key() == Qt::Key_Return) {
             m_game->nextLevel();
             setDelayMs(m_game->getCurrentDelayMs());
+            m_canvas->resetInterpolation();
             m_canvas->updateView(m_game->getView());
             return;
         }
@@ -467,6 +503,7 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
             || event->key() == Qt::Key_Enter) {
             m_game->reset();
             setDelayMs(m_game->getCurrentDelayMs());
+            m_canvas->resetInterpolation();
             m_canvas->updateView(m_game->getView());
             return;
         }
@@ -517,6 +554,8 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
     case Qt::Key_R:
         if (m_game) {
             m_game->reset();
+            m_canvas->resetInterpolation();
+            m_canvas->updateView(m_game->getView());
             if (m_recorder.isRecording()) {
                 ReplayHeader hdr {};
                 hdr.mode = m_game->getGameMode();

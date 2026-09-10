@@ -24,7 +24,11 @@ bool SdlRenderer::init(const std::string& title, int width, int height) noexcept
     }
     m_window.reset(window);
 
-    SDL_Renderer* renderer = SDL_CreateRenderer(m_window.get(), -1, SDL_RENDERER_ACCELERATED);
+    SDL_Renderer* renderer
+        = SDL_CreateRenderer(m_window.get(), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if (renderer == nullptr) {
+        renderer = SDL_CreateRenderer(m_window.get(), -1, SDL_RENDERER_ACCELERATED);
+    }
     if (renderer == nullptr) {
         // Fallback to software renderer if hardware accelerated fails
         renderer = SDL_CreateRenderer(m_window.get(), -1, SDL_RENDERER_SOFTWARE);
@@ -135,15 +139,26 @@ void SdlRenderer::ensureArtTexture(ArtScene scene) noexcept
     }
 }
 
-void SdlRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
+void SdlRenderer::onSimulationTick(const GameView& view) noexcept
+{
+    m_interpolator.onTick(view);
+}
+
+void SdlRenderer::resetInterpolation() noexcept
+{
+    m_interpolator.reset();
+}
+
+void SdlRenderer::render(const GameView& view, std::uint32_t delayMs, float alpha) noexcept
 {
     if (!m_renderer) {
         return;
     }
 
+    const auto& theme = ColorPalette::get(m_paletteId);
+
     const int screenW = getWidth();
     const int screenH = getHeight();
-    const auto& theme = ColorPalette::get(m_paletteId);
 
     const auto activeScene = (m_forcedArtScene >= 0) ? BackgroundArt::fromIndex(m_forcedArtScene)
                                                      : BackgroundArt::getSceneForLevel(view.stats.level);
@@ -205,7 +220,7 @@ void SdlRenderer::render(const GameView& view, std::uint32_t delayMs) noexcept
     if (view.playfield) {
         drawPlayfield(*view.playfield, fieldRect, view);
         drawQixRibbons(view.qixRibbons, fieldRect);
-        drawEntities(view, fieldRect);
+        drawEntities(view, fieldRect, alpha);
         drawParticles(fieldRect);
     }
 
@@ -515,7 +530,7 @@ void SdlRenderer::drawQixRibbons(
     }
 }
 
-void SdlRenderer::drawEntities(const GameView& view, const SDL_Rect& fieldRect) noexcept
+void SdlRenderer::drawEntities(const GameView& view, const SDL_Rect& fieldRect, float alpha) noexcept
 {
     const double cellW = static_cast<double>(fieldRect.w) / 80.0;
     const double cellH = static_cast<double>(fieldRect.h) / 60.0;
@@ -534,11 +549,13 @@ void SdlRenderer::drawEntities(const GameView& view, const SDL_Rect& fieldRect) 
         }
     }
 
-    // 2. Sparx
+    // 2. Sparx (Linearly interpolated screen positions)
     if (!view.sparxList.empty()) {
-        for (const auto& sp : view.sparxList) {
-            const int cx = static_cast<int>(fieldRect.x + (sp.position.x + 0.5) * cellW);
-            const int cy = static_cast<int>(fieldRect.y + (sp.position.y + 0.5) * cellH);
+        for (std::size_t i = 0; i < view.sparxList.size(); ++i) {
+            const auto& sp = view.sparxList[i];
+            const auto [sx, sy] = m_interpolator.interpolateSparx(i, sp.position, alpha);
+            const int cx = static_cast<int>(std::round(fieldRect.x + (static_cast<double>(sx) + 0.5) * cellW));
+            const int cy = static_cast<int>(std::round(fieldRect.y + (static_cast<double>(sy) + 0.5) * cellH));
             if (sp.isSuper) {
                 drawFilledDiamond(cx, cy, 7, toSdl(theme.superSparx));
                 drawFilledDiamond(cx, cy, 4, SDL_Color {255, 255, 255, 255});
@@ -547,9 +564,11 @@ void SdlRenderer::drawEntities(const GameView& view, const SDL_Rect& fieldRect) 
             }
         }
     } else {
-        for (const auto& sp : view.sparxPositions) {
-            const int cx = static_cast<int>(fieldRect.x + (sp.x + 0.5) * cellW);
-            const int cy = static_cast<int>(fieldRect.y + (sp.y + 0.5) * cellH);
+        for (std::size_t i = 0; i < view.sparxPositions.size(); ++i) {
+            const auto& sp = view.sparxPositions[i];
+            const auto [sx, sy] = m_interpolator.interpolateSparx(i, sp, alpha);
+            const int cx = static_cast<int>(std::round(fieldRect.x + (static_cast<double>(sx) + 0.5) * cellW));
+            const int cy = static_cast<int>(std::round(fieldRect.y + (static_cast<double>(sy) + 0.5) * cellH));
             drawFilledDiamond(cx, cy, 6, toSdl(theme.sparx));
         }
     }
@@ -564,12 +583,13 @@ void SdlRenderer::drawEntities(const GameView& view, const SDL_Rect& fieldRect) 
         drawFilledDiamond(cx, cy, 3, toSdl(theme.fuse));
     }
 
-    // 4. Player Marker
-    const int mx = static_cast<int>(fieldRect.x + (view.markerPos.x + 0.5) * cellW);
-    const int my = static_cast<int>(fieldRect.y + (view.markerPos.y + 0.5) * cellH);
+    // 4. Player Marker (Linearly interpolated screen position)
+    const auto [mx, my] = m_interpolator.interpolateMarker(view.markerPos, alpha);
+    const int x = static_cast<int>(std::round(fieldRect.x + (static_cast<double>(mx) + 0.5) * cellW));
+    const int y = static_cast<int>(std::round(fieldRect.y + (static_cast<double>(my) + 0.5) * cellH));
 
     const SDL_Color markerColor = (view.drawMode != DrawMode::None) ? toSdl(theme.textValue) : toSdl(theme.marker);
-    drawFilledDiamond(mx, my, 7, markerColor);
+    drawFilledDiamond(x, y, 7, markerColor);
 }
 
 void SdlRenderer::drawParticles(const SDL_Rect& fieldRect) noexcept

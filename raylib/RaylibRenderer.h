@@ -2,6 +2,7 @@
 #include "BackgroundArt.h"
 #include "ColorPalette.h"
 #include "IQixGame.h"
+#include "MotionInterpolator.h"
 #include "ParticleSystem.h"
 #include <cstdint>
 #include <deque>
@@ -33,10 +34,18 @@ public:
     /// @return True if window was successfully initialized, false otherwise.
     [[nodiscard]] bool init(const std::string& title, int width, int height) noexcept;
 
-    /// @brief Render complete game frame.
+    /// @brief Record entity positions before advancing a simulation tick for sub-pixel interpolation.
+    /// @param[in] view Current game state snapshot before advancing simulation.
+    void onSimulationTick(const GameView& view) noexcept;
+
+    /// @brief Reset motion interpolation history (e.g. upon level advance or session reset).
+    void resetInterpolation() noexcept;
+
+    /// @brief Render complete game frame with optional sub-pixel motion interpolation.
     /// @param[in] view Current game state snapshot.
     /// @param[in] delayMs Current tick delay in milliseconds.
-    void render(const GameView& view, std::uint32_t delayMs) noexcept;
+    /// @param[in] alpha Normalized interpolation factor in [0.0f, 1.0f] (default: 1.0f).
+    void render(const GameView& view, std::uint32_t delayMs, float alpha = 1.0f) noexcept;
 
     /// @brief Check if the window is currently initialized.
     /// @return True if initialized, false otherwise.
@@ -97,7 +106,7 @@ private:
     void drawHud(const GameStats& stats, std::uint32_t delayMs) noexcept;
     void drawPlayfield(const Playfield& playfield, const Rectangle& fieldRect, const GameView& view) noexcept;
     void drawQixRibbons(const std::vector<std::deque<LineSegment>>& ribbons, const Rectangle& fieldRect) noexcept;
-    void drawEntities(const GameView& view, const Rectangle& fieldRect) noexcept;
+    void drawEntities(const GameView& view, const Rectangle& fieldRect, float alpha) noexcept;
     void drawParticles(const Rectangle& fieldRect) noexcept;
     void drawOverlays(const GameView& view, const Rectangle& fieldRect) noexcept;
     void drawNameEntry(const NameEntryState& entry, const GameStats& stats) noexcept;
@@ -109,6 +118,7 @@ private:
     void applyCrtFilter(int width, int height) noexcept;
 
     ParticleSystem m_particles {};
+    MotionInterpolator m_interpolator {};
 };
 
 } // namespace qix::raylib
