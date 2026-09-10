@@ -6,6 +6,7 @@ if(GTest_FOUND)
         BackgroundArtTest.cpp
         ColorPaletteTest.cpp
         DemoBotTest.cpp
+        LockFreeRingBufferTest.cpp
         PlayfieldTest.cpp
         MarkerTest.cpp
         TerritoryFillTest.cpp

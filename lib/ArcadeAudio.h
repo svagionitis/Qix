@@ -1,7 +1,8 @@
 #pragma once
 #include "IQixGame.h"
+#include "LockFreeRingBuffer.h"
+#include <atomic>
 #include <cstdint>
-#include <mutex>
 
 namespace qix {
 
@@ -9,7 +10,8 @@ namespace qix {
 /// @brief Procedural chiptune sound synthesis engine for authentic 1981 arcade audio.
 /// @details Synthesizes real-time 44.1 kHz 16-bit mono PCM via mathematical waveform oscillators
 /// (The Qix Hum, Drawing Chirp, Fuse Sizzle, Sparx Siren, Level Fanfare, and Death Jingle)
-/// with zero external asset files required. Sound is muted by default.
+/// with zero external asset files required. Employs a lock-free Single-Producer Single-Consumer (SPSC)
+/// ring buffer to stream parameter updates from game threads to real-time audio callbacks without locks.
 class ArcadeAudio {
 public:
     /// @brief Audio output sample rate in Hertz (CD quality standard).
@@ -21,14 +23,14 @@ public:
 
     ~ArcadeAudio() = default;
 
-    // Non-copyable and non-movable (contains std::mutex)
+    // Non-copyable and non-movable (contains atomics and ring buffer)
     ArcadeAudio(const ArcadeAudio&) = delete;
     ArcadeAudio& operator=(const ArcadeAudio&) = delete;
     ArcadeAudio(ArcadeAudio&&) = delete;
     ArcadeAudio& operator=(ArcadeAudio&&) = delete;
 
     /// @brief Update internal acoustic parameters from immutable game snapshot.
-    /// @details Called once per simulation step on the main game thread.
+    /// @details Called once per simulation step on the main game thread. Wait-free and lock-free.
     /// @param[in] view Current game view containing Qix ribbons, marker, fuse, and sparx.
     /// @param[in] deltaMs Milliseconds elapsed since last step.
     void update(const GameView& view, std::uint32_t deltaMs) noexcept;
@@ -40,7 +42,7 @@ public:
     void triggerPlayerDeath() noexcept;
 
     /// @brief Generate contiguous buffer of 16-bit signed mono PCM samples.
-    /// @details Thread-safe method intended for real-time audio device callbacks or stream updates.
+    /// @details Thread-safe, lock-free method intended for real-time audio device callbacks or stream updates.
     /// @param[out] output Pointer to destination 16-bit integer buffer.
     /// @param[in] sampleCount Number of samples to synthesize.
     void generateSamples(std::int16_t* output, std::size_t sampleCount) noexcept;
@@ -65,12 +67,10 @@ public:
     [[nodiscard]] float getMasterVolume() const noexcept;
 
 private:
-    mutable std::mutex m_mutex {};
+    std::atomic<bool> m_muted {true};
+    std::atomic<float> m_masterVolume {0.7f};
 
-    bool m_muted {true};
-    float m_masterVolume {0.7f};
-
-    // Synthesizer State (protected by m_mutex)
+    /// @brief Acoustic synthesizer parameters transmitted from game thread to audio thread.
     struct SynthParams {
         bool qixHumActive {false};
         float qixSegmentLength {25.0f};
@@ -88,7 +88,19 @@ private:
         bool triggerFanfare {false};
         bool triggerDeath {false};
         bool qixTrapped {false};
-    } m_params {};
+    };
+
+    // Lock-free queue transmitting parameters from game thread (producer) to audio callback (consumer)
+    LockFreeRingBuffer<SynthParams, 64> m_paramQueue {};
+
+    // Game thread state tracking
+    SynthParams m_pendingParams {};
+    GameState m_prevGameState {GameState::Ready};
+    std::uint16_t m_prevLives {3};
+    std::uint8_t m_prevLevel {1};
+
+    // Audio thread active parameters
+    SynthParams m_activeParams {};
 
     // Oscillator Phases & Internal Voice States (audio thread only)
     struct VoiceState {
@@ -124,11 +136,6 @@ private:
         bool deathPlaying {false};
         std::uint32_t deathSampleIndex {0};
         double deathPhase {0.0};
-
-        // Previous Game View tracking for automatic edge detection
-        GameState prevGameState {GameState::Ready};
-        std::uint16_t prevLives {3};
-        std::uint8_t prevLevel {1};
     } m_voice {};
 
     static float softClip(float x) noexcept;

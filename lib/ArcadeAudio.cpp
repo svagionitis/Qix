@@ -15,104 +15,102 @@ ArcadeAudio::ArcadeAudio(bool startMuted) noexcept
 
 void ArcadeAudio::setMuted(bool muted) noexcept
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_muted = muted;
+    m_muted.store(muted, std::memory_order_relaxed);
 }
 
 bool ArcadeAudio::isMuted() const noexcept
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    return m_muted;
+    return m_muted.load(std::memory_order_relaxed);
 }
 
 void ArcadeAudio::toggleMute() noexcept
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_muted = !m_muted;
+    m_muted.store(!m_muted.load(std::memory_order_relaxed), std::memory_order_relaxed);
 }
 
 void ArcadeAudio::setMasterVolume(float volume) noexcept
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_masterVolume = std::clamp(volume, 0.0f, 1.0f);
+    m_masterVolume.store(std::clamp(volume, 0.0f, 1.0f), std::memory_order_relaxed);
 }
 
 float ArcadeAudio::getMasterVolume() const noexcept
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    return m_masterVolume;
+    return m_masterVolume.load(std::memory_order_relaxed);
 }
 
 void ArcadeAudio::triggerLevelComplete() noexcept
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_params.triggerFanfare = true;
+    m_pendingParams.triggerFanfare = true;
+    (void)m_paramQueue.tryPush(m_pendingParams);
+    m_pendingParams.triggerFanfare = false;
 }
 
 void ArcadeAudio::triggerPlayerDeath() noexcept
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_params.triggerDeath = true;
+    m_pendingParams.triggerDeath = true;
+    (void)m_paramQueue.tryPush(m_pendingParams);
+    m_pendingParams.triggerDeath = false;
 }
 
 void ArcadeAudio::update(const GameView& view, std::uint32_t /*deltaMs*/) noexcept
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
-    // Automatic State Transition Detection for Jingles
-    if (m_voice.prevGameState != GameState::LevelComplete && view.state == GameState::LevelComplete) {
-        m_params.triggerFanfare = true;
+    // Automatic State Transition Detection for Jingles (Game Thread)
+    if (m_prevGameState != GameState::LevelComplete && view.state == GameState::LevelComplete) {
+        m_pendingParams.triggerFanfare = true;
     }
-    if (view.stats.lives < m_voice.prevLives
-        || (m_voice.prevGameState == GameState::Playing && view.state == GameState::GameOver)) {
-        m_params.triggerDeath = true;
+    if (view.stats.lives < m_prevLives
+        || (m_prevGameState == GameState::Playing && view.state == GameState::GameOver)) {
+        m_pendingParams.triggerDeath = true;
     }
-    m_voice.prevGameState = view.state;
-    m_voice.prevLives = view.stats.lives;
-    m_voice.prevLevel = view.stats.level;
-    m_params.qixTrapped = view.stats.qixTrapped;
+    m_prevGameState = view.state;
+    m_prevLives = view.stats.lives;
+    m_prevLevel = view.stats.level;
+    m_pendingParams.qixTrapped = view.stats.qixTrapped;
 
     if (view.isPaused) {
-        m_params.qixHumActive = false;
-        m_params.drawingActive = false;
-        m_params.fuseActive = false;
-        m_params.sparxActive = false;
+        m_pendingParams.qixHumActive = false;
+        m_pendingParams.drawingActive = false;
+        m_pendingParams.fuseActive = false;
+        m_pendingParams.sparxActive = false;
+        (void)m_paramQueue.tryPush(m_pendingParams);
+        m_pendingParams.triggerFanfare = false;
+        m_pendingParams.triggerDeath = false;
         return;
     }
 
     // 1. Qix Hum Parameters
     if (view.state == GameState::Playing && !view.qixRibbons.empty() && !view.qixRibbons[0].empty()) {
-        m_params.qixHumActive = true;
+        m_pendingParams.qixHumActive = true;
         const auto& head = view.qixRibbons[0].front();
         const double dx = static_cast<double>(head.start.x - head.end.x);
         const double dy = static_cast<double>(head.start.y - head.end.y);
-        m_params.qixSegmentLength = static_cast<float>(std::hypot(dx, dy));
+        m_pendingParams.qixSegmentLength = static_cast<float>(std::hypot(dx, dy));
     } else {
-        m_params.qixHumActive = false;
+        m_pendingParams.qixHumActive = false;
     }
 
     // 2. Drawing Chirp Parameters
     if (view.state == GameState::Playing && view.drawMode != DrawMode::None) {
-        m_params.drawingActive = true;
-        m_params.drawMode = view.drawMode;
+        m_pendingParams.drawingActive = true;
+        m_pendingParams.drawMode = view.drawMode;
     } else {
-        m_params.drawingActive = false;
-        m_params.drawMode = DrawMode::None;
+        m_pendingParams.drawingActive = false;
+        m_pendingParams.drawMode = DrawMode::None;
     }
 
     // 3. Fuse Sizzle Parameters
     if (view.state == GameState::Playing && view.fusePos.has_value()) {
-        m_params.fuseActive = true;
+        m_pendingParams.fuseActive = true;
         const double dx = static_cast<double>(view.markerPos.x - view.fusePos->x);
         const double dy = static_cast<double>(view.markerPos.y - view.fusePos->y);
-        m_params.fuseDistance = static_cast<float>(std::hypot(dx, dy));
+        m_pendingParams.fuseDistance = static_cast<float>(std::hypot(dx, dy));
     } else {
-        m_params.fuseActive = false;
+        m_pendingParams.fuseActive = false;
     }
 
     // 4. Sparx Siren Parameters
     if (view.state == GameState::Playing) {
-        m_params.timeUp = view.stats.timeUp;
+        m_pendingParams.timeUp = view.stats.timeUp;
 
         // Calculate distance to nearest Sparx
         float minDist = 100.0f;
@@ -126,16 +124,20 @@ void ArcadeAudio::update(const GameView& view, std::uint32_t /*deltaMs*/) noexce
         }
 
         constexpr float kWarningRadius = 18.0f;
-        if (m_params.timeUp || minDist < kWarningRadius) {
-            m_params.sparxActive = true;
-            m_params.sparxProximity = std::clamp(minDist / kWarningRadius, 0.0f, 1.0f);
+        if (m_pendingParams.timeUp || minDist < kWarningRadius) {
+            m_pendingParams.sparxActive = true;
+            m_pendingParams.sparxProximity = std::clamp(minDist / kWarningRadius, 0.0f, 1.0f);
         } else {
-            m_params.sparxActive = false;
+            m_pendingParams.sparxActive = false;
         }
     } else {
-        m_params.sparxActive = false;
-        m_params.timeUp = false;
+        m_pendingParams.sparxActive = false;
+        m_pendingParams.timeUp = false;
     }
+
+    (void)m_paramQueue.tryPush(m_pendingParams);
+    m_pendingParams.triggerFanfare = false;
+    m_pendingParams.triggerDeath = false;
 }
 
 float ArcadeAudio::softClip(float x) noexcept
@@ -158,28 +160,22 @@ void ArcadeAudio::generateSamples(std::int16_t* output, std::size_t sampleCount)
         return;
     }
 
-    SynthParams params {};
-    bool muted = true;
-    float masterVolume = 0.0f;
-
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        params = m_params;
-        muted = m_muted;
-        masterVolume = m_masterVolume;
-
-        // Check and consume one-shot triggers
-        if (m_params.triggerFanfare) {
+    // Drain all pending updates from game thread into active parameters (Audio Thread)
+    SynthParams update {};
+    while (m_paramQueue.tryPop(update)) {
+        if (update.triggerFanfare) {
             m_voice.fanfarePlaying = true;
             m_voice.fanfareSampleIndex = 0;
-            m_params.triggerFanfare = false;
         }
-        if (m_params.triggerDeath) {
+        if (update.triggerDeath) {
             m_voice.deathPlaying = true;
             m_voice.deathSampleIndex = 0;
-            m_params.triggerDeath = false;
         }
+        m_activeParams = update;
     }
+
+    const bool muted = m_muted.load(std::memory_order_relaxed);
+    const float masterVolume = m_masterVolume.load(std::memory_order_relaxed);
 
     if (muted || masterVolume <= 0.0f) {
         std::fill_n(output, sampleCount, static_cast<std::int16_t>(0));
@@ -194,9 +190,10 @@ void ArcadeAudio::generateSamples(std::int16_t* output, std::size_t sampleCount)
         // -------------------------------------------------------------
         // 1. The Qix Hum (Dual detuned pulse oscillators with PWM)
         // -------------------------------------------------------------
-        if (params.qixHumActive) {
+        if (m_activeParams.qixHumActive) {
             // Slower, longer line segment produces lower pitch, shorter produces higher pitch
-            const double targetFreq = 105.0 - std::clamp(static_cast<double>(params.qixSegmentLength), 5.0, 55.0);
+            const double targetFreq
+                = 105.0 - std::clamp(static_cast<double>(m_activeParams.qixSegmentLength), 5.0, 55.0);
             m_voice.humCurrentFreq += (targetFreq - m_voice.humCurrentFreq) * 0.002;
 
             m_voice.humLfoPhase += kTwoPi * 3.5 * dt;
@@ -223,8 +220,8 @@ void ArcadeAudio::generateSamples(std::int16_t* output, std::size_t sampleCount)
         // -------------------------------------------------------------
         // 2. Drawing Chirp (Distinct click tempos for Slow vs. Fast)
         // -------------------------------------------------------------
-        if (params.drawingActive) {
-            const bool isFast = (params.drawMode == DrawMode::Fast);
+        if (m_activeParams.drawingActive) {
+            const bool isFast = (m_activeParams.drawMode == DrawMode::Fast);
             // Fast draw: 18 clicks/sec, 950 Hz tone
             // Slow draw: 9 clicks/sec (authentic half-speed), 550 Hz tone
             const std::uint32_t interval = isFast ? (SampleRate / 18U) : (SampleRate / 9U);
@@ -259,9 +256,9 @@ void ArcadeAudio::generateSamples(std::int16_t* output, std::size_t sampleCount)
         // -------------------------------------------------------------
         // 3. Fuse Sizzle (High-pass filtered noise with pitch escalation)
         // -------------------------------------------------------------
-        if (params.fuseActive) {
+        if (m_activeParams.fuseActive) {
             // Escalation factor: 0.0 (far away) to 1.0 (touching marker)
-            const float normDist = 1.0f - std::clamp(params.fuseDistance / 70.0f, 0.0f, 1.0f);
+            const float normDist = 1.0f - std::clamp(m_activeParams.fuseDistance / 70.0f, 0.0f, 1.0f);
             const double cutoffFreq = 2200.0 + static_cast<double>(normDist) * 4800.0;
 
             // 16-bit Galois LFSR pseudo-random noise generator
@@ -286,10 +283,10 @@ void ArcadeAudio::generateSamples(std::int16_t* output, std::size_t sampleCount)
         // -------------------------------------------------------------
         // 4. Sparx Siren (Piercing FM warble)
         // -------------------------------------------------------------
-        if (params.sparxActive) {
-            const double lfoFreq = params.timeUp ? 16.0 : 9.0;
-            const double modDepth = params.timeUp ? 280.0 : 160.0;
-            const double centerFreq = params.timeUp ? 880.0 : 780.0;
+        if (m_activeParams.sparxActive) {
+            const double lfoFreq = m_activeParams.timeUp ? 16.0 : 9.0;
+            const double modDepth = m_activeParams.timeUp ? 280.0 : 160.0;
+            const double centerFreq = m_activeParams.timeUp ? 880.0 : 780.0;
 
             m_voice.sparxLfoPhase += kTwoPi * lfoFreq * dt;
             if (m_voice.sparxLfoPhase >= kTwoPi) {
@@ -302,7 +299,7 @@ void ArcadeAudio::generateSamples(std::int16_t* output, std::size_t sampleCount)
                 m_voice.sparxPhase -= kTwoPi;
             }
 
-            const float amp = params.timeUp ? 0.35f : (1.0f - params.sparxProximity) * 0.30f;
+            const float amp = m_activeParams.timeUp ? 0.35f : (1.0f - m_activeParams.sparxProximity) * 0.30f;
             const float sirenWave = (m_voice.sparxPhase < 0.5 * kTwoPi) ? 1.0f : -1.0f;
             mix += sirenWave * amp;
         }
@@ -313,7 +310,7 @@ void ArcadeAudio::generateSamples(std::int16_t* output, std::size_t sampleCount)
         if (m_voice.fanfarePlaying) {
             constexpr std::uint32_t kTotalFanfareSamples = static_cast<std::uint32_t>(SampleRate * 1.2);
             constexpr std::uint32_t kNoteDuration = SampleRate / 7U; // ~142ms per note
-            const double trapPitchScale = params.qixTrapped ? 1.5 : 1.0;
+            const double trapPitchScale = m_activeParams.qixTrapped ? 1.5 : 1.0;
 
             if (m_voice.fanfareSampleIndex < kTotalFanfareSamples) {
                 const auto noteIdx = m_voice.fanfareSampleIndex / kNoteDuration;

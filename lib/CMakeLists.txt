@@ -18,6 +18,7 @@ add_library(qix_core STATIC
     HighScoreTable.cpp
     HighScoreTable.h
     IQixGame.h
+    LockFreeRingBuffer.h
     Marker.cpp
     Marker.h
     ParticleSystem.cpp
